@@ -6,13 +6,33 @@ import { queryClient } from '@/shared/api/query-client';
 import { useDashboardCacheStore } from '@/shared/stores/dashboardCacheStore';
 import { SOCIAL_BATTERY_STATS_QUERY_KEY } from '@/modules/auth/hooks/useSocialBatteryStats';
 
+async function resolveProfile(userId?: string): Promise<UserProfile | null> {
+    const profileCollection = database.get<UserProfile>('user_profile');
+
+    if (userId) {
+        // Support both local profile IDs and auth user IDs.
+        try {
+            return await profileCollection.find(userId);
+        } catch {
+            const profilesByUserId = await profileCollection.query(
+                Q.where('user_id', userId)
+            ).fetch();
+            if (profilesByUserId.length > 0) {
+                return profilesByUserId[0];
+            }
+        }
+    }
+
+    const profiles = await profileCollection.query().fetch();
+    return profiles[0] ?? null;
+}
+
 export const SocialBatteryService = {
     /**
      * Submit a social battery check-in
      */
-    async submitCheckin(userId: string, value: number, note?: string, customTimestamp?: number, overwriteDay?: boolean): Promise<void> {
-        const profileCollection = database.get<UserProfile>('user_profile');
-        const profile = await profileCollection.find(userId);
+    async submitCheckin(userId: string | undefined, value: number, note?: string, customTimestamp?: number, overwriteDay?: boolean): Promise<void> {
+        const profile = await resolveProfile(userId);
 
         if (!profile) return;
 
@@ -104,8 +124,7 @@ export const SocialBatteryService = {
      * Update battery check-in preferences
      */
     async updatePreferences(userId: string, enabled: boolean, time?: string): Promise<void> {
-        const profileCollection = database.get<UserProfile>('user_profile');
-        const profile = await profileCollection.find(userId);
+        const profile = await resolveProfile(userId);
 
         if (!profile) return;
 

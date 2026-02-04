@@ -39,19 +39,14 @@ export function UsernameSearchSheet({
     const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
 
     const handleManualSave = async (friendData: FriendFormData) => {
-        try {
-            const friend = await createFriend(friendData, 'manual');
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const friend = await createFriend(friendData, 'manual');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-            // Close the sheet after saving
-            onClose();
+        // Close the sheet after saving
+        onClose();
 
-            if (friend) {
-                onFriendCreated(friend.id);
-            }
-        } catch (error) {
-            console.error('Error creating friend manually:', error);
-            // FriendForm handles basic validation, alerts might be needed for errors
+        if (friend) {
+            onFriendCreated(friend.id);
         }
     };
 

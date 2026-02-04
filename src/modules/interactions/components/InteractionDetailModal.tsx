@@ -27,6 +27,7 @@ import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { shareInteractionAsICS } from '../services/calendar-export.service';
 import { ShareStatusBadge, getShareStatus } from '@/modules/sync';
 import { generateInviteCode } from '../services/invite.service';
@@ -193,9 +194,9 @@ export function InteractionDetailModal({
     const fetchParticipants = async () => {
       try {
         const joinRecords = await database
-          .get('interaction_friends')
+          .get<InteractionFriend>('interaction_friends')
           .query(Q.where('interaction_id', interactionId))
-          .fetch() as Array<{ friendId: string }>;
+          .fetch();
 
         if (joinRecords.length === 0) {
           if (!cancelled) setParticipants([]);

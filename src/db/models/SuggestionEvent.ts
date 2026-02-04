@@ -1,5 +1,6 @@
 import { Model } from '@nozbe/watermelondb';
 import { field, date, readonly } from '@nozbe/watermelondb/decorators';
+import type { SuggestionDismissalReason } from '@/shared/types/common';
 
 /**
  * SuggestionEvent tracks user interactions with suggestions for learning and optimization.
@@ -28,6 +29,8 @@ export default class SuggestionEvent extends Model {
   // Outcome tracking
   @field('resulting_interaction_id') resultingInteractionId?: string;
   @field('time_to_action_minutes') timeToActionMinutes?: number; // How long from "shown" to "acted"
+  @field('dismissal_reason') dismissalReason?: SuggestionDismissalReason;
+  @date('snoozed_until') snoozedUntil?: Date;
 
   @readonly @date('created_at') createdAt!: Date;
 }

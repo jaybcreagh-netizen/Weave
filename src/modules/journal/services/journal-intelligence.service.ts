@@ -9,8 +9,11 @@ import { database } from '@/db'
 import JournalEntry from '@/db/models/JournalEntry'
 import JournalSignals from '@/db/models/JournalSignals'
 import FriendModel from '@/db/models/Friend'
+import UserProfile from '@/db/models/UserProfile'
+import { Q } from '@nozbe/watermelondb'
 import { extractSignals, SignalExtractionResult } from './signal-extractor'
 import { extractThreads } from './thread-extractor'
+import { insightOrchestratorService } from '@/modules/intelligence/services/InsightOrchestratorService'
 import Logger from '@/shared/utils/Logger'
 
 class JournalIntelligenceService {
@@ -19,12 +22,14 @@ class JournalIntelligenceService {
      * Process a new journal entry to extract signals
      * This should be called asynchronously (fire-and-forget) after saving an entry
      */
-    async processEntry(entry: JournalEntry, aiEnabled: boolean = true): Promise<void> {
+    async processEntry(entry: JournalEntry, aiEnabled?: boolean): Promise<void> {
         Logger.info('JournalIntelligence', `Processing entry ${entry.id} for signals`)
 
         try {
+            const resolvedAiEnabled = await this.resolveAiEnabled(aiEnabled)
+
             // 1. Extract signals
-            const signals = await extractSignals(entry.content, aiEnabled)
+            const signals = await extractSignals(entry.content, resolvedAiEnabled)
 
             // 2. Save signals to database
             await this.saveSignals(entry, signals)
@@ -41,10 +46,12 @@ class JournalIntelligenceService {
             if (friends.length > 0) {
                 await this.updateFriendsIntelligence(friends, signals)
 
+                await insightOrchestratorService.processJournalEntry(friends.map(friend => friend.id))
+
                 // 4. Extract conversation threads per friend (for follow-up prompts)
                 for (const friend of friends) {
                     try {
-                        await extractThreads(entry.content, friend.id, friend.name, entry.id, aiEnabled)
+                        await extractThreads(entry.content, friend.id, friend.name, entry.id, resolvedAiEnabled)
                     } catch (threadError) {
                         Logger.warn('JournalIntelligence', 'Thread extraction failed for friend', {
                             friendId: friend.id,
@@ -59,6 +66,27 @@ class JournalIntelligenceService {
 
         } catch (error) {
             Logger.error('JournalIntelligence', 'Failed to process entry', error)
+        }
+    }
+
+    /**
+     * Resolve journal AI analysis preference.
+     * Falls back to profile settings when callers don't provide an explicit value.
+     */
+    private async resolveAiEnabled(aiEnabled?: boolean): Promise<boolean> {
+        if (typeof aiEnabled === 'boolean') {
+            return aiEnabled
+        }
+
+        try {
+            const profiles = await database
+                .get<UserProfile>('user_profile')
+                .query(Q.take(1))
+                .fetch()
+
+            return profiles[0]?.isJournalAnalysisEnabled ?? false
+        } catch {
+            return false
         }
     }
 
@@ -86,6 +114,25 @@ class JournalIntelligenceService {
      */
     private async saveSignals(entry: JournalEntry, result: SignalExtractionResult): Promise<JournalSignals> {
         return await database.write(async () => {
+            const existing = await database
+                .get<JournalSignals>('journal_signals')
+                .query(Q.where('journal_entry_id', entry.id), Q.take(1))
+                .fetch()
+
+            if (existing.length > 0) {
+                await existing[0].update(record => {
+                    record.sentiment = result.sentiment
+                    record.sentimentLabel = result.sentimentLabel
+                    record.coreThemesJson = JSON.stringify(result.coreThemes)
+                    record.emergentThemesJson = JSON.stringify(result.emergentThemes)
+                    record.dynamicsJson = JSON.stringify(result.dynamics)
+                    record.confidence = result.confidence
+                    record.extractedAt = result.extractedAt
+                    record.extractorVersion = result.extractorVersion
+                })
+                return existing[0]
+            }
+
             return await database.get<JournalSignals>('journal_signals').create(record => {
                 record.journalEntryId = entry.id
                 record.sentiment = result.sentiment

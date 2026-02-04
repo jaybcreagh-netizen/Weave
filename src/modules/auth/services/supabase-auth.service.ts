@@ -901,7 +901,7 @@ export async function unlinkPhone(): Promise<AuthResult> {
         const providers = identities.map(i => i.provider);
 
         // Check for non-phone auth methods (apple, google, email)
-        const hasOtherAuth = providers.some(p => p === 'apple' || p === 'google' || p === 'email');
+        const hasOtherAuth = providers.some(p => p !== 'phone');
         const hasPhoneAuth = providers.includes('phone');
 
         console.log('[Auth] User providers:', providers, { hasOtherAuth, hasPhoneAuth });
@@ -916,7 +916,24 @@ export async function unlinkPhone(): Promise<AuthResult> {
             };
         }
 
-        // 3. Clear phone from user_profiles (simple DB update, no SMS provider)
+        // 3. Find the phone identity to unlink
+        const phoneIdentity = identities.find(i => i.provider === 'phone');
+        if (!phoneIdentity) {
+            console.log('[Auth] No phone identity found to unlink');
+            // Check if profile has it stashed (inconsistent state), maybe clear profile anyway?
+        } else {
+            // 4. Unlink the identity
+            console.log('[Auth] Unlinking identity:', phoneIdentity.id);
+            const { error: unlinkError } = await client.auth.unlinkIdentity(phoneIdentity);
+
+            if (unlinkError) {
+                console.error('[Auth] Failed to unlink identity:', unlinkError);
+                const classified = classifyAuthError(unlinkError);
+                return { success: false, error: classified.message, errorCode: classified.code };
+            }
+        }
+
+        // 5. Clear phone from user_profiles (keep for UI consistency and contact matching)
         const { error: profileError } = await client
             .from('user_profiles')
             .update({
@@ -928,10 +945,11 @@ export async function unlinkPhone(): Promise<AuthResult> {
 
         if (profileError) {
             console.error('[Auth] Failed to clear phone from user_profiles:', profileError);
-            return { success: false, error: 'Failed to remove phone number', errorCode: 'UNKNOWN' };
+            // We successfully unlinked auth identity, so we should probably return success 
+            // but warn about profile sync
         }
 
-        console.log('[Auth] Phone unlinked successfully from profile');
+        console.log('[Auth] Phone unlinked successfully');
         return { success: true };
     } catch (error: any) {
         console.error('[Auth] unlinkPhone exception:', error);

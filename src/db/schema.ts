@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 68, // v68: Add relationship_insights (Phase 3C)
+  version: 69, // v69: Add suggestion dismissal feedback columns
   tables: [
     // ===== RELATIONSHIP INSIGHTS (Phase 3C) =====
     tableSchema({
@@ -384,6 +384,8 @@ export default appSchema({
         { name: 'days_since_last_interaction', type: 'number', isOptional: true },
         { name: 'resulting_interaction_id', type: 'string', isOptional: true }, // If acted upon
         { name: 'time_to_action_minutes', type: 'number', isOptional: true }, // Time from shown to acted
+        { name: 'dismissal_reason', type: 'string', isOptional: true }, // wrong-friend | not-relevant | already-done | bad-timing
+        { name: 'snoozed_until', type: 'number', isOptional: true },
         { name: 'created_at', type: 'number' },
       ]
     }),

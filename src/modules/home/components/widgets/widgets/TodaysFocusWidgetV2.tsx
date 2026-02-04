@@ -21,6 +21,7 @@ import { FocusDetailSheet } from '@/modules/home/components/FocusDetailSheet';
 import { FocusPlanItem } from './components/FocusPlanItem';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
+import type { SuggestionDismissalReason } from '@/shared/types/common';
 import { SeasonAnalyticsService } from '@/modules/intelligence';
 import { parseFlexibleDate } from '@/shared/utils/date-utils';
 import { useReachOut, ContactLinker } from '@/modules/messaging';
@@ -251,11 +252,11 @@ const PendingItemInline: React.FC<PendingItemInlineProps> = ({
 };
 
 const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
-    const { friends } = useFriendsObservable();
+    const { friends, isLoading: isFriendsLoading } = useFriendsObservable();
     const { tokens, typography, spacing } = useTheme();
     const router = useRouter();
-    const { suggestions, dismissSuggestion } = useSuggestions();
-    const { allInteractions: interactions } = useInteractions();
+    const { suggestions, dismissSuggestion, isLoading: isSuggestionsLoading } = useSuggestions();
+    const { allInteractions: interactions, isLoading: isInteractionsLoading } = useInteractions();
     const { completePlan } = usePlans();
     const { openPostWeaveRating, openWeeklyReflection } = useUIStore();
     const { reachOut } = useReachOut();
@@ -263,7 +264,8 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
 
     // Pending Actions State
     const [linkRequests, setLinkRequests] = useState<LinkRequest[]>([]);
-    const { pendingWeaves } = usePendingWeaves();
+    const [isLoadingLinkRequests, setIsLoadingLinkRequests] = useState(true);
+    const { pendingWeaves, isLoading: isPendingWeavesLoading } = usePendingWeaves();
     // Filter strictly for pending status to match widget logic
     const pendingWeaveInvites = useMemo(() => pendingWeaves.filter(w => w.status === 'pending'), [pendingWeaves]);
 
@@ -310,6 +312,8 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 setLinkRequests(pending);
             } catch (e) {
                 console.error('Error loading pending requests:', e);
+            } finally {
+                setIsLoadingLinkRequests(false);
             }
         };
         loadRequests();
@@ -605,9 +609,12 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
     };
 
-    const handleSuggestionDismiss = async (suggestion: Suggestion) => {
+    const handleSuggestionDismiss = async (
+        suggestion: Suggestion,
+        reason?: SuggestionDismissalReason
+    ) => {
         const cooldownDays = getSuggestionCooldownDays(suggestion.id);
-        await dismissSuggestion(suggestion.id, cooldownDays);
+        await dismissSuggestion(suggestion.id, cooldownDays, reason);
         setSelectedSuggestion(null);
     };
 
@@ -686,6 +693,12 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
 
     const hasNoCalendarEvents = !hasUpcoming && !hasCompleted && !hasTomorrow && !hasPendingActions;
     const isAllClear = hasNoCalendarEvents && !hasSuggestions && !hasUpcomingDates && !hasIntentions;
+    const isWidgetLoading =
+        isFriendsLoading ||
+        isInteractionsLoading ||
+        isSuggestionsLoading ||
+        isPendingWeavesLoading ||
+        isLoadingLinkRequests;
 
     // Load daily reflection when there are no calendar events
     useEffect(() => {
@@ -725,7 +738,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
 
     return (
         <>
-            <HomeWidgetBase config={WIDGET_CONFIG} padding="none">
+            <HomeWidgetBase config={WIDGET_CONFIG} padding="none" isLoading={isWidgetLoading}>
                 <View style={{ padding: 16, paddingBottom: 0 }}>
                     <WidgetHeader
                         title="Today's Focus"

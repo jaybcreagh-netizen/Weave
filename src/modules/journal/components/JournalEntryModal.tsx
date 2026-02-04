@@ -33,6 +33,7 @@ import { YourPatternsSection } from '@/modules/insights';
 import { useRouter } from 'expo-router';
 import { actionExtractionService } from '@/modules/oracle';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
+import { journalIntelligenceService } from '@/modules/journal/services/journal-intelligence.service';
 
 interface JournalEntryModalProps {
   isOpen: boolean;
@@ -216,6 +217,11 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
       // Queue this entry for background action detection
       if (targetId) {
         actionExtractionService.queueEntry(targetId);
+
+        const savedEntry = await database.get<JournalEntry>('journal_entries').find(targetId);
+        journalIntelligenceService.processEntry(savedEntry).catch(error => {
+          logger.error('JournalEntry', 'Failed to process journal intelligence:', error);
+        });
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

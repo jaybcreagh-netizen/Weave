@@ -42,7 +42,7 @@ export default function JournalScreen() {
         openEntryId?: string;
         openEntryType?: string;
         prefilledText?: string;
-        prefilledFriendIds?: string;
+        prefilledFriendIds?: string | string[];
         initialTab?: string;
         context?: string;
     }>();
@@ -85,14 +85,21 @@ export default function JournalScreen() {
                     setPrefilledText(params.prefilledText);
                 }
                 if (params.prefilledFriendIds) {
-                    setPrefilledFriendIds(params.prefilledFriendIds.split(',').filter(Boolean));
+                    const friendIdList = (Array.isArray(params.prefilledFriendIds)
+                        ? params.prefilledFriendIds
+                        : [params.prefilledFriendIds]
+                    )
+                        .flatMap(value => value.split(','))
+                        .map(value => value.trim())
+                        .filter(Boolean);
+                    setPrefilledFriendIds(friendIdList);
                 }
                 setShowGuided(true);
             }
         };
 
         handleDeepLink();
-    }, [params.openEntryId, params.mode]);
+    }, [params.openEntryId, params.openEntryType, params.mode, params.prefilledText, params.prefilledFriendIds]);
 
     const handleArcEntryPress = async (id: string, type: 'journal' | 'reflection') => {
         try {

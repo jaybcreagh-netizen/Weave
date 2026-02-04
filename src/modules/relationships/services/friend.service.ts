@@ -4,21 +4,74 @@ import Friend from '@/db/models/Friend';
 import UserProgress from '@/db/models/UserProgress';
 import { Q } from '@nozbe/watermelondb';
 import { type FriendFormData } from '../types';
-import { tierMap } from '@/shared/constants/constants';
+import { getTierCapacity, getTierDisplayName, tierMap } from '@/shared/constants/constants';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 import { deleteImage, getRelativePath } from './image.service';
 import { writeScheduler } from '@/shared/services/write-scheduler';
 
+type DunbarTier = 'InnerCircle' | 'CloseFriends' | 'Community';
+
+export interface BatchAddContactInput {
+  name: string;
+  photoUrl?: string;
+  phoneNumber?: string;
+  email?: string;
+}
+
+export interface RejectedBatchFriend {
+  name: string;
+  requestedTier: DunbarTier;
+  reason: string;
+}
+
+export interface BatchAddFriendsResult {
+  added: Friend[];
+  rejected: RejectedBatchFriend[];
+}
+
+function normalizeTier(tier: string): DunbarTier {
+  return (tierMap[tier] || 'Community') as DunbarTier;
+}
+
+async function getCurrentTierCount(tier: DunbarTier, excludeFriendId?: string): Promise<number> {
+  const clauses: any[] = [
+    Q.where('dunbar_tier', tier),
+    Q.where('is_dormant', false),
+  ];
+
+  if (excludeFriendId) {
+    clauses.push(Q.where('id', Q.notEq(excludeFriendId)));
+  }
+
+  return database.get<Friend>('friends').query(...clauses).fetchCount();
+}
+
+export async function checkTierCapacity(tier: string, excludeFriendId?: string): Promise<boolean> {
+  const normalizedTier = normalizeTier(tier);
+  const currentCount = await getCurrentTierCount(normalizedTier, excludeFriendId);
+  return currentCount < getTierCapacity(normalizedTier);
+}
+
+async function isTierAtCapacity(tier: string, excludeFriendId?: string): Promise<boolean> {
+  const hasCapacity = await checkTierCapacity(tier, excludeFriendId);
+  return !hasCapacity;
+}
+
 export async function createFriend(data: FriendFormData, source: 'manual' | 'onboarding' | 'import' = 'manual'): Promise<Friend> {
   let newFriend: Friend | undefined;
+  const targetTier = normalizeTier(data.tier);
   try {
+    if (await isTierAtCapacity(targetTier)) {
+      throw new Error(`${getTierDisplayName(targetTier)} is at capacity (${getTierCapacity(targetTier)})`);
+    }
+
     // IMPORTANT PRIORITY: User-initiated action
     await writeScheduler.important('createFriend', async () => {
       const batchOps: any[] = [];
 
       newFriend = database.get<Friend>('friends').prepareCreate(friend => {
         friend.name = data.name;
-        friend.dunbarTier = tierMap[data.tier] || 'Community';
+        friend.dunbarTier = targetTier;
         friend.archetype = data.archetype;
         friend.photoUrl = getRelativePath(data.photoUrl || '');
         friend.notes = data.notes;
@@ -76,11 +129,18 @@ export async function createFriend(data: FriendFormData, source: 'manual' | 'onb
 export async function updateFriend(id: string, data: FriendFormData): Promise<Friend> {
   let updatedFriend: Friend | undefined;
   const friend = await database.get<Friend>('friends').find(id);
+  const oldTier = normalizeTier(friend.dunbarTier);
+  const newTier = normalizeTier(data.tier);
+
+  if (newTier !== oldTier && await isTierAtCapacity(newTier, id)) {
+    throw new Error(`Cannot move to ${getTierDisplayName(newTier)} - at capacity`);
+  }
+
   // IMPORTANT PRIORITY: User-initiated action
   await writeScheduler.important('updateFriend', async () => {
     updatedFriend = await friend.update(record => {
       record.name = data.name;
-      record.dunbarTier = tierMap[data.tier] || 'Community';
+      record.dunbarTier = newTier;
       record.archetype = data.archetype;
       record.photoUrl = getRelativePath(data.photoUrl || '');
       record.notes = data.notes;
@@ -127,13 +187,35 @@ export async function deleteFriend(id: string): Promise<void> {
   trackEvent(AnalyticsEvents.FRIEND_DELETED);
 }
 
-export async function batchAddFriends(contacts: Array<{ name: string; photoUrl?: string; phoneNumber?: string; email?: string }>, tier: any): Promise<Friend[]> {
+export async function batchAddFriends(
+  contacts: BatchAddContactInput[],
+  tier: string
+): Promise<BatchAddFriendsResult> {
   const newFriends: Friend[] = [];
+  const rejected: RejectedBatchFriend[] = [];
   const BATCH_SIZE = 500;
+  const requestedTier = normalizeTier(tier);
+
+  const currentCount = await getCurrentTierCount(requestedTier);
+  const capacity = getTierCapacity(requestedTier);
+  const availableSlots = Math.max(0, capacity - currentCount);
+
+  const acceptedContacts = contacts.slice(0, availableSlots);
+  for (const contact of contacts.slice(availableSlots)) {
+    rejected.push({
+      name: contact.name,
+      requestedTier,
+      reason: `${getTierDisplayName(requestedTier)} is at capacity (${capacity})`,
+    });
+  }
+
+  if (acceptedContacts.length === 0) {
+    return { added: [], rejected };
+  }
 
   try {
-    for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
-      const chunk = contacts.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < acceptedContacts.length; i += BATCH_SIZE) {
+      const chunk = acceptedContacts.slice(i, i + BATCH_SIZE);
 
       // IMPORTANT PRIORITY: User-initiated bulk action
       await writeScheduler.important('batchAddFriends', async () => {
@@ -142,7 +224,7 @@ export async function batchAddFriends(contacts: Array<{ name: string; photoUrl?:
         for (const contact of chunk) {
           const newFriend = database.get<Friend>('friends').prepareCreate(friend => {
             friend.name = contact.name;
-            friend.dunbarTier = tier;
+            friend.dunbarTier = requestedTier;
             friend.archetype = 'Unknown';
             friend.photoUrl = getRelativePath(contact.photoUrl || '');
             friend.notes = '';
@@ -183,13 +265,14 @@ export async function batchAddFriends(contacts: Array<{ name: string; photoUrl?:
     }
 
     trackEvent(AnalyticsEvents.FRIEND_BATCH_ADDED, {
-      count: contacts.length,
-      tier: tier,
+      count: acceptedContacts.length,
+      tier: requestedTier,
       source: 'batch_import',
     });
   } catch (error) {
     console.error('[batchAddFriends] ERROR: Failed to create friends.', error);
     throw error;
   }
-  return newFriends;
+
+  return { added: newFriends, rejected };
 }

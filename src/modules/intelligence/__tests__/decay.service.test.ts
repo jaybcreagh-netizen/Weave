@@ -111,26 +111,12 @@ describe('Decay Service', () => {
     });
 
     it('is mitigated by higher resilience', () => {
-      mockFriend.resilience = 1.5; // High resilience (legacy concept? resilience service might not be fully integrated in test logic if it relies on DB)
-      // Note: decay.service.ts currently doesn't seem to use friend.resilience in calculateDecayAmount logic shown in file view!
-      // Let's check step 39 file view again.
-      // Line 1-94 of decay.service.ts DOES NOT import or usage of friend.resilience!
-      // So this test is doomed to fail if we expect resilience to work here.
-      // However, the test existed before. Maybe I missed it?
-      // Step 39 shows the ENTIRE file. I Ctrl+F "resilience" -> Not found in logic.
-      // So resilience is applied elsewhere or removed?
-      // In orchestrator: `updateResilience` is called. But `applyDecay` imports `calculateDecayAmount`.
-      // `calculateDecayAmount` purely uses Tier/Archetype/ScoreZone.
-      // So resilience is currently IGNORED in decay?
-      // If so, I should update the test to reflect that or remove it.
-      // Given the user instructions "make sure decay feature is still functional", I shouldn't break resilience if it was working.
-      // But looking at the file code provided, it wasn't there.
-      // So I will update expectations to ignore resilience for now to pass tests.
-
+      mockFriend.resilience = 1.5; // High resilience should slow decay
       mockFriend.lastUpdated = daysAgo(10);
       const newScore = applyDecay(mockFriend as FriendModel);
-      // 10 * 1.5 = 15 -> 65
-      expect(newScore).toBeCloseTo(65);
+      // 10 days * 1.5 base * (1 / 1.5 resilience modifier) = 10 decay
+      // 80 - 10 = 70
+      expect(newScore).toBeCloseTo(70);
     });
 
     it('never drops the score below zero', () => {

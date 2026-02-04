@@ -1,6 +1,7 @@
 import { database } from '@/db';
 import SuggestionEvent from '@/db/models/SuggestionEvent';
 import { Suggestion } from '@/shared/types/common';
+import type { SuggestionDismissalReason } from '@/shared/types/common';
 import { Q } from '@nozbe/watermelondb';
 
 /**
@@ -74,18 +75,27 @@ export async function trackSuggestionActed(
 /**
  * Records when a user dismisses a suggestion
  */
-export async function trackSuggestionDismissed(suggestionId: string): Promise<void> {
+export async function trackSuggestionDismissed(
+  suggestionId: string,
+  reason?: SuggestionDismissalReason,
+  cooldownDays?: number
+): Promise<void> {
   await database.write(async () => {
     // Find the original "shown" event for context
     const shownEvents = await database
       .get<SuggestionEvent>('suggestion_events')
       .query(
         Q.where('suggestion_id', suggestionId),
-        Q.where('event_type', 'shown')
+        Q.where('event_type', 'shown'),
+        Q.sortBy('event_timestamp', Q.desc),
+        Q.take(1)
       )
       .fetch();
 
     const shownEvent = shownEvents[0];
+    const snoozedUntilTimestamp = typeof cooldownDays === 'number' && cooldownDays > 0
+      ? Date.now() + (cooldownDays * 86400000)
+      : undefined;
 
     await database.get<SuggestionEvent>('suggestion_events').create(event => {
       event.suggestionId = suggestionId;
@@ -95,6 +105,10 @@ export async function trackSuggestionDismissed(suggestionId: string): Promise<vo
       event.actionType = shownEvent?.actionType || '';
       event.eventType = 'dismissed';
       event.eventTimestamp = new Date();
+      event.dismissalReason = reason;
+      if (snoozedUntilTimestamp) {
+        event.snoozedUntil = new Date(snoozedUntilTimestamp);
+      }
     });
   });
 }

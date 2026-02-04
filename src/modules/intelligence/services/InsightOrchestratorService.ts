@@ -64,9 +64,28 @@ class InsightOrchestratorService {
     }
 
     /**
+     * Process intelligence updates after journal activity tied to one or more friends.
+     * This keeps insights responsive when users reflect without logging a new weave.
+     */
+    async processJournalEntry(friendIds: string[]): Promise<void> {
+        try {
+            const uniqueFriendIds = Array.from(new Set(friendIds)).filter(Boolean);
+            if (uniqueFriendIds.length === 0) return;
+
+            for (const friendId of uniqueFriendIds) {
+                await this.updateFriendIntelligence(friendId);
+            }
+
+            await this.maybeGenerateInsight(uniqueFriendIds);
+        } catch (error) {
+            console.error('[InsightOrchestrator] Error processing journal entry:', error);
+        }
+    }
+
+    /**
      * Update all intelligence metrics for a friend
      */
-    private async updateFriendIntelligence(friendId: string, interaction: Interaction): Promise<void> {
+    private async updateFriendIntelligence(friendId: string, interaction?: Interaction): Promise<void> {
         try {
             // Update RQS
             await relationshipQualityService.calculateRQS(friendId);
@@ -74,8 +93,10 @@ class InsightOrchestratorService {
             // Update Reciprocity
             await reciprocityService.calculateReciprocity(friendId);
 
-            // Record narrative moments
-            await this.checkNarrativeMoments(friendId, interaction);
+            // Record narrative moments for logged interactions only
+            if (interaction) {
+                await this.checkNarrativeMoments(friendId, interaction);
+            }
         } catch (error) {
             console.error(`[InsightOrchestrator] Error updating intelligence for ${friendId}:`, error);
         }

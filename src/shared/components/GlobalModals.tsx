@@ -130,12 +130,10 @@ export function GlobalModals() {
 
     // Battery submit handler
     const handleBatterySubmit = useCallback(async (value: number, note?: string) => {
-        if (user) {
-            await SocialBatteryService.submitCheckin(user.id, value, note);
-            // Refresh content to show battery completed
-            const newContent = await EveningDigestChannel.generateEveningCheckinContent();
-            setEveningCheckinContent(newContent);
-        }
+        await SocialBatteryService.submitCheckin(user?.id, value, note);
+        // Refresh content to show battery completed
+        const newContent = await EveningDigestChannel.generateEveningCheckinContent();
+        setEveningCheckinContent(newContent);
     }, [user]);
 
     const handleCloseEveningCheckin = useCallback(() => {
@@ -224,7 +222,9 @@ export function GlobalModals() {
                             pathname: '/journal',
                             params: {
                                 prefilledText: `Thinking about this memory: "${data.memory.title}"...\n\n`,
-                                prefilledFriendIds: data.friendId ? [data.friendId] : undefined
+                                prefilledFriendIds: data.friendId
+                                    ? data.friendId
+                                    : undefined
                             }
                         });
                     } else {

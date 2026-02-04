@@ -15,10 +15,13 @@ mockUserProgress.prepareUpdate = jest.fn((fn: any) => {
 
 const mockFriend = {
   id: '1',
+  dunbarTier: 'CloseFriends',
   update: jest.fn(),
   destroyPermanently: jest.fn(),
   photoUrl: 'test.jpg',
 };
+
+let mockTierCount = 0;
 
 const mockFriendsCollection = {
   create: jest.fn(),
@@ -30,6 +33,7 @@ const mockFriendsCollection = {
   find: jest.fn().mockResolvedValue(mockFriend),
   query: jest.fn().mockReturnValue({
     fetch: jest.fn().mockResolvedValue([]),
+    fetchCount: jest.fn().mockImplementation(async () => mockTierCount),
   }),
 };
 
@@ -87,6 +91,7 @@ jest.mock('@/modules/relationships/services/image.service', () => ({
 describe('friend.service', () => {
   afterEach(() => {
     jest.clearAllMocks();
+    mockTierCount = 0;
   });
 
   it('should create a new friend and update user progress', async () => {
@@ -154,8 +159,34 @@ describe('friend.service', () => {
 
   it('should batch add friends', async () => {
     const contacts = [{ name: 'John Doe' }, { name: 'Jane Doe' }];
-    await batchAddFriends(contacts, 'CloseFriends');
+    const result = await batchAddFriends(contacts, 'CloseFriends');
     expect(database.get).toHaveBeenCalledWith('friends');
     expect(mockFriendsCollection.prepareCreate).toHaveBeenCalledTimes(2);
+    expect(result.rejected).toEqual([]);
+  });
+
+  it('should reject create when tier is at capacity', async () => {
+    mockTierCount = 5; // InnerCircle capacity
+    const friendData: FriendFormData = {
+      name: 'Capacity Test',
+      tier: 'inner',
+      archetype: 'Emperor',
+      notes: '',
+      photoUrl: '',
+    };
+
+    await expect(createFriend(friendData)).rejects.toThrow('Inner Circle is at capacity (5)');
+  });
+
+  it('should return partial success for batch add over capacity', async () => {
+    mockTierCount = 14; // CloseFriends capacity is 15 -> only one slot left
+    const contacts = [{ name: 'John Doe' }, { name: 'Jane Doe' }];
+
+    const result = await batchAddFriends(contacts, 'CloseFriends');
+
+    expect(mockFriendsCollection.prepareCreate).toHaveBeenCalledTimes(1);
+    expect(result.added).toHaveLength(1);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0].name).toBe('Jane Doe');
   });
 });

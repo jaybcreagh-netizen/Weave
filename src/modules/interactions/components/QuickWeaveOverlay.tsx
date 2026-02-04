@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -333,6 +333,7 @@ function MenuItem({
   dragX: SharedValue<number>;
   dragY: SharedValue<number>;
   isDarkMode: boolean;
+  primaryColor: string;
   onPress?: () => void;
 }) {
   const { x: finalX, y: finalY } = position;

@@ -32,6 +32,7 @@ export function useInteractions() {
     getInteractionById,
     // Actions delegated to services
     logWeave: WeaveLoggingService.logWeave,
+    planWeave: WeaveLoggingService.planWeave,
     deleteWeave: WeaveLoggingService.deleteWeave,
     updateInteraction: InteractionActions.updateInteraction,
     updateReflection: InteractionActions.updateReflection,
@@ -39,4 +40,3 @@ export function useInteractions() {
     updateInteractionVibeAndNotes: InteractionActions.updateInteractionVibeAndNotes
   };
 }
-

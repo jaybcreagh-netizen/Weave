@@ -24,7 +24,7 @@ import { validateMMDDFormat } from '@/shared/utils/validation-helpers';
 import { processAndStoreImage, getRelativePath, resolveImageUri, rotateImage } from '../services/image.service';
 
 interface FriendFormProps {
-  onSave: (friendData: FriendFormData) => void;
+  onSave: (friendData: FriendFormData) => void | Promise<void>;
   friend?: FriendModel;
   initialTier?: 'inner' | 'close' | 'community';
   fromOnboarding?: boolean;
@@ -176,7 +176,25 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
       photoUrl: getRelativePath(formData.photoUrl)
     };
 
-    onSave(dataToSave);
+    try {
+      await onSave(dataToSave);
+    } catch (error) {
+      const fallbackMessage = 'Could not save this friend. Please try again.';
+      const errorMessage = error instanceof Error ? error.message : fallbackMessage;
+
+      if (errorMessage.toLowerCase().includes('capacity')) {
+        const tierName = getTierDisplayName(formData.tier);
+        const currentCount = tierCounts[formData.tier as 'inner' | 'close' | 'community'];
+        const capacity = getTierCapacity(formData.tier);
+        const demotionsNeeded = Math.max(1, currentCount - capacity + 1);
+        const suggestionText = `Try moving ${demotionsNeeded} friend${demotionsNeeded === 1 ? '' : 's'} out of ${tierName} and then retry.`;
+
+        Alert.alert('Tier Capacity Reached', `${errorMessage}\n\n${suggestionText}`);
+      } else {
+        Alert.alert('Save Failed', errorMessage);
+      }
+      return;
+    }
 
     // Mark first friend added if this is from onboarding
     if (showTutorial && !friend) {
@@ -730,23 +748,23 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
                   : 'Community is for meaningful acquaintances and broader connections. You can add more friends here, but remember that quality matters more than quantity.'}
             </Text>
 
+            <Text style={[styles.warningDescription, { color: colors['muted-foreground'] }]}>
+              {(() => {
+                const currentCount = tierCounts[formData.tier as 'inner' | 'close' | 'community'];
+                const capacity = getTierCapacity(formData.tier);
+                const needed = Math.max(1, currentCount - capacity + 1);
+                return `To make room here, move at least ${needed} friend${needed === 1 ? '' : 's'} to a different tier first.`;
+              })()}
+            </Text>
+
             {/* Action Buttons */}
             <View style={styles.warningButtonContainer}>
               <TouchableOpacity
                 onPress={() => setShowCapacityWarning(false)}
-                style={[styles.warningButtonSecondary, { borderColor: colors.border, backgroundColor: colors.muted }]}
-              >
-                <Text style={[styles.warningButtonSecondaryText, { color: colors.foreground }]}>
-                  Let me reconsider
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={proceedWithSave}
                 style={[styles.warningButtonPrimary, { backgroundColor: colors.primary }]}
               >
                 <Text style={[styles.warningButtonPrimaryText, { color: colors['primary-foreground'] }]}>
-                  Proceed anyway
+                  Got it
                 </Text>
               </TouchableOpacity>
             </View>

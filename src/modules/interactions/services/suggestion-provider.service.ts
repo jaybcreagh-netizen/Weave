@@ -3,6 +3,7 @@ import { Q } from '@nozbe/watermelondb';
 import Logger from '@/shared/utils/Logger';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
+import SuggestionEvent from '@/db/models/SuggestionEvent';
 import { generateSuggestion } from './suggestion-engine';
 import { generateGuaranteedSuggestions } from './guaranteed-suggestions.service';
 import * as SuggestionStorageService from './suggestion-storage.service';
@@ -48,6 +49,110 @@ function getProactiveIcon(type: string): string {
     return icons[type] || 'Sparkles';
 }
 
+const ADAPTIVE_WINDOW_DAYS = 30;
+const FRIEND_SUPPRESSION_DISMISSAL_THRESHOLD = 3;
+const TYPE_PENALTY_DISMISSAL_THRESHOLD = 3;
+
+type SuggestionUrgency = NonNullable<Suggestion['urgency']>;
+
+interface DismissalLearningProfile {
+    suppressedFriendIds: Set<string>;
+    typeDismissalCounts: Map<string, number>;
+}
+
+function downgradeUrgency(urgency?: SuggestionUrgency): SuggestionUrgency {
+    if (urgency === 'critical') return 'high';
+    if (urgency === 'high') return 'medium';
+    if (urgency === 'medium') return 'low';
+    return 'low';
+}
+
+function getSuggestionTypeKey(suggestion: Suggestion): string {
+    return suggestion.category || suggestion.type || 'Connection';
+}
+
+function getTypePenaltySteps(count: number): number {
+    if (count >= 6) return 2;
+    if (count >= TYPE_PENALTY_DISMISSAL_THRESHOLD) return 1;
+    return 0;
+}
+
+async function buildDismissalLearningProfile(): Promise<DismissalLearningProfile> {
+    const windowStart = Date.now() - ADAPTIVE_WINDOW_DAYS * 86400000;
+
+    const recentDismissals = await database
+        .get<SuggestionEvent>('suggestion_events')
+        .query(
+            Q.where('event_type', 'dismissed'),
+            Q.where('event_timestamp', Q.gte(windowStart)),
+            Q.sortBy('event_timestamp', Q.desc),
+            Q.take(500)
+        )
+        .fetch();
+
+    const typeDismissalCounts = new Map<string, number>();
+    const friendDismissalCounts = new Map<string, number>();
+
+    for (const event of recentDismissals) {
+        if (event.suggestionType) {
+            typeDismissalCounts.set(
+                event.suggestionType,
+                (typeDismissalCounts.get(event.suggestionType) || 0) + 1
+            );
+        }
+
+        if (event.friendId) {
+            friendDismissalCounts.set(
+                event.friendId,
+                (friendDismissalCounts.get(event.friendId) || 0) + 1
+            );
+        }
+    }
+
+    const suppressedFriendIds = new Set<string>();
+    for (const [friendId, count] of friendDismissalCounts.entries()) {
+        if (count >= FRIEND_SUPPRESSION_DISMISSAL_THRESHOLD) {
+            suppressedFriendIds.add(friendId);
+        }
+    }
+
+    return {
+        suppressedFriendIds,
+        typeDismissalCounts,
+    };
+}
+
+function applyDismissalLearning(
+    suggestions: Suggestion[],
+    profile: DismissalLearningProfile
+): Suggestion[] {
+    return suggestions
+        .filter(suggestion => {
+            if (suggestion.urgency === 'critical') return true;
+            if (!suggestion.friendId) return true;
+            return !profile.suppressedFriendIds.has(suggestion.friendId);
+        })
+        .map(suggestion => {
+            if (suggestion.urgency === 'critical') return suggestion;
+
+            const key = getSuggestionTypeKey(suggestion);
+            const dismissalCount = profile.typeDismissalCounts.get(key) || 0;
+            const penaltySteps = getTypePenaltySteps(dismissalCount);
+
+            if (penaltySteps === 0) return suggestion;
+
+            let adjustedUrgency: SuggestionUrgency = suggestion.urgency || 'medium';
+            for (let i = 0; i < penaltySteps; i++) {
+                adjustedUrgency = downgradeUrgency(adjustedUrgency);
+            }
+
+            return {
+                ...suggestion,
+                urgency: adjustedUrgency,
+            };
+        });
+}
+
 /**
  * Fetches and filters suggestions based on friend data and user's current season
  * Refactored to use Scalable Suggestion System (Candidate -> Load -> Data -> Diversify)
@@ -77,6 +182,7 @@ export async function fetchSuggestions(
 
 
         const dismissedMap = await SuggestionStorageService.getDismissedSuggestions();
+        const dismissalLearningProfile = await buildDismissalLearningProfile();
 
 
 
@@ -323,6 +429,11 @@ export async function fetchSuggestions(
         const guaranteed = generateGuaranteedSuggestions(friends, finalPool, season);
         const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
         finalPool = [...finalPool, ...freshGuaranteed];
+
+        // Adaptive filtering based on recent dismissal patterns:
+        // - Suppress suggestions for friends dismissed repeatedly
+        // - De-prioritize frequently dismissed suggestion types
+        finalPool = applyDismissalLearning(finalPool, dismissalLearningProfile);
 
 
 

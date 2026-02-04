@@ -52,16 +52,25 @@ export function calculateDecayAmount(
   // We use current score to determine the zone
   const zoneModifier = getDecayZoneModifier(friend.weaveScore);
 
-  // 5. Calculate Effective Rate
-  let effectiveDecayRate = baseDecayRate * archetypeModifier * zoneModifier;
+  // 5. Apply Resilience Modifier
+  // Higher resilience slows decay, lower resilience accelerates it.
+  const rawResilience =
+    typeof friend.resilience === 'number' && Number.isFinite(friend.resilience)
+      ? friend.resilience
+      : 1.0;
+  const safeResilience = Math.max(0.8, Math.min(1.5, rawResilience));
+  const resilienceModifier = 1 / safeResilience;
 
-  // 6. Apply Season Multiplier (Global Tuner)
+  // 6. Calculate Effective Rate
+  let effectiveDecayRate = baseDecayRate * archetypeModifier * zoneModifier * resilienceModifier;
+
+  // 7. Apply Season Multiplier (Global Tuner)
   if (season) {
     const seasonMultiplier = getSeasonDecayMultiplier(season, friend.dunbarTier as Tier);
     effectiveDecayRate *= seasonMultiplier;
   }
 
-  // 7. Calculate Amount
+  // 8. Calculate Amount
   const decayAmount = effectiveDecayRate * days;
 
   return Math.max(0, decayAmount);

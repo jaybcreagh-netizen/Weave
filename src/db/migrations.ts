@@ -1531,7 +1531,20 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v68 to v69
+      // Suggestion feedback loop: dismissal reasons + snooze metadata
+      toVersion: 69,
+      steps: [
+        addColumns({
+          table: 'suggestion_events',
+          columns: [
+            { name: 'dismissal_reason', type: 'string', isOptional: true },
+            { name: 'snoozed_until', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
-
 

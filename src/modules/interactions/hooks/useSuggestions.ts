@@ -9,6 +9,7 @@ import { useUserProfile } from '@/modules/auth';
 import { notificationStore } from '@/modules/notifications';
 import { useUIStore } from '@/shared/stores/uiStore';
 import Logger from '@/shared/utils/Logger';
+import type { SuggestionDismissalReason } from '@/shared/types/common';
 
 
 export function useSuggestions() {
@@ -16,21 +17,16 @@ export function useSuggestions() {
   const trackedSuggestions = useRef<Set<string>>(new Set()); // Track which suggestions we've already logged as "shown"
 
   // Get current social season from profile
-  const { profile } = useUserProfile();
+  const { profile, isLoading: isProfileLoading } = useUserProfile();
   const currentSeason = profile?.currentSocialSeason || null;
 
-  // Wait for profile to load to avoid double-fetching (once with null season, once with real season)
-  // Profile is usually loaded very quickly, so this just prevents the initial race condition
-  const isProfileLoaded = !!profile;
-
-  const { data: suggestions = [] } = useQuery({
+  const {
+    data: suggestions = [],
+    isLoading: isSuggestionsLoading,
+  } = useQuery({
     queryKey: ['suggestions', 'all', currentSeason], // Include season in query key for proper cache invalidation
-    enabled: isProfileLoaded, // Only run query when we know the season
+    enabled: !isProfileLoading, // Avoid first-paint empties while profile state hydrates
     queryFn: async () => {
-      // Return empty if profile somehow isn't loaded yet (safeguard)
-      if (!isProfileLoaded) return [];
-
-
       const prefs = await notificationStore.getPreferences();
 
 
@@ -134,12 +130,16 @@ export function useSuggestions() {
     queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
   };
 
-  const dismissSuggestion = async (id: string, cooldownDays: number) => {
+  const dismissSuggestion = async (
+    id: string,
+    cooldownDays: number,
+    reason?: SuggestionDismissalReason
+  ) => {
     // Track the dismissal
-    await SuggestionTrackerService.trackSuggestionDismissed(id);
+    await SuggestionTrackerService.trackSuggestionDismissed(id, reason, cooldownDays);
 
     // Store the dismissal
-    await SuggestionStorageService.dismissSuggestion(id, cooldownDays);
+    await SuggestionStorageService.dismissSuggestion(id, cooldownDays, reason);
 
     invalidateSuggestions();
   };
@@ -151,6 +151,7 @@ export function useSuggestions() {
     suggestionCount: suggestions.length,
     hasCritical,
     dismissSuggestion,
+    isLoading: isProfileLoading || isSuggestionsLoading,
     invalidateSuggestions
   };
 }

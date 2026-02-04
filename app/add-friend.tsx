@@ -10,22 +10,17 @@ function AddFriend() {
   }>();
 
   const handleSave = async (friendData: FriendFormData) => {
-    try {
-      await createFriend(
-        friendData,
-        fromOnboarding === 'true' ? 'onboarding' : 'manual'
-      );
+    await createFriend(
+      friendData,
+      fromOnboarding === 'true' ? 'onboarding' : 'manual'
+    );
 
-      if (fromOnboarding === 'true') {
-        router.replace('/dashboard');
-      } else if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace('/dashboard');
-      }
-    } catch (error) {
-      console.error('Error adding friend:', error);
-      // Optionally show alert
+    if (fromOnboarding === 'true') {
+      router.replace('/dashboard');
+    } else if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/dashboard');
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Pressable, Text as RNText } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -13,6 +13,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { X } from 'lucide-react-native';
 import { Suggestion } from '@/shared/types/common';
+import type { SuggestionDismissalReason } from '@/shared/types/common';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { SPRINGS } from '@/shared/constants/animation';
 import { Text } from '@/shared/ui/Text';
@@ -26,7 +27,7 @@ interface SuggestionCardProps {
   suggestion: Suggestion;
   friend?: FriendModel | null;
   onAct: () => void;
-  onLater: () => void;
+  onLater: (reason?: SuggestionDismissalReason) => void;
   index?: number; // For staggered animation
 }
 
@@ -37,6 +38,7 @@ export function SuggestionCard({ suggestion, friend, onAct, onLater, index = 0 }
   const { colors, tokens } = useTheme();
   const translateX = useSharedValue(0);
   const isDismissing = useSharedValue(false);
+  const [showDismissReasons, setShowDismissReasons] = useState(false);
 
   // Urgency colors mapping
   const urgencyColors = {
@@ -61,9 +63,10 @@ export function SuggestionCard({ suggestion, friend, onAct, onLater, index = 0 }
   };
 
   // Handle dismiss with haptic
-  const handleDismiss = useCallback(() => {
+  const handleDismiss = useCallback((reason?: SuggestionDismissalReason) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onLater();
+    setShowDismissReasons(false);
+    onLater(reason);
   }, [onLater]);
 
   // Pan gesture for swipe-to-dismiss
@@ -191,7 +194,7 @@ export function SuggestionCard({ suggestion, friend, onAct, onLater, index = 0 }
 
                   {suggestion.dismissible && (
                     <Pressable
-                      onPress={onLater}
+                      onPress={() => setShowDismissReasons(prev => !prev)}
                       hitSlop={8}
                       className="opacity-50 active:opacity-100 p-1"
                     >
@@ -220,6 +223,45 @@ export function SuggestionCard({ suggestion, friend, onAct, onLater, index = 0 }
                   style={{ backgroundColor: urgencyColor }}
                   label={suggestion.actionLabel}
                 />
+
+                {suggestion.dismissible && showDismissReasons && (
+                  <View
+                    className="mt-3 rounded-xl p-2"
+                    style={{ backgroundColor: colors.muted }}
+                  >
+                    <Text variant="caption" style={{ color: colors['muted-foreground'], marginBottom: 6 }}>
+                      Dismiss reason (optional)
+                    </Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {[
+                        { label: 'Wrong friend', value: 'wrong-friend' as const },
+                        { label: 'Not relevant', value: 'not-relevant' as const },
+                        { label: 'Already done', value: 'already-done' as const },
+                        { label: 'Bad timing', value: 'bad-timing' as const },
+                      ].map(option => (
+                        <Pressable
+                          key={option.value}
+                          onPress={() => handleDismiss(option.value)}
+                          className="px-2 py-1 rounded-full"
+                          style={{ backgroundColor: colors.card }}
+                        >
+                          <Text variant="caption" style={{ color: colors.foreground }}>
+                            {option.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                      <Pressable
+                        onPress={() => handleDismiss()}
+                        className="px-2 py-1 rounded-full"
+                        style={{ backgroundColor: colors.card }}
+                      >
+                        <Text variant="caption" style={{ color: colors.foreground }}>
+                          Just dismiss
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
           </View>

@@ -42,6 +42,8 @@ const dateOptions: { id: string; icon: LucideIcon; label: string; getDate: () =>
 ];
 
 interface WeaveLoggerScreenProps {
+    /** Entry mode: log completed interaction vs plan future interaction */
+    mode?: 'log' | 'plan';
     /** Pre-selected friend ID (optional) */
     friendId?: string;
     /** List of pre-selected friend IDs (optional, takes precedence over friendId) */
@@ -54,6 +56,8 @@ interface WeaveLoggerScreenProps {
     notes?: string;
     /** Pre-filled title (optional) */
     title?: string;
+    /** Pre-filled location (optional) */
+    location?: string;
     /** Callback when the user wants to navigate back */
     onBack: () => void;
     /** Callback when weave is saved and user should navigate to home */
@@ -63,19 +67,22 @@ interface WeaveLoggerScreenProps {
 }
 
 export function WeaveLoggerScreen({
+    mode = 'log',
     friendId,
     friendIds,
     date,
     category,
     notes,
     title: initialTitle,
+    location: initialLocation,
     onBack,
     onNavigateHome,
     onNavigateToJournal
 }: WeaveLoggerScreenProps) {
-    const { logWeave } = useInteractions();
+    const { logWeave, planWeave } = useInteractions();
     const { colors, isDarkMode } = useTheme();
     const { showToast } = useUIStore();
+    const isPlanMode = mode === 'plan';
 
     const [selectedFriends, setSelectedFriends] = useState<FriendModel[]>([]);
     const [showCalendar, setShowCalendar] = useState(false);
@@ -254,7 +261,12 @@ export function WeaveLoggerScreen({
         if (initialTitle) {
             setTitle(initialTitle);
         }
-    }, [date, category, notes, initialTitle]);
+
+        // Location
+        if (initialLocation) {
+            setLocation(initialLocation);
+        }
+    }, [date, category, notes, initialTitle, initialLocation]);
 
     // Auto-scroll to details section when category is selected
     useEffect(() => {
@@ -306,13 +318,21 @@ export function WeaveLoggerScreen({
 
 
     const handleSave = useDebounceCallback(async () => {
-        if (!selectedCategory || selectedFriends.length === 0 || !selectedDate || isSubmitting) return;
+        if (selectedFriends.length === 0) {
+            showToast('Choose at least one friend', 'Add a friend before saving');
+            return;
+        }
+
+        if (!selectedCategory || !selectedDate || isSubmitting) return;
 
         setIsSubmitting(true);
         Vibration.vibrate();
 
         // 1. OPTIMISTIC FEEDBACK: Show success immediately
-        showToast("Weave logged", selectedFriends.length === 1 ? selectedFriends[0].name : (selectedFriends.length > 1 ? 'Friends' : 'Friend'));
+        showToast(
+            isPlanMode ? "Weave planned" : "Weave logged",
+            selectedFriends.length === 1 ? selectedFriends[0].name : (selectedFriends.length > 1 ? 'Friends' : 'Friend')
+        );
 
         // Prepare data for saving
         const legacyNotes = [
@@ -337,8 +357,8 @@ export function WeaveLoggerScreen({
             activity: selectedCategory,
             notes: legacyNotes,
             date: selectedDate,
-            type: 'log',
-            status: 'completed',
+            type: isPlanMode ? 'plan' : 'log',
+            status: isPlanMode ? 'planned' : 'completed',
             mode: 'one-on-one',
             vibe: selectedVibe,
             reflection,
@@ -349,7 +369,7 @@ export function WeaveLoggerScreen({
 
         const interactionDataPreview = {
             interactionDate: selectedDate.getTime(),
-            interactionType: 'log',
+            interactionType: isPlanMode ? 'plan' : 'log',
             interactionCategory: selectedCategory,
             vibe: selectedVibe,
             duration: 'Medium',
@@ -358,12 +378,16 @@ export function WeaveLoggerScreen({
 
         // 2. CHECK PROMPT (Determine if we need to keep user on screen)
         // We do this concurrently with the save to decide navigation logic
-        const shouldShowPromptPromise = checkAndShowPrompt(interactionDataPreview as any, selectedFriends);
+        const shouldShowPromptPromise = isPlanMode
+            ? Promise.resolve(false)
+            : checkAndShowPrompt(interactionDataPreview as any, selectedFriends);
 
         // 3. BACKGROUND WRITE (Fire and forget from UI thread perspective)
         savePromiseRef.current = (async () => {
             try {
-                const savedInteraction = await logWeave(interactionPayload as any);
+                const savedInteraction = isPlanMode
+                    ? await planWeave(interactionPayload as any, { skipToast: true })
+                    : await logWeave(interactionPayload as any);
 
                 // Share with linked friends if enabled
                 if (shareWithLinked && linkedFriends.length > 0) {
@@ -391,11 +415,13 @@ export function WeaveLoggerScreen({
         // and we stay on this screen.
         shouldShowPromptPromise.then((shouldShow) => {
             if (!shouldShow) {
-                const { hasSeenFirstLogColorChange, markFirstLogColorChangeSeen } = useTutorialStore.getState();
-                if (!hasSeenFirstLogColorChange) {
-                    setShowFirstLogAlert(true);
-                    markFirstLogColorChangeSeen();
-                    return;
+                if (!isPlanMode) {
+                    const { hasSeenFirstLogColorChange, markFirstLogColorChangeSeen } = useTutorialStore.getState();
+                    if (!hasSeenFirstLogColorChange) {
+                        setShowFirstLogAlert(true);
+                        markFirstLogColorChangeSeen();
+                        return;
+                    }
                 }
 
                 // Delay slightly for safe unmount/toast visibility
@@ -408,14 +434,15 @@ export function WeaveLoggerScreen({
     });
 
     const deepeningMetrics = calculateDeepeningLevel(reflection);
+    const canSave = !!selectedCategory && selectedFriends.length > 0 && !!selectedDate && !isSubmitting;
 
     const screenTitle = selectedFriends.length === 0
-        ? 'Log a Weave'
+        ? (isPlanMode ? 'Plan a Weave' : 'Log a Weave')
         : selectedFriends.length === 1
-            ? `Weave with ${selectedFriends[0].name}`
+            ? `${isPlanMode ? 'Plan with' : 'Weave with'} ${selectedFriends[0].name}`
             : selectedFriends.length === 2
-                ? `Weave with ${selectedFriends[0].name} & ${selectedFriends[1].name}`
-                : `Weave with ${selectedFriends.length} friends`;
+                ? `${isPlanMode ? 'Plan with' : 'Weave with'} ${selectedFriends[0].name} & ${selectedFriends[1].name}`
+                : `${isPlanMode ? 'Plan with' : 'Weave with'} ${selectedFriends.length} friends`;
 
     return (
         <ErrorBoundary>
@@ -630,7 +657,7 @@ export function WeaveLoggerScreen({
                             {/* Friend Selection */}
                             <View className="mb-8">
                                 <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
-                                    Who was there?
+                                    {isPlanMode ? "Who's joining?" : 'Who was there?'}
                                 </Text>
 
                                 {/* Selected friends display */}
@@ -675,6 +702,12 @@ export function WeaveLoggerScreen({
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
+
+                                {selectedFriends.length === 0 && (
+                                    <Text className="mt-1 text-sm" style={{ color: colors['muted-foreground'] }}>
+                                        Select at least one friend to save this weave.
+                                    </Text>
+                                )}
                             </View>
 
                             {/* Share Toggle - Shows if any selected friend is linked */}
@@ -811,7 +844,7 @@ export function WeaveLoggerScreen({
                                         <TouchableOpacity
                                             className="p-4 rounded-xl items-center"
                                             style={{
-                                                backgroundColor: isSubmitting ? colors.muted : colors.primary,
+                                                backgroundColor: canSave ? colors.primary : colors.muted,
                                                 shadowColor: '#000',
                                                 shadowOffset: { width: 0, height: 4 },
                                                 shadowOpacity: 0.1,
@@ -819,10 +852,10 @@ export function WeaveLoggerScreen({
                                                 elevation: 8,
                                             }}
                                             onPress={handleSave}
-                                            disabled={isSubmitting}
+                                            disabled={!canSave}
                                         >
-                                            <Text className="font-inter-semibold text-base" style={{ color: isSubmitting ? colors['muted-foreground'] : colors['primary-foreground'] }}>
-                                                {isSubmitting ? 'Saving...' : 'Save Weave'}
+                                            <Text className="font-inter-semibold text-base" style={{ color: canSave ? colors['primary-foreground'] : colors['muted-foreground'] }}>
+                                                {isSubmitting ? (isPlanMode ? 'Planning...' : 'Saving...') : (isPlanMode ? 'Save Plan' : 'Save Weave')}
                                             </Text>
                                         </TouchableOpacity>
                                     </View>

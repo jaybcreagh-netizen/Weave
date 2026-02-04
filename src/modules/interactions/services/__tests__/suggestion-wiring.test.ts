@@ -67,6 +67,7 @@ jest.mock('@/db', () => {
     const Friend = require('@/db/models/Friend').default;
     const Interaction = require('@/db/models/Interaction').default;
     const InteractionFriend = require('@/db/models/InteractionFriend').default;
+    const SuggestionEvent = require('@/db/models/SuggestionEvent').default;
 
     const adapter = new LokiJSAdapter({
         schema,
@@ -85,6 +86,7 @@ jest.mock('@/db', () => {
             Friend,
             Interaction,
             InteractionFriend,
+            SuggestionEvent,
             require('@/db/models/Intention').default,
             require('@/db/models/LifeEvent').default,
         ],

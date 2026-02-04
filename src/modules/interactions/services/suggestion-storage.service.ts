@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logger from '@/shared/utils/Logger';
+import type { SuggestionDismissalReason } from '@/shared/types/common';
 
 const DISMISSED_KEY = 'weave:suggestions:dismissed';
 const LAST_SHOWN_KEY = 'weave:suggestions:lastShown';
@@ -8,6 +9,7 @@ export interface DismissedSuggestion {
   id: string;
   dismissedAt: number;
   cooldownDays: number;
+  reason?: SuggestionDismissalReason;
 }
 
 export async function getDismissedSuggestions(): Promise<Map<string, DismissedSuggestion>> {
@@ -34,13 +36,18 @@ export async function getDismissedSuggestions(): Promise<Map<string, DismissedSu
   }
 }
 
-export async function dismissSuggestion(id: string, cooldownDays: number): Promise<void> {
+export async function dismissSuggestion(
+  id: string,
+  cooldownDays: number,
+  reason?: SuggestionDismissalReason
+): Promise<void> {
   try {
     const dismissed = await getDismissedSuggestions();
     dismissed.set(id, {
       id,
       dismissedAt: Date.now(),
       cooldownDays,
+      reason,
     });
 
     const array = Array.from(dismissed.values());

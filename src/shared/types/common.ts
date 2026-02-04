@@ -90,6 +90,12 @@ export interface SuggestionSignalContext {
   daysSinceSignal?: number; // How old the signal is
 }
 
+export type SuggestionDismissalReason =
+  | 'wrong-friend'
+  | 'not-relevant'
+  | 'already-done'
+  | 'bad-timing';
+
 export interface Suggestion {
   id: string;
   type: 'connect' | 'deepen' | 'reconnect' | 'celebrate' | 'reflect';
@@ -122,4 +128,3 @@ export interface Suggestion {
   /** Signal-driven context - when suggestion comes from journal/thread signals */
   signalContext?: SuggestionSignalContext;
 }
-

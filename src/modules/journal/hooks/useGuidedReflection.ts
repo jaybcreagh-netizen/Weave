@@ -16,6 +16,7 @@ import { startOfDay, format } from 'date-fns'
 import { Q } from '@nozbe/watermelondb'
 import { extractThemesArray } from '@/modules/reflection/utils/text-analysis'
 import type { StructuredReflection, OracleReflectionMetadata } from '@/shared/types/common'
+import { journalIntelligenceService } from '@/modules/journal/services/journal-intelligence.service'
 
 export type GuidedReflectionState =
     | { status: 'idle' }
@@ -225,6 +226,10 @@ export function useGuidedReflection(): UseGuidedReflectionReturn {
                         })
                     })
 
+                    journalIntelligenceService.processEntry(existingEntries[0]).catch(error => {
+                        logger.warn('useGuidedReflection', 'Failed to process journal intelligence for updated entry', { error })
+                    })
+
                     logger.info('useGuidedReflection', 'Updated existing journal entry', {
                         entryId: existingEntries[0].id,
                         linkedWeaveId: session.context.interactionId
@@ -351,6 +356,11 @@ export function useGuidedReflection(): UseGuidedReflectionReturn {
             // TRIGGER SILENT AUDIT
             if (targetId) {
                 actionExtractionService.queueEntry(targetId)
+
+                const savedEntry = await database.get<JournalEntry>('journal_entries').find(targetId)
+                journalIntelligenceService.processEntry(savedEntry).catch(error => {
+                    logger.warn('useGuidedReflection', 'Failed to process journal intelligence for saved entry', { error })
+                })
             }
 
         } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text as RNText, TouchableOpacity } from 'react-native';
 import { Calendar, MessageCircle, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -7,6 +7,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
+import type { SuggestionDismissalReason } from '@/shared/types/common';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { useReachOut, ContactLinker } from '@/modules/messaging';
 import { CachedImage } from '@/shared/ui/CachedImage';
@@ -20,7 +21,7 @@ interface SuggestionActionSheetProps {
     isOpen: boolean;
     onClose: () => void;
     onPlan: (suggestion: Suggestion, friend: FriendModel) => void;
-    onDismiss: (suggestion: Suggestion) => void;
+    onDismiss: (suggestion: Suggestion, reason?: SuggestionDismissalReason) => void;
     /**
      * Optional callback when reach out is successful.
      * If provided, the sheet will handle the reach out logic internally.
@@ -50,9 +51,16 @@ export function SuggestionActionSheet({
     onReachOutSuccess,
     onReflect,
 }: SuggestionActionSheetProps) {
-    const { colors, tokens, typography } = useTheme();
+    const { colors, tokens } = useTheme();
     const [showContactLinker, setShowContactLinker] = useState(false);
+    const [showDismissReasons, setShowDismissReasons] = useState(false);
     const { reachOut } = useReachOut();
+
+    useEffect(() => {
+        if (!isOpen) {
+            setShowDismissReasons(false);
+        }
+    }, [isOpen]);
 
     const handlePlan = () => {
         if (!suggestion || !friend) return;
@@ -68,11 +76,16 @@ export function SuggestionActionSheet({
         setTimeout(() => onReflect(suggestion, friend), 300);
     };
 
-    const handleDismissAction = () => {
+    const dismissSuggestion = (reason?: SuggestionDismissalReason) => {
         if (!suggestion) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onClose();
-        setTimeout(() => onDismiss(suggestion), 300);
+        setShowDismissReasons(false);
+        setTimeout(() => onDismiss(suggestion, reason), 300);
+    };
+
+    const handleDismissAction = () => {
+        dismissSuggestion();
     };
 
     const handleReachOut = async () => {
@@ -427,6 +440,60 @@ export function SuggestionActionSheet({
                         Dismiss
                     </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                    className="items-center justify-center pb-1"
+                    onPress={() => setShowDismissReasons(prev => !prev)}
+                    activeOpacity={0.6}
+                >
+                    <Text
+                        variant="caption"
+                        style={{
+                            color: colors['muted-foreground'],
+                            textDecorationLine: 'underline',
+                        }}
+                    >
+                        Add reason (optional)
+                    </Text>
+                </TouchableOpacity>
+
+                {showDismissReasons && (
+                    <View
+                        className="rounded-xl p-3 mt-1"
+                        style={{ backgroundColor: tokens.backgroundMuted }}
+                    >
+                        <Text
+                            variant="caption"
+                            style={{
+                                color: colors['muted-foreground'],
+                                marginBottom: 8,
+                            }}
+                        >
+                            Why are you dismissing this suggestion?
+                        </Text>
+
+                        {[
+                            { label: 'Wrong friend', value: 'wrong-friend' as const },
+                            { label: 'Not relevant', value: 'not-relevant' as const },
+                            { label: 'Already done', value: 'already-done' as const },
+                            { label: 'Bad timing', value: 'bad-timing' as const },
+                        ].map(option => (
+                            <TouchableOpacity
+                                key={option.value}
+                                onPress={() => dismissSuggestion(option.value)}
+                                activeOpacity={0.7}
+                                className="py-2"
+                            >
+                                <Text
+                                    variant="body"
+                                    style={{ color: colors.foreground }}
+                                >
+                                    {option.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
             </Animated.View>
 
             {/* Contact Linker Sheet */}

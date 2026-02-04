@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ActivityIndicator, StyleSheet, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, ActivityIndicator, StyleSheet, TextInput, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Contacts from 'expo-contacts';
 import { ArrowLeft, Check, Search, X } from 'lucide-react-native';
@@ -40,7 +40,7 @@ export default function BatchAddFriends() {
       const dbTier = tierMap[tier as 'inner' | 'close' | 'community'] || 'CloseFriends';
 
       // Use the service function to add friends (handles all defaults correctly)
-      await batchAddFriends(
+      const result = await batchAddFriends(
         contactsToAdd.map(c => ({
           name: c.name,
           photoUrl: c.photoUrl,
@@ -49,6 +49,27 @@ export default function BatchAddFriends() {
         })),
         dbTier
       );
+
+      if (result.rejected.length > 0) {
+        const sampleNames = result.rejected.slice(0, 3).map(r => r.name).join(', ');
+        const hasMore = result.rejected.length > 3 ? ` +${result.rejected.length - 3} more` : '';
+
+        if (result.added.length === 0) {
+          Alert.alert(
+            'Tier at Capacity',
+            `Could not add contacts to ${tier === 'inner' ? 'Inner Circle' : tier === 'close' ? 'Close Friends' : 'Community'}.\n\n${sampleNames}${hasMore}`,
+            [{ text: 'OK' }]
+          );
+          setIsSubmitting(false);
+          return;
+        }
+
+        Alert.alert(
+          'Some Contacts Not Added',
+          `Added ${result.added.length} contact${result.added.length === 1 ? '' : 's'}.\n\nCould not add ${result.rejected.length} due to tier capacity: ${sampleNames}${hasMore}`,
+          [{ text: 'OK' }]
+        );
+      }
 
       if (router.canGoBack()) {
         router.back();
