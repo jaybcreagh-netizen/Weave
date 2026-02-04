@@ -279,7 +279,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                 {/* Pending Actions Section - Top Priority */}
                 {(linkRequests.length > 0 || pendingWeaves.length > 0) && (
                     <View className="mb-6">
-                        <WidgetHeader title="Action Required" icon={<AlertTriangle size={20} color={tokens.primary} />} />
+                        <WidgetHeader title="Shared Weaves" icon={<Send size={20} color={tokens.primary} />} />
                         <Card padding="none">
                             {linkRequests.map((request, index) => (
                                 <View key={`request-${request.id}`} className="px-4">

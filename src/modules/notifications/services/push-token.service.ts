@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PUSH_TOKEN_KEY = '@weave/push_token';
 const LAST_REGISTRATION_KEY = '@weave/push_token_registered_at';
+const LAST_REGISTERED_USER_KEY = '@weave/push_token_registered_user_id';
 
 /**
  * Get the current Expo push token
@@ -79,8 +80,9 @@ export async function registerPushToken(): Promise<boolean> {
         // Check if we already registered this token recently (within 24 hours)
         const lastRegistration = await AsyncStorage.getItem(LAST_REGISTRATION_KEY);
         const cachedToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
+        const cachedUserId = await AsyncStorage.getItem(LAST_REGISTERED_USER_KEY);
 
-        if (lastRegistration && cachedToken === pushToken) {
+        if (lastRegistration && cachedToken === pushToken && cachedUserId === user.id) {
             const lastTime = parseInt(lastRegistration, 10);
             const hoursSince = (Date.now() - lastTime) / (1000 * 60 * 60);
 
@@ -112,6 +114,7 @@ export async function registerPushToken(): Promise<boolean> {
         // Cache the registration
         await AsyncStorage.setItem(PUSH_TOKEN_KEY, pushToken);
         await AsyncStorage.setItem(LAST_REGISTRATION_KEY, Date.now().toString());
+        await AsyncStorage.setItem(LAST_REGISTERED_USER_KEY, user.id);
 
         logger.info('PushToken', 'Successfully registered push token');
         return true;
@@ -131,10 +134,17 @@ export async function unregisterPushToken(): Promise<void> {
         if (!client) return;
 
         const cachedToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
-        if (!cachedToken) return;
+        if (!cachedToken) {
+            await AsyncStorage.removeItem(LAST_REGISTERED_USER_KEY);
+            return;
+        }
 
         const { data: { user } } = await client.auth.getUser();
-        if (!user) return;
+        if (!user) {
+            // Best effort cleanup when we no longer have an authenticated user.
+            await AsyncStorage.multiRemove([PUSH_TOKEN_KEY, LAST_REGISTRATION_KEY, LAST_REGISTERED_USER_KEY]);
+            return;
+        }
 
         // Delete the token from Supabase
         await client
@@ -144,8 +154,7 @@ export async function unregisterPushToken(): Promise<void> {
             .eq('push_token', cachedToken);
 
         // Clear local cache
-        await AsyncStorage.removeItem(PUSH_TOKEN_KEY);
-        await AsyncStorage.removeItem(LAST_REGISTRATION_KEY);
+        await AsyncStorage.multiRemove([PUSH_TOKEN_KEY, LAST_REGISTRATION_KEY, LAST_REGISTERED_USER_KEY]);
 
         logger.info('PushToken', 'Successfully unregistered push token');
 

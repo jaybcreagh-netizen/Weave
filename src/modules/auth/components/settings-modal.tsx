@@ -8,8 +8,8 @@ import { CollapsibleSection } from '@/shared/ui/CollapsibleSection';
 
 // Components
 import { SettingsItem } from './settings/SettingsItem';
-import { AppearanceSettings } from './settings/AppearanceSettings';
-import { GeneralSettings } from './settings/GeneralSettings';
+import { InteractionSettings } from './settings/InteractionSettings';
+import { SupportSettings } from './settings/SupportSettings';
 import { CalendarSettings } from './settings/CalendarSettings';
 import { TestingSettings } from './settings/TestingSettings';
 import { DataSettings } from './settings/DataSettings';
@@ -102,19 +102,30 @@ export function SettingsModal({
           )}
 
           {/* ═══════════════════════════════════════════════════════════════
-              ESSENTIALS - Expanded by default
-              Core features every user needs access to
+              UI & INTERACTION
+              Accessibility, themes, and interaction behavior
           ═══════════════════════════════════════════════════════════════ */}
           <CollapsibleSection
-            title="Essentials"
+            title="UI & Interaction"
+            subtitle="Theme, quick weave, and behavior"
             icon={Palette}
             defaultExpanded={true}
           >
-            {/* Theme Toggle */}
-            <AppearanceSettings />
+            <InteractionSettings />
+          </CollapsibleSection>
 
-            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
+          {/* ═══════════════════════════════════════════════════════════════
+              RELATIONAL INTELLIGENCE
+              Core relationship management features
+          ═══════════════════════════════════════════════════════════════ */}
+          <CollapsibleSection
+            title="Relational Intelligence"
+            subtitle="Archetypes, groups, and social battery"
+            icon={Users}
+            defaultExpanded={false}
+          >
             {/* Archetype Library */}
             <SettingsItem
               icon={BookOpen}
@@ -143,15 +154,7 @@ export function SettingsModal({
               onPress={() => setShowGroupList(true)}
             />
 
-            {/* DEPRECATED: Trophy Cabinet hidden - badge system replaced by Relationship Intelligence (Phase 4) */}
-            {/* <SettingsItem
-              icon={Trophy}
-              title="Trophy Cabinet"
-              subtitle="View your achievements"
-              onPress={() => setShowTrophyCabinet(true)}
-            />
-
-            <View className="border-t border-border" style={{ borderColor: colors.border }} /> */}
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
             {/* Social Battery Check-in */}
             {onOpenBatteryCheckIn && (
@@ -165,11 +168,6 @@ export function SettingsModal({
                 }}
               />
             )}
-
-            <View className="border-t border-border" style={{ borderColor: colors.border }} />
-
-            {/* General Settings (Smart Ordering, Feedback, Legal) */}
-            <GeneralSettings onClose={onClose} />
           </CollapsibleSection>
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
@@ -196,16 +194,22 @@ export function SettingsModal({
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
           {/* ═══════════════════════════════════════════════════════════════
-              DATA & BACKUP - Collapsed by default
-              Backup, restore, and data management
+              SUPPORT & PRIVACY - Collapsed by default
+              Backup, legal, and feedback
           ═══════════════════════════════════════════════════════════════ */}
           <CollapsibleSection
-            title="Data & Backup"
-            subtitle="Export, import, and sync"
+            title="Support & Privacy"
+            subtitle="Feedback, legal, and data"
             icon={Database}
             defaultExpanded={false}
           >
+            {/* Data Settings */}
             <DataSettings onClose={onClose} />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            {/* Support Settings */}
+            <SupportSettings onClose={onClose} />
           </CollapsibleSection>
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />

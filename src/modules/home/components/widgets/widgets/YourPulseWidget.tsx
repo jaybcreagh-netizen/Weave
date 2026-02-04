@@ -378,36 +378,51 @@ export const YourPulseWidget: React.FC = () => {
                         delayLongPress={500}
                         activeOpacity={0.7}
                     >
+                        {/* Subtle label */}
+                        <Text
+                            style={{
+                                color: tokens.foregroundMuted,
+                                fontFamily: typography.fonts.sansMedium,
+                                fontSize: 11,
+                                letterSpacing: 0.5,
+                                textTransform: 'uppercase',
+                                marginBottom: 6,
+                            }}
+                        >
+                            Your Pulse
+                        </Text>
+
+                        {/* Season as hero */}
                         <Animated.View
                             key={season}
                             entering={FadeIn.duration(300)}
                             exiting={FadeOut.duration(200)}
                             layout={Layout.springify()}
-                            className="flex-row items-center gap-3 mb-4"
+                            className="mb-4"
                         >
-                            <SeasonIcon season={season} size={24} color={tokens.primary} />
-                            <View className="flex-1">
+                            <View className="flex-row items-center gap-2.5 mb-1">
+                                <SeasonIcon season={season} size={20} color={tokens.primary} />
                                 <Text
                                     style={{
                                         color: tokens.foreground,
-                                        fontFamily: typography.fonts.serifBold,
-                                        fontSize: typography.scale.h3.fontSize,
-                                        lineHeight: typography.scale.h3.lineHeight
+                                        fontFamily: typography.fonts.sansSemiBold,
+                                        fontSize: typography.scale.bodyLarge.fontSize,
+                                        lineHeight: typography.scale.bodyLarge.lineHeight,
                                     }}
                                 >
-                                    {getSeasonDisplayName(season)}
-                                </Text>
-                                <Text
-                                    style={{
-                                        color: tokens.foregroundMuted,
-                                        fontFamily: typography.fonts.sans,
-                                        fontSize: typography.scale.bodySmall.fontSize,
-                                        lineHeight: typography.scale.bodySmall.lineHeight
-                                    }}
-                                >
-                                    {greeting.subtext}
+                                    {getSeasonDisplayName(season)} Season
                                 </Text>
                             </View>
+                            <Text
+                                style={{
+                                    color: tokens.foregroundMuted,
+                                    fontFamily: typography.fonts.sans,
+                                    fontSize: typography.scale.bodySmall.fontSize,
+                                    lineHeight: typography.scale.bodySmall.lineHeight,
+                                }}
+                            >
+                                {greeting.subtext}
+                            </Text>
                         </Animated.View>
 
                         {profile?.seasonOverrideUntil && profile.seasonOverrideUntil > Date.now() && (
@@ -478,9 +493,21 @@ export const YourPulseWidget: React.FC = () => {
                                 setCalendarInitialTab('moons');
                                 setShowLifeCalendar(true);
                             }}
-                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: tokens.secondary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
+                            style={{
+                                flex: 1,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 4,
+                                backgroundColor: tokens.backgroundMuted,
+                                paddingHorizontal: 10,
+                                paddingVertical: 8,
+                                borderRadius: 999,
+                                borderWidth: 1,
+                                borderColor: tokens.border,
+                            }}
                         >
-                            <Calendar size={12} color={tokens.foreground} />
+                            <Calendar size={13} color={tokens.foreground} />
                             <Text style={{
                                 fontSize: typography.scale.label.fontSize,
                                 lineHeight: typography.scale.label.lineHeight,
@@ -496,9 +523,21 @@ export const YourPulseWidget: React.FC = () => {
                                 setCalendarInitialTab('alignment');
                                 setShowLifeCalendar(true);
                             }}
-                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: tokens.secondary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
+                            style={{
+                                flex: 1,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 4,
+                                backgroundColor: tokens.backgroundMuted,
+                                paddingHorizontal: 10,
+                                paddingVertical: 8,
+                                borderRadius: 999,
+                                borderWidth: 1,
+                                borderColor: tokens.border,
+                            }}
                         >
-                            <Scale size={12} color={tokens.foreground} />
+                            <Scale size={13} color={tokens.foreground} />
                             <Text style={{
                                 fontSize: typography.scale.label.fontSize,
                                 lineHeight: typography.scale.label.lineHeight,
@@ -514,9 +553,19 @@ export const YourPulseWidget: React.FC = () => {
                                 setCalendarInitialTab('patterns');
                                 setShowLifeCalendar(true);
                             }}
-                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: tokens.primary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
+                            style={{
+                                flex: 1,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 4,
+                                backgroundColor: tokens.primary,
+                                paddingHorizontal: 10,
+                                paddingVertical: 8,
+                                borderRadius: 999,
+                            }}
                         >
-                            <Sparkles size={12} color={tokens.background} />
+                            <Sparkles size={13} color={tokens.background} />
                             <Text style={{
                                 fontSize: typography.scale.label.fontSize,
                                 lineHeight: typography.scale.label.lineHeight,

@@ -10,6 +10,7 @@ import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from './notification-analytics';
 import { notificationStore } from './notification-store';
 import { NotificationType } from '../types';
+import { queryClient } from '@/shared/api/query-client';
 
 // Channels
 import { BatteryCheckinChannel } from './channels/battery-checkin';
@@ -105,6 +106,36 @@ export const useNotificationResponseHandler = () => {
           // Plan reminder - navigate to dashboard (Activity Inbox can be opened from there)
           router.replace('/dashboard');
           notificationAnalytics.trackActionCompleted('plan_reminder', 'view_dashboard');
+          break;
+
+        case 'shared_weave':
+          queryClient.invalidateQueries({ queryKey: ['pending-weaves'] });
+          router.replace('/dashboard');
+          notificationAnalytics.trackActionCompleted('shared_weave', 'view_pending_weaves');
+          break;
+
+        case 'link_request':
+          queryClient.invalidateQueries({ queryKey: ['incoming-link-requests'] });
+          router.replace('/dashboard');
+          notificationAnalytics.trackActionCompleted('link_request', 'view_link_requests');
+          break;
+
+        case 'link_accepted':
+          queryClient.invalidateQueries({ queryKey: ['outgoing-link-requests'] });
+          queryClient.invalidateQueries({ queryKey: ['linked-friends'] });
+          router.replace('/dashboard');
+          notificationAnalytics.trackActionCompleted('link_accepted', 'view_links');
+          break;
+
+        case 'friend_joined':
+          queryClient.invalidateQueries({ queryKey: ['linked-friends'] });
+          router.replace('/dashboard');
+          notificationAnalytics.trackActionCompleted('friend_joined', 'view_network');
+          break;
+
+        case 'username-nudge':
+          router.replace('/dashboard');
+          notificationAnalytics.trackActionCompleted('username-nudge', 'open_dashboard');
           break;
 
         default:

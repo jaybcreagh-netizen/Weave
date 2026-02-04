@@ -184,11 +184,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           get().refreshSubscriptionAndUsage().catch(err => {
             console.error('[Auth] Refresh after state change failed:', err);
           });
+
+          // Best-effort push token registration on auth transitions.
+          void import('@/modules/notifications/services/push-token.service')
+            .then(({ registerPushToken }) => registerPushToken())
+            .catch(err => {
+              console.error('[Auth] Push token registration on auth change failed:', err);
+            });
         } else {
           set({
             subscription: null,
             usage: null,
           });
+
+          // Best-effort cleanup when auth session is cleared.
+          void import('@/modules/notifications/services/push-token.service')
+            .then(({ unregisterPushToken }) => unregisterPushToken())
+            .catch(err => {
+              console.error('[Auth] Push token unregister on auth clear failed:', err);
+            });
         }
       });
 
@@ -207,6 +221,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   signOut: async () => {
     try {
+      // Remove push token before auth session is invalidated.
+      try {
+        const { unregisterPushToken } = await import('@/modules/notifications/services/push-token.service');
+        await unregisterPushToken();
+      } catch (pushTokenError) {
+        console.error('[Auth] Failed to unregister push token before sign out:', pushTokenError);
+      }
+
       await supabase.auth.signOut();
       set({
         user: null,

@@ -137,10 +137,12 @@ export function InsightCard({
  */
 export function InsightCardCompact({
     insight,
-    onPress
+    onPress,
+    numberOfLines = 2,
 }: {
     insight: RelationshipInsight;
     onPress?: () => void;
+    numberOfLines?: number;
 }) {
     const { colors, typography } = useTheme();
     const accentColor = TONE_COLORS[insight.tone] || colors.primary;
@@ -158,7 +160,7 @@ export function InsightCardCompact({
 
             <Text
                 variant="body"
-                numberOfLines={2}
+                numberOfLines={numberOfLines}
                 className="flex-1"
                 style={{
                     color: colors.foreground,

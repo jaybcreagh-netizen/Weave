@@ -19,7 +19,6 @@ import { useIsFocused } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import {
-    BookHeart,
     RefreshCw,
     BookOpen,
     Flame,
@@ -34,6 +33,7 @@ import { differenceInDays } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useAppSleeping } from '@/shared/hooks/useAppState';
 import { UIEventBus } from '@/shared/services/ui-event-bus';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import * as Sentry from '@sentry/react-native';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { database } from '@/db';
@@ -55,7 +55,6 @@ import { generateJournalPrompts, type JournalPrompt } from '@/modules/journal/se
 // Static import to avoid dynamic import issues in production builds
 import { hasCompletedReflectionForCurrentWeek } from '@/modules/reflection/services/weekly-reflection.service';
 // Insight integration
-import { InsightCardCompact } from '@/modules/intelligence/components/InsightCard';
 import { insightOrchestratorService } from '@/modules/intelligence';
 import type RelationshipInsight from '@/db/models/RelationshipInsight';
 
@@ -256,9 +255,8 @@ export function JournalWidget() {
     const [isWidgetStateLoading, setIsWidgetStateLoading] = useState(true);
     const [statValues, setStatValues] = useState<number[]>([]);
     const [statIndex, setStatIndex] = useState(0);
-    const [promptKey, setPromptKey] = useState(0);
-    const [forceDefaultPrompt, setForceDefaultPrompt] = useState(false);
     const [activeInsights, setActiveInsights] = useState<RelationshipInsight[]>([]);
+    const [selectedInsight, setSelectedInsight] = useState<RelationshipInsight | null>(null);
 
     // Get the current stat config
     // Default to first stat if empty
@@ -267,7 +265,7 @@ export function JournalWidget() {
     const StatIcon = currentStat.icon;
 
     // ... (getRandomGeneralPrompt and determineState remain the same) ...
-    const getRandomGeneralPrompt = (): WidgetState => {
+    const getRandomGeneralPrompt = useCallback((): WidgetState => {
         const randomPrompt = GENERAL_PROMPTS[Math.floor(Math.random() * GENERAL_PROMPTS.length)];
         return {
             type: 'default',
@@ -278,15 +276,10 @@ export function JournalWidget() {
                 type: 'general',
             }
         };
-    };
+    }, []);
 
     // Determine widget state based on priority
     const determineState = useCallback(async (): Promise<WidgetState> => {
-        // If forceDefaultPrompt is set, skip all prioritization and show random prompt
-        if (forceDefaultPrompt) {
-            return getRandomGeneralPrompt();
-        }
-
         // 1. Check Weekly Reflection (Sunday or Monday, not yet completed for target week)
         const today = new Date();
         const dayOfWeek = today.getDay();
@@ -353,7 +346,7 @@ export function JournalWidget() {
 
         // 5. Default - general prompt
         return getRandomGeneralPrompt();
-    }, [promptKey, forceDefaultPrompt]);
+    }, [getRandomGeneralPrompt]);
 
     // Pause stat cycling when app is sleeping to save battery
     const isSleeping = useAppSleeping();
@@ -440,25 +433,27 @@ export function JournalWidget() {
         loadWidgetState();
         loadStats();
 
-        // Load active insights (deferred)
-        const loadInsights = async () => {
-            try {
-                await new Promise(resolve => setTimeout(resolve, 500));
-                if (!mountedRef.current) return;
-                const insights = await insightOrchestratorService.getActiveInsights();
-                if (mountedRef.current) {
-                    setActiveInsights(insights);
-                }
-            } catch (error) {
-                console.error('[JournalWidget] Error loading insights:', error);
-            }
-        };
-        loadInsights();
-
         return () => {
             mountedRef.current = false;
         };
-    }, [determineState, promptKey]); // Removed isFocused - it's not used as a gate and causes race conditions
+    }, [determineState]); // Removed isFocused - it's not used as a gate and causes race conditions
+
+    // Keep insight state live so viewed insights clear immediately across surfaces
+    useEffect(() => {
+        const subscription = database.get<RelationshipInsight>('relationship_insights')
+            .query(
+                Q.where('status', 'active'),
+                Q.sortBy('generated_at', Q.desc),
+                Q.take(8)
+            )
+            .observe()
+            .subscribe((insights) => {
+                const now = Date.now();
+                setActiveInsights(insights.filter((insight) => insight.expiresAt > now).slice(0, 3));
+            });
+
+        return () => subscription.unsubscribe();
+    }, []);
 
     // Cycle stats every 5 seconds (only when visible)
     useEffect(() => {
@@ -471,22 +466,10 @@ export function JournalWidget() {
         return () => clearInterval(interval);
     }, [isWidgetStateLoading, isSleeping, isFocused]);
 
-    // Handle widget tap
-    const handlePress = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-        if (widgetState?.type === 'weekly-reflection') {
-            UIEventBus.emit({ type: 'OPEN_WEEKLY_REFLECTION' });
-        } else {
-            router.push('/journal');
-        }
-    };
-
-    // Handle refresh prompt - show a random general prompt, bypassing priority system
+    // Handle refresh prompt - rotate one general prompt without disabling contextual logic
     const handleRefresh = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setForceDefaultPrompt(true);
-        setPromptKey(prev => prev + 1);
+        setWidgetState(getRandomGeneralPrompt());
     };
 
     // Get prompt text based on state
@@ -535,197 +518,322 @@ export function JournalWidget() {
     const promptText = getPromptText();
     const subtext = getSubtext();
     const isReflectionState = widgetState?.type === 'weekly-reflection' || widgetState?.type === 'weekly-reflection-completed';
+    const activeInsight = activeInsights.length > 0 ? activeInsights[0] : null;
+    const hasSecondaryInsight = !!activeInsight && !isReflectionState;
+    const promptLines = isReflectionState ? 2 : hasSecondaryInsight ? 2 : 3;
+
+    const handleInsightPress = useCallback((insight: RelationshipInsight) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        insightOrchestratorService.markInsightViewed(insight.id).catch(console.error);
+        setSelectedInsight(insight);
+    }, []);
 
     return (
-        <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isWidgetStateLoading}>
-            <View className="justify-between">
-                <View>
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            router.push('/journal');
-                        }}
-                    >
-                        <WidgetHeader
-                            title="Journal"
-                            subtitle="Capture your story"
-                            icon={widgetState?.type === 'weekly-reflection-completed' ? (
-                                <Sparkles size={20} color={tokens.primary} />
-                            ) : (
-                                <JournalIcon size={20} color={tokens.primary} />
-                            )}
-                        />
+        <>
+            <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isWidgetStateLoading}>
+                <View className="justify-between">
+                    <View>
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                router.push('/journal');
+                            }}
+                        >
+                            <WidgetHeader
+                                title="Journal"
+                                subtitle="Capture your story"
+                                icon={widgetState?.type === 'weekly-reflection-completed' ? (
+                                    <Sparkles size={20} color={tokens.primary} />
+                                ) : (
+                                    <JournalIcon size={20} color={tokens.primary} />
+                                )}
+                            />
 
-                        {/* Prompt text */}
-                        <View className="mb-4 justify-center">
-                            <Text
-                                numberOfLines={isReflectionState ? 2 : 3}
-                                style={{
-                                    color: tokens.foreground,
-                                    fontFamily: isReflectionState ? typography.fonts.serifBold : typography.fonts.serif,
-                                    fontSize: isReflectionState ? typography.scale.h3.fontSize : typography.scale.body.fontSize,
-                                    lineHeight: isReflectionState ? typography.scale.h3.lineHeight : typography.scale.body.lineHeight,
-                                }}
-                            >
-                                {promptText}
-                            </Text>
-
-                            {/* Subtext (if any) */}
-                            {subtext && !isReflectionState && (
+                            {/* Prompt text */}
+                            <View className="mb-4 justify-center">
                                 <Text
-                                    className="mt-1"
+                                    numberOfLines={promptLines}
+                                    style={{
+                                        color: tokens.foreground,
+                                        fontFamily: isReflectionState ? typography.fonts.serifBold : typography.fonts.serif,
+                                        fontSize: isReflectionState ? typography.scale.h3.fontSize : typography.scale.body.fontSize,
+                                        lineHeight: isReflectionState ? typography.scale.h3.lineHeight : typography.scale.body.lineHeight,
+                                    }}
+                                >
+                                    {promptText}
+                                </Text>
+
+                                {/* Subtext (if any) */}
+                                {subtext && !isReflectionState && !hasSecondaryInsight && (
+                                    <Text
+                                        className="mt-1"
+                                        style={{
+                                            color: tokens.foregroundMuted,
+                                            fontFamily: typography.fonts.sans,
+                                            fontSize: typography.scale.bodySmall.fontSize,
+                                            lineHeight: typography.scale.bodySmall.lineHeight,
+                                        }}
+                                    >
+                                        {subtext}
+                                    </Text>
+                                )}
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+
+                    <View className="mt-3 flex-row gap-3">
+                        {isReflectionState && (
+                            widgetState?.type === 'weekly-reflection' ? (
+                                <>
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                            UIEventBus.emit({ type: 'OPEN_WEEKLY_REFLECTION' });
+                                        }}
+                                        className="bg-primary px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center"
+                                        style={{ backgroundColor: tokens.primary }}
+                                    >
+                                        <Sparkles size={16} color="#FFFFFF" />
+                                        <Text
+                                            className="text-white font-semibold text-sm"
+                                            style={{ fontFamily: typography.fonts.sansSemiBold }}
+                                        >
+                                            Reflect
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                            router.push('/journal');
+                                        }}
+                                        className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center border"
+                                        style={{ borderColor: tokens.border }}
+                                    >
+                                        <BookOpen size={16} color={tokens.foreground} />
+                                        <Text
+                                            className="font-medium text-sm"
+                                            style={{
+                                                color: tokens.foreground,
+                                                fontFamily: typography.fonts.sansSemiBold
+                                            }}
+                                        >
+                                            Journal
+                                        </Text>
+                                    </TouchableOpacity>
+                                </>
+                            ) : (
+                                <>
+                                    <View
+                                        className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center opacity-70"
+                                        style={{ backgroundColor: tokens.backgroundMuted }}
+                                    >
+                                        <Sparkles size={16} color={tokens.foregroundMuted} />
+                                        <Text
+                                            className="font-medium text-sm"
+                                            style={{
+                                                color: tokens.foregroundMuted,
+                                                fontFamily: typography.fonts.sansSemiBold
+                                            }}
+                                        >
+                                            Completed
+                                        </Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                            router.push('/journal');
+                                        }}
+                                        className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center border"
+                                        style={{ borderColor: tokens.border }}
+                                    >
+                                        <BookOpen size={16} color={tokens.foreground} />
+                                        <Text
+                                            className="font-medium text-sm"
+                                            style={{
+                                                color: tokens.foreground,
+                                                fontFamily: typography.fonts.sansSemiBold
+                                            }}
+                                        >
+                                            Journal
+                                        </Text>
+                                    </TouchableOpacity>
+                                </>
+                            )
+                        )}
+                    </View>
+
+                    {/* Footer: Stat + Refresh button */}
+                    <View
+                        className="pt-3 border-t flex-row items-center justify-between"
+                        style={{ borderTopColor: tokens.borderSubtle, display: isReflectionState ? 'none' : 'flex' }}
+                    >
+                        {/* Cycling stat with Rolling Animation */}
+                        <View className="flex-1 overflow-hidden h-6 justify-center">
+                            <Animated.View
+                                key={statIndex}
+                                entering={FadeInDown.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
+                                exiting={FadeOutUp.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
+                                className="flex-row items-center gap-2 absolute top-0 left-0 bottom-0"
+                            >
+                                <StatIcon size={14} color={tokens.foregroundMuted} />
+                                <Text
                                     style={{
                                         color: tokens.foregroundMuted,
+                                        fontFamily: typography.fonts.sans,
+                                        fontSize: typography.scale.caption.fontSize,
+                                    }}
+                                >
+                                    {currentStatValue !== null ? currentStat.formatLabel(currentStatValue) : '...'}
+                                </Text>
+                            </Animated.View>
+                        </View>
+
+                        {/* Refresh button (only for non-weekly-reflection states) */}
+                        {!isReflectionState && (
+                            <TouchableOpacity
+                                onPress={handleRefresh}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                className="p-1"
+                            >
+                                <RefreshCw size={16} color={tokens.primary} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {/* Active Insight - subtle treatment */}
+                    {activeInsight && !isReflectionState && (
+                        <View className="pt-3 mt-3 border-t" style={{ borderTopColor: tokens.borderSubtle }}>
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                className="rounded-xl px-3 py-2"
+                                style={{ backgroundColor: tokens.backgroundMuted }}
+                                onPress={() => handleInsightPress(activeInsight)}
+                            >
+                                <View className="flex-row items-center justify-between mb-1">
+                                    <View className="flex-row items-center gap-2">
+                                        <Sparkles size={13} color={tokens.primary} />
+                                        <Text
+                                            style={{
+                                                color: tokens.primary,
+                                                fontFamily: typography.fonts.sansMedium,
+                                                fontSize: typography.scale.caption.fontSize,
+                                                letterSpacing: 0.3,
+                                                textTransform: 'uppercase',
+                                            }}
+                                        >
+                                            Oracle insight
+                                        </Text>
+                                    </View>
+                                    <Text
+                                        style={{
+                                            color: tokens.foregroundMuted,
+                                            fontFamily: typography.fonts.sans,
+                                            fontSize: typography.scale.caption.fontSize,
+                                        }}
+                                    >
+                                        Open
+                                    </Text>
+                                </View>
+                                <Text
+                                    numberOfLines={2}
+                                    style={{
+                                        color: tokens.foreground,
                                         fontFamily: typography.fonts.sans,
                                         fontSize: typography.scale.bodySmall.fontSize,
                                         lineHeight: typography.scale.bodySmall.lineHeight,
                                     }}
                                 >
-                                    {subtext}
+                                    {activeInsight.message}
                                 </Text>
-                            )}
+                            </TouchableOpacity>
                         </View>
-                    </TouchableOpacity>
-                </View>
-
-                <View className="mt-3 flex-row gap-3">
-                    {isReflectionState && (
-                        widgetState?.type === 'weekly-reflection' ? (
-                            <>
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                        UIEventBus.emit({ type: 'OPEN_WEEKLY_REFLECTION' });
-                                    }}
-                                    className="bg-primary px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center"
-                                    style={{ backgroundColor: tokens.primary }}
-                                >
-                                    <Sparkles size={16} color="#FFFFFF" />
-                                    <Text
-                                        className="text-white font-semibold text-sm"
-                                        style={{ fontFamily: typography.fonts.sansSemiBold }}
-                                    >
-                                        Reflect
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                        router.push('/journal');
-                                    }}
-                                    className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center border"
-                                    style={{ borderColor: tokens.border }}
-                                >
-                                    <BookOpen size={16} color={tokens.foreground} />
-                                    <Text
-                                        className="font-medium text-sm"
-                                        style={{
-                                            color: tokens.foreground,
-                                            fontFamily: typography.fonts.sansSemiBold
-                                        }}
-                                    >
-                                        Journal
-                                    </Text>
-                                </TouchableOpacity>
-                            </>
-                        ) : (
-                            <>
-                                <View
-                                    className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center opacity-70"
-                                    style={{ backgroundColor: tokens.backgroundMuted }}
-                                >
-                                    <Sparkles size={16} color={tokens.foregroundMuted} />
-                                    <Text
-                                        className="font-medium text-sm"
-                                        style={{
-                                            color: tokens.foregroundMuted,
-                                            fontFamily: typography.fonts.sansSemiBold
-                                        }}
-                                    >
-                                        Completed
-                                    </Text>
-                                </View>
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                        router.push('/journal');
-                                    }}
-                                    className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center border"
-                                    style={{ borderColor: tokens.border }}
-                                >
-                                    <BookOpen size={16} color={tokens.foreground} />
-                                    <Text
-                                        className="font-medium text-sm"
-                                        style={{
-                                            color: tokens.foreground,
-                                            fontFamily: typography.fonts.sansSemiBold
-                                        }}
-                                    >
-                                        Journal
-                                    </Text>
-                                </TouchableOpacity>
-                            </>
-                        )
                     )}
                 </View>
+            </HomeWidgetBase>
 
-                {/* Footer: Stat + Refresh button */}
-                <View
-                    className="pt-3 border-t flex-row items-center justify-between"
-                    style={{ borderTopColor: tokens.borderSubtle, display: isReflectionState ? 'none' : 'flex' }}
-                >
-                    {/* Cycling stat with Rolling Animation */}
-                    <View className="flex-1 overflow-hidden h-6 justify-center">
-                        <Animated.View
-                            key={statIndex}
-                            entering={FadeInDown.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
-                            exiting={FadeOutUp.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
-                            className="flex-row items-center gap-2 absolute top-0 left-0 bottom-0"
+            <StandardBottomSheet
+                visible={!!selectedInsight}
+                onClose={() => setSelectedInsight(null)}
+                title="Oracle Insight"
+                height="form"
+                showCloseButton
+            >
+                {selectedInsight ? (
+                    <View className="pt-1">
+                        <Text
+                            style={{
+                                color: tokens.foreground,
+                                fontFamily: typography.fonts.serif,
+                                fontSize: typography.scale.body.fontSize,
+                                lineHeight: typography.scale.body.lineHeight,
+                            }}
                         >
-                            <StatIcon size={14} color={tokens.foregroundMuted} />
+                            {selectedInsight.message}
+                        </Text>
+
+                        {selectedInsight.friendName && (
                             <Text
+                                className="mt-3"
                                 style={{
                                     color: tokens.foregroundMuted,
                                     fontFamily: typography.fonts.sans,
                                     fontSize: typography.scale.caption.fontSize,
                                 }}
                             >
-                                {currentStatValue !== null ? currentStat.formatLabel(currentStatValue) : '...'}
+                                About {selectedInsight.friendName}
                             </Text>
-                        </Animated.View>
-                    </View>
+                        )}
 
-                    {/* Refresh button (only for non-weekly-reflection states) */}
-                    {!isReflectionState && (
-                        <TouchableOpacity
-                            onPress={handleRefresh}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            className="p-1"
-                        >
-                            <RefreshCw size={16} color={tokens.primary} />
-                        </TouchableOpacity>
-                    )}
-                </View>
-
-                {/* Active Insight - subtle treatment */}
-                {activeInsights.length > 0 && !isReflectionState && (
-                    <View className="pt-3 mt-3 border-t" style={{ borderTopColor: tokens.borderSubtle }}>
-                        <InsightCardCompact
-                            insight={activeInsights[0]}
-                            onPress={() => {
-                                const insight = activeInsights[0];
-                                insightOrchestratorService.markInsightViewed(insight.id).catch(console.error);
-                                // Navigate to friend profile if insight is about a specific friend
-                                if (insight.friendId) {
-                                    router.push(`/friend-profile?id=${insight.friendId}`);
-                                }
-                                // Otherwise just mark as viewed (network-level insights)
-                            }}
-                        />
+                        <View className="mt-5 flex-row gap-3">
+                            {selectedInsight.friendId && (
+                                <TouchableOpacity
+                                    className="flex-1 px-4 py-3 rounded-full border"
+                                    style={{ borderColor: tokens.border }}
+                                    onPress={() => {
+                                        const friendId = selectedInsight.friendId;
+                                        setSelectedInsight(null);
+                                        if (friendId) {
+                                            router.push({
+                                                pathname: '/friend-profile',
+                                                params: { friendId },
+                                            });
+                                        }
+                                    }}
+                                >
+                                    <Text
+                                        className="text-center"
+                                        style={{
+                                            color: tokens.foreground,
+                                            fontFamily: typography.fonts.sansSemiBold,
+                                        }}
+                                    >
+                                        View Friend
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                                className="flex-1 px-4 py-3 rounded-full"
+                                style={{ backgroundColor: tokens.primary }}
+                                onPress={() => {
+                                    setSelectedInsight(null);
+                                    router.push('/journal');
+                                }}
+                            >
+                                <Text
+                                    className="text-center"
+                                    style={{
+                                        color: tokens.primaryForeground || '#FFFFFF',
+                                        fontFamily: typography.fonts.sansSemiBold,
+                                    }}
+                                >
+                                    Journal About It
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                )}
-            </View>
-        </HomeWidgetBase >
+                ) : null}
+            </StandardBottomSheet>
+        </>
     );
 }

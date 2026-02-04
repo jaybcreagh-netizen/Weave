@@ -119,7 +119,7 @@ describe('SmartSuggestionsChannel', () => {
 
             expect(mockRouter.push).toHaveBeenCalledWith({
                 pathname: '/friend-profile',
-                params: { id: 'friend-123' },
+                params: { friendId: 'friend-123' },
             });
         });
 

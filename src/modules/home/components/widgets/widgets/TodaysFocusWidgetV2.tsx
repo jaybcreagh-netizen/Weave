@@ -35,9 +35,6 @@ import { getPendingIncomingRequests, LinkRequest } from '@/modules/relationships
 import { UserPlus, Send } from 'lucide-react-native';
 import { CachedImage } from '@/shared/ui/CachedImage';
 import { StreakService } from '@/modules/gamification/services/streak.service';
-import { InsightCardCompact } from '@/modules/intelligence/components/InsightCard';
-import { insightOrchestratorService } from '@/modules/intelligence';
-import RelationshipInsight from '@/db/models/RelationshipInsight';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -173,6 +170,86 @@ const PendingItem: React.FC<PendingItemProps> = ({ id, title, subtitle, photoUrl
     );
 };
 
+interface PendingItemInlineProps extends PendingItemProps {
+    accentColor: string;
+}
+
+const PendingItemInline: React.FC<PendingItemInlineProps> = ({
+    title,
+    subtitle,
+    photoUrl,
+    type,
+    onPress,
+    showDivider,
+    accentColor
+}) => {
+    const { tokens, typography } = useTheme();
+
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            activeOpacity={0.7}
+            style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 12,
+                paddingHorizontal: 14,
+                gap: 12,
+                borderBottomWidth: showDivider ? 1 : 0,
+                borderBottomColor: tokens.borderSubtle,
+            }}
+        >
+            {photoUrl ? (
+                <CachedImage
+                    source={{ uri: photoUrl }}
+                    style={{ width: 36, height: 36, borderRadius: 18 }}
+                />
+            ) : (
+                <View
+                    style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        backgroundColor: tokens.backgroundSubtle,
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}
+                >
+                    {type === 'request' ? (
+                        <UserPlus size={18} color={accentColor} />
+                    ) : (
+                        <Send size={18} color={accentColor} />
+                    )}
+                </View>
+            )}
+            <View style={{ flex: 1 }}>
+                <Text
+                    style={{
+                        color: tokens.foreground,
+                        fontFamily: typography.fonts.sansMedium,
+                        fontSize: 14,
+                    }}
+                    numberOfLines={1}
+                >
+                    {title}
+                </Text>
+                <Text
+                    style={{
+                        color: tokens.foregroundMuted,
+                        fontFamily: typography.fonts.sans,
+                        fontSize: 12,
+                        marginTop: 1,
+                    }}
+                    numberOfLines={1}
+                >
+                    {subtitle}
+                </Text>
+            </View>
+            <ChevronRight size={16} color={tokens.foregroundMuted} />
+        </TouchableOpacity>
+    );
+};
+
 const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const { friends } = useFriendsObservable();
     const { tokens, typography, spacing } = useTheme();
@@ -186,7 +263,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
 
     // Pending Actions State
     const [linkRequests, setLinkRequests] = useState<LinkRequest[]>([]);
-    const { pendingWeaves, isLoading: isLoadingWeaves } = usePendingWeaves();
+    const { pendingWeaves } = usePendingWeaves();
     // Filter strictly for pending status to match widget logic
     const pendingWeaveInvites = useMemo(() => pendingWeaves.filter(w => w.status === 'pending'), [pendingWeaves]);
 
@@ -199,7 +276,6 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const [dailyReflection, setDailyReflection] = useState<string | null>(null);
     const [isLoadingReflection, setIsLoadingReflection] = useState(false);
     const [currentStreak, setCurrentStreak] = useState<number>(0);
-    const [activeInsights, setActiveInsights] = useState<RelationshipInsight[]>([]);
 
     // Load active intentions
     useEffect(() => {
@@ -251,19 +327,6 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         };
         loadStreak();
     }, [interactions]); // Recalculate when interactions change
-
-    // Load active insights
-    useEffect(() => {
-        const loadInsights = async () => {
-            try {
-                const insights = await insightOrchestratorService.getActiveInsights();
-                setActiveInsights(insights);
-            } catch (e) {
-                console.error('Error loading insights:', e);
-            }
-        };
-        loadInsights();
-    }, [interactions]); // Reload when interactions change
 
     // Logic ported from V1
     const pendingConfirmations = useMemo(() => {
@@ -680,35 +743,65 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 {/* Pending Actions Section */}
                 {hasPendingActions && (
                     <View className="mb-2">
-                        <View className="px-4 py-2 pt-4">
-                            <Text className="text-xs font-semibold uppercase tracking-wide" style={{ color: tokens.primary }}>Action Required</Text>
+                        <View className="px-4 py-2 pt-4 flex-row items-center gap-2">
+                            <View
+                                style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: 3,
+                                    backgroundColor: tokens.primary,
+                                }}
+                            />
+                            <Text
+                                style={{
+                                    color: tokens.foreground,
+                                    fontFamily: typography.fonts.sansSemiBold,
+                                    fontSize: 11,
+                                    letterSpacing: 0.5,
+                                    textTransform: 'uppercase',
+                                }}
+                            >
+                                Shared Weaves
+                            </Text>
                         </View>
-                        <Card padding="none">
-                            {linkRequests.map((request, index) => (
-                                <PendingItem
-                                    key={`request-${request.id}`}
-                                    id={request.id}
-                                    title={request.displayName}
-                                    subtitle="Sent you a friend link request"
-                                    photoUrl={request.photoUrl}
-                                    type="request"
-                                    onPress={() => setShowDetailSheet(true)}
-                                    showDivider={index < linkRequests.length - 1 || pendingWeaveInvites.length > 0}
-                                />
-                            ))}
-                            {pendingWeaveInvites.map((weave, index) => (
-                                <PendingItem
-                                    key={`weave-${weave.id}`}
-                                    id={weave.id}
-                                    title={weave.title || 'Shared Weave'}
-                                    subtitle={`Invited by ${weave.creatorName}`}
-                                    photoUrl={weave.creatorAvatarUrl}
-                                    type="weave"
-                                    onPress={() => setShowDetailSheet(true)}
-                                    showDivider={index < pendingWeaveInvites.length - 1}
-                                />
-                            ))}
-                        </Card>
+                        <View className="px-4">
+                            <View
+                                style={{
+                                    backgroundColor: tokens.backgroundMuted,
+                                    borderRadius: 12,
+                                    borderWidth: 1,
+                                    borderColor: tokens.border,
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                {linkRequests.map((request, index) => (
+                                    <PendingItemInline
+                                        key={`request-${request.id}`}
+                                        id={request.id}
+                                        title={request.displayName}
+                                        subtitle="Sent you a friend link request"
+                                        photoUrl={request.photoUrl}
+                                        type="request"
+                                        onPress={() => setShowDetailSheet(true)}
+                                        showDivider={index < linkRequests.length - 1 || pendingWeaveInvites.length > 0}
+                                        accentColor={tokens.primary}
+                                    />
+                                ))}
+                                {pendingWeaveInvites.map((weave, index) => (
+                                    <PendingItemInline
+                                        key={`weave-${weave.id}`}
+                                        id={weave.id}
+                                        title={weave.title || 'Shared Weave'}
+                                        subtitle={`Invited by ${weave.creatorName}`}
+                                        photoUrl={weave.creatorAvatarUrl}
+                                        type="weave"
+                                        onPress={() => setShowDetailSheet(true)}
+                                        showDivider={index < pendingWeaveInvites.length - 1}
+                                        accentColor={tokens.primary}
+                                    />
+                                ))}
+                            </View>
+                        </View>
                     </View>
                 )}
 
@@ -812,17 +905,27 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 {(hasSuggestions || hasIntentions || hasUpcomingDates) && (
                     <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
                         <View
-                            className="flex-row items-center justify-center p-3"
-                            style={(hasUpcoming || hasCompleted || hasTomorrow) ? { borderTopWidth: 1, borderTopColor: tokens.borderSubtle } : undefined}
+                            className="px-4 pt-3 pb-4"
+                            style={(hasUpcoming || hasCompleted || hasTomorrow)
+                                ? { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }
+                                : undefined}
                         >
-                            <Text style={{
-                                color: tokens.primary,
-                                fontFamily: typography.fonts.sansMedium,
-                                fontSize: typography.scale.body.fontSize,
-                            }}>
-                                See more
-                            </Text>
-                            <ChevronRight size={16} color={tokens.primary} style={{ marginLeft: 4 }} />
+                            <View
+                                className="flex-row items-center justify-center py-2.5 rounded-full border"
+                                style={{
+                                    backgroundColor: tokens.backgroundMuted,
+                                    borderColor: tokens.border,
+                                }}
+                            >
+                                <Text style={{
+                                    color: tokens.primary,
+                                    fontFamily: typography.fonts.sansSemiBold,
+                                    fontSize: typography.scale.bodySmall.fontSize,
+                                }}>
+                                    See more
+                                </Text>
+                                <ChevronRight size={15} color={tokens.primary} style={{ marginLeft: 4 }} />
+                            </View>
                         </View>
                     </TouchableOpacity>
                 )}

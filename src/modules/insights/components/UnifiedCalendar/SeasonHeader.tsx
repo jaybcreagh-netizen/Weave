@@ -78,94 +78,112 @@ export function SeasonHeader({ season, avgEnergy }: SeasonHeaderProps) {
                 onLongPress={handleLongPress}
                 delayLongPress={500}
                 activeOpacity={0.8}
-                className="flex-row items-center px-4 py-3 rounded-xl mb-2"
-                style={{ backgroundColor: seasonColor + '15' }}
+                className="px-4 py-3 rounded-xl mb-2"
+                style={{
+                    backgroundColor: seasonColor + '15',
+                    borderWidth: 1,
+                    borderColor: seasonColor + '25',
+                }}
             >
-                {/* Season Icon */}
-                <View
-                    className="w-12 h-12 rounded-full items-center justify-center mr-3"
-                    style={{ backgroundColor: seasonColor + '25' }}
-                >
-                    <SeasonIcon season={seasonLower} size={32} color={seasonColor} />
-                </View>
-
-                {/* Season Info */}
-                <View className="flex-1">
-                    <Text
-                        className="text-base"
-                        style={{
-                            color: tokens.foreground,
-                            fontFamily: typography.fonts.serifBold,
-                            fontSize: typography.scale.h3.fontSize,
-                        }}
-                    >
-                        {getSeasonDisplayName(seasonLower)}
-                    </Text>
-                    <Text
-                        className="text-sm"
-                        style={{
-                            color: tokens.foregroundMuted,
-                            fontFamily: typography.fonts.sans,
-                        }}
-                    >
-                        {SEASON_DESCRIPTIONS[season]}
-                    </Text>
-
-                    {/* Override Badge */}
-                    {hasActiveOverride && (
+                <View className="flex-row items-start">
+                    {/* Season Info */}
+                    <View className="flex-1">
                         <View
-                            className="flex-row items-center gap-1 mt-1"
+                            className="self-start px-2 py-0.5 rounded-full mb-1"
+                            style={{ backgroundColor: seasonColor + '22' }}
                         >
-                            <View
-                                style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: 3,
-                                    backgroundColor: seasonColor,
-                                }}
-                            />
                             <Text
                                 style={{
                                     color: seasonColor,
                                     fontFamily: typography.fonts.sansMedium,
                                     fontSize: 11,
+                                    letterSpacing: 0.4,
+                                    textTransform: 'uppercase',
                                 }}
                             >
-                                Override until {format(profile!.seasonOverrideUntil!, 'MMM d')}
+                                Social season
                             </Text>
                         </View>
-                    )}
-                </View>
+                        <View className="flex-row items-center gap-2">
+                            <SeasonIcon season={seasonLower} size={18} color={seasonColor} />
+                            <Text
+                                className="text-base"
+                                style={{
+                                    color: tokens.foreground,
+                                    fontFamily: typography.fonts.sansSemiBold,
+                                    fontSize: typography.scale.body.fontSize,
+                                    lineHeight: typography.scale.body.lineHeight,
+                                }}
+                            >
+                                {getSeasonDisplayName(seasonLower)} season
+                            </Text>
+                        </View>
+                        <Text
+                            className="text-sm mt-0.5"
+                            style={{
+                                color: tokens.foregroundMuted,
+                                fontFamily: typography.fonts.sans,
+                            }}
+                        >
+                            {SEASON_DESCRIPTIONS[season]}
+                        </Text>
 
-                {/* Expand/Collapse Indicator and Avg Energy */}
-                <View className="items-end">
-                    {avgEnergy !== undefined && (
-                        <>
-                            <Text
-                                className="text-lg"
-                                style={{
-                                    color: seasonColor,
-                                    fontFamily: typography.fonts.serifBold,
-                                }}
+                        {/* Override Badge */}
+                        {hasActiveOverride && (
+                            <View
+                                className="flex-row items-center gap-1 mt-1"
                             >
-                                {avgEnergy.toFixed(1)}
-                            </Text>
-                            <Text
-                                className="text-xs"
-                                style={{
-                                    color: tokens.foregroundMuted,
-                                    fontFamily: typography.fonts.sans,
-                                }}
-                            >
-                                7d avg
-                            </Text>
-                        </>
-                    )}
-                    {isExpanded ? (
-                        <ChevronUp size={16} color={tokens.foregroundMuted} style={{ marginTop: 4 }} />
-                    ) : (
-                        <ChevronDown size={16} color={tokens.foregroundMuted} style={{ marginTop: 4 }} />
-                    )}
+                                <View
+                                    style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: 3,
+                                        backgroundColor: seasonColor,
+                                    }}
+                                />
+                                <Text
+                                    style={{
+                                        color: seasonColor,
+                                        fontFamily: typography.fonts.sansMedium,
+                                        fontSize: 11,
+                                    }}
+                                >
+                                    Override until {format(profile!.seasonOverrideUntil!, 'MMM d')}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* Expand/Collapse Indicator and Avg Energy */}
+                    <View className="items-end ml-3">
+                        {avgEnergy !== undefined && (
+                            <>
+                                <Text
+                                    className="text-lg"
+                                    style={{
+                                        color: seasonColor,
+                                        fontFamily: typography.fonts.serifBold,
+                                    }}
+                                >
+                                    {avgEnergy.toFixed(1)}
+                                </Text>
+                                <Text
+                                    className="text-xs"
+                                    style={{
+                                        color: tokens.foregroundMuted,
+                                        fontFamily: typography.fonts.sans,
+                                    }}
+                                >
+                                    7d avg
+                                </Text>
+                            </>
+                        )}
+                        {isExpanded ? (
+                            <ChevronUp size={16} color={tokens.foregroundMuted} style={{ marginTop: 4 }} />
+                        ) : (
+                            <ChevronDown size={16} color={tokens.foregroundMuted} style={{ marginTop: 4 }} />
+                        )}
+                    </View>
                 </View>
             </TouchableOpacity>
 

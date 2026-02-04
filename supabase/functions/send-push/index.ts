@@ -34,9 +34,17 @@ serve(async (req) => {
         const authHeader = req.headers.get('Authorization') || ''
         const token = authHeader.replace('Bearer ', '').trim()
         const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+        const pushWebhookSecret = Deno.env.get('PUSH_WEBHOOK_SECRET') || ''
+        const webhookSecretHeader = (req.headers.get('x-push-secret') || '').trim()
+
+        const isServiceRoleRequest = !!token && token === serviceRoleKey
+        const isTrustedWebhook = !!pushWebhookSecret && webhookSecretHeader === pushWebhookSecret
 
         // Restrict this endpoint to trusted server-side callers only.
-        if (!token || token !== serviceRoleKey) {
+        // We accept either:
+        // 1) Service-role bearer token (legacy callers)
+        // 2) Push webhook secret header (DB triggers via pg_net)
+        if (!isServiceRoleRequest && !isTrustedWebhook) {
             return new Response(
                 JSON.stringify({ error: 'Unauthorized' }),
                 { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

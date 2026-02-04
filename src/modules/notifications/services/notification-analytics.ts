@@ -1,26 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { trackEvent } from '@/shared/services/analytics.service';
 import Logger from '@/shared/utils/Logger';
+import { NotificationType } from '../types';
 
 // Feature flag - set to true to enable analytics
 const ANALYTICS_ENABLED = true;
 
 // Storage keys
 const NOTIFICATION_CORRELATION_KEY = '@weave:notification_correlation';
-
-// Types of notifications we track
-export type NotificationType =
-    | 'battery-checkin'
-    | 'weekly-reflection'
-    | 'event-reminder'
-    | 'deepening-nudge'
-    | 'friend-suggestion'
-    | 'memory-nudge'
-    | 'event-suggestion'
-    | 'life-event'
-    | 'portfolio-insight'
-    | 'evening-digest'
-    | 'plan_reminder';
 
 export interface NotificationEventProperties {
     type: NotificationType;

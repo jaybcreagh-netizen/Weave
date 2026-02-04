@@ -1,39 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { router } from 'expo-router';
+import { View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Moon, Sun, Zap, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { SettingsItem } from './SettingsItem';
 import { ModernSwitch } from '@/shared/ui/ModernSwitch';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-    MessageSquare,
-    Shield,
-    FileText,
-    Sparkles,
-    Zap,
-} from 'lucide-react-native';
-import { useUIStore } from '@/shared/stores/uiStore';
-
-// Modals
-import { FeedbackModal } from '../FeedbackModal';
-
-// Feature flags and auth
-import { isFeatureEnabled } from '@/shared/config/feature-flags';
 
 // Settings keys
 import { QUICK_WEAVE_ENABLED_KEY, QUICK_WEAVE_MODE_KEY } from '@/modules/interactions/utils/quick-weave-settings';
 
-interface GeneralSettingsProps {
-    onClose: () => void;
-}
-
-export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => {
+export const InteractionSettings = () => {
     const { colors } = useTheme();
+    const { isDarkMode, toggleDarkMode, setQuickWeaveFeatureEnabled, setQuickWeaveMode } = useUIStore();
 
-    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const [smartDefaultsEnabled, setSmartDefaultsEnabled] = useState(true);
     const [quickWeaveEnabled, setQuickWeaveEnabled] = useState(true);
-    const [quickWeaveMode, setQuickWeaveMode] = useState<'gesture' | 'click'>('gesture');
+    const [quickWeaveMode, setQuickWeaveModeState] = useState<'gesture' | 'click'>('gesture');
 
     useEffect(() => {
         loadSettings();
@@ -47,7 +30,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
         setQuickWeaveEnabled(quickWeaveStr ? JSON.parse(quickWeaveStr) : true);
 
         const quickWeaveModeStr = await AsyncStorage.getItem(QUICK_WEAVE_MODE_KEY);
-        setQuickWeaveMode((quickWeaveModeStr as 'gesture' | 'click') || 'gesture');
+        setQuickWeaveModeState((quickWeaveModeStr as 'gesture' | 'click') || 'gesture');
     };
 
     const handleToggleSmartDefaults = async (enabled: boolean) => {
@@ -57,20 +40,32 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
 
     const handleToggleQuickWeave = async (enabled: boolean) => {
         setQuickWeaveEnabled(enabled);
-        useUIStore.getState().setQuickWeaveFeatureEnabled(enabled);
+        setQuickWeaveFeatureEnabled(enabled);
         await AsyncStorage.setItem(QUICK_WEAVE_ENABLED_KEY, JSON.stringify(enabled));
     };
 
     const handleToggleQuickWeaveMode = async (mode: 'gesture' | 'click') => {
+        setQuickWeaveModeState(mode);
         setQuickWeaveMode(mode);
-        useUIStore.getState().setQuickWeaveMode(mode);
         await AsyncStorage.setItem(QUICK_WEAVE_MODE_KEY, mode);
     };
 
     return (
         <View className="gap-4">
-            {/* Account Section - Only show if feature is enabled */}
+            {/* Theme Toggle */}
+            <SettingsItem
+                icon={isDarkMode ? Moon : Sun}
+                title={isDarkMode ? "Dark Theme" : "Light Theme"}
+                subtitle={isDarkMode ? "Mystic arcane theme" : "Warm cream theme"}
+                rightElement={
+                    <ModernSwitch
+                        value={isDarkMode}
+                        onValueChange={toggleDarkMode}
+                    />
+                }
+            />
 
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
             {/* Interaction Settings */}
             <SettingsItem
@@ -87,7 +82,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
 
             {quickWeaveEnabled && (
                 <SettingsItem
-                    icon={Zap} // Or a different icon? Hand?
+                    icon={Zap}
                     title="Tap to Interact"
                     subtitle="Release to tap options instead of dragging"
                     isChild
@@ -100,6 +95,8 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
                 />
             )}
 
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
             <SettingsItem
                 icon={Sparkles}
                 title="Smart Activity Ordering"
@@ -111,53 +108,6 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
                     />
                 }
             />
-
-            <View className="border-t border-border" style={{ borderColor: colors.border }} />
-
-            <SettingsItem
-                icon={MessageSquare}
-                title="Send Feedback"
-                subtitle="Report bugs or share ideas"
-                onPress={() => setShowFeedbackModal(true)}
-            />
-
-
-
-            <View className="border-t border-border" style={{ borderColor: colors.border }} />
-
-            {/* Legal Section */}
-            <Text className="text-xs font-inter-semibold uppercase tracking-wide mb-2" style={{ color: colors['muted-foreground'] }}>
-                Legal
-            </Text>
-
-            <SettingsItem
-                icon={Shield}
-                title="Privacy Policy"
-                subtitle="How we handle your data"
-                onPress={() => {
-                    onClose();
-                    router.push('/privacy-policy');
-                }}
-            />
-
-            <View className="border-t border-border" style={{ borderColor: colors.border }} />
-
-            <SettingsItem
-                icon={FileText}
-                title="Terms of Service"
-                subtitle="Usage agreement"
-                onPress={() => {
-                    onClose();
-                    router.push('/terms-of-service');
-                }}
-            />
-
-            {/* Modals */}
-            <FeedbackModal
-                visible={showFeedbackModal}
-                onClose={() => setShowFeedbackModal(false)}
-            />
         </View>
     );
 };
-

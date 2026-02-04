@@ -360,7 +360,7 @@ export const SmartSuggestionsChannel: NotificationChannel & {
         if (data.friendId) {
             router.push({
                 pathname: '/friend-profile',
-                params: { id: data.friendId },
+                params: { friendId: data.friendId },
             });
             notificationAnalytics.trackActionCompleted('friend-suggestion', 'view_profile');
         } else {

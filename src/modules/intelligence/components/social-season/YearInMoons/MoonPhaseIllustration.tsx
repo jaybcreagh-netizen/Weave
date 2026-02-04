@@ -24,13 +24,13 @@ const MOON_ICONS = {
 };
 
 // Energy-based color palette: warm earthy tones that match the app aesthetic
-// Depleted (1) = dusty rose/terracotta, Full (5) = warm sage/forest
+// Depleted (1) = rust, Full (5) = deep forest - with clear differentiation between levels
 const ENERGY_COLORS: Record<1 | 2 | 3 | 4 | 5, string> = {
-  1: '#C9866B', // Dusty terracotta - depleted
-  2: '#D4A574', // Warm sand - low
-  3: '#C9985A', // Aged gold - balanced (matches app primary)
-  4: '#A8B98A', // Sage green - good
-  5: '#7D9B76', // Forest sage - full
+  1: '#B87161', // Deeper rust - depleted
+  2: '#E5CBA4', // Pale cream - low
+  3: '#C4863A', // Rich amber - balanced
+  4: '#B5CA8E', // Light sage - good
+  5: '#5A8A54', // Deep forest - full
 };
 
 // Muted color for days without check-in

@@ -15,7 +15,12 @@ export type NotificationType =
     | 'life-event'
     | 'portfolio-insight'
     | 'evening-digest'
-    | 'plan_reminder';
+    | 'plan_reminder'
+    | 'shared_weave'
+    | 'link_request'
+    | 'link_accepted'
+    | 'friend_joined'
+    | 'username-nudge';
 
 export interface ScheduledNotification {
     id: string;
