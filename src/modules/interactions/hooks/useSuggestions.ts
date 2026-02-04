@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
-import Interaction from '@/db/models/Interaction';
 import { fetchSuggestions } from '../services/suggestion-provider.service';
 import { SuggestionTrackerService } from '../services/suggestion-tracker.service';
 import * as SuggestionStorageService from '../services/suggestion-storage.service';
@@ -112,9 +111,13 @@ export function useSuggestions() {
     };
   }, [suggestions]);
 
-  // Sync suggestion stats to UIStore for components that just need the count
-  // Use suggestions.length as dependency to avoid reference equality issues
-  // Also guard against unnecessary updates to prevent feedback loops
+  const suggestionStatsFingerprint = suggestions
+    .map(s => `${s.id}:${s.urgency ?? 'none'}:${s.priority ?? 'none'}`)
+    .sort()
+    .join('|');
+
+  // Sync suggestion stats to UIStore for components that just need the count.
+  // Fingerprint dependency ensures updates when urgency/composition changes even if count is unchanged.
   useEffect(() => {
     const hasCritical = suggestions.some(s => s.urgency === 'critical');
     const store = useUIStore.getState();
@@ -123,7 +126,7 @@ export function useSuggestions() {
     if (store.suggestionCount !== suggestions.length || store.hasCriticalSuggestion !== hasCritical) {
       store.setSuggestionStats(suggestions.length, hasCritical);
     }
-  }, [suggestions.length]); // Use primitive value as dependency
+  }, [suggestionStatsFingerprint, suggestions.length]);
 
 
 

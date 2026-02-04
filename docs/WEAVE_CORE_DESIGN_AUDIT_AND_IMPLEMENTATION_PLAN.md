@@ -18,11 +18,11 @@ Weave already has a strong foundation for the proposition: "help people allocate
 The main issue is not missing features. It is **loop coherence**:
 
 1. **Trust gap:** score semantics are not fully consistent across calculation paths and UI surfaces.  
-2. **Clarity gap:** Circle does not explicitly show "why this person now?" in a way users can act on quickly.  
+2. **Priority gap:** Circle ranking is not consistently tier-aware and can feel inconsistent between views.  
 3. **Agency gap:** suggestion dismiss/snooze behavior is not consistently persistent in key flows.  
 4. **Adaptation gap:** energy check-ins do not always propagate quickly to season/suggestion behavior.
 
-If we fix those four gaps, Weave can feel like one coherent "relationship operating system" rather than separate screens.
+If we fix those four gaps (while preserving the app's calm, non-naggy tone), Weave can feel like one coherent "relationship operating system" rather than separate screens.
 
 ---
 
@@ -35,6 +35,12 @@ If we fix those four gaps, Weave can feel like one coherent "relationship operat
 3. **Act:** Make action frictionless (log, plan, reflect, reach out).  
 4. **Learn:** Update trustable score + next best suggestions.  
 5. **Adapt:** Modulate recommendations by current social energy and season.
+
+### Tone guardrail (product philosophy)
+
+- Do not introduce naggy "attention debt" surfaces.
+- Let users infer priority through sorting, suggestions, and usage patterns.
+- Keep Circle focused on practical action, not heavy explanation UI.
 
 When this loop is healthy, users should feel:
 - "I know who needs me now."
@@ -97,29 +103,29 @@ When this loop is healthy, users should feel:
 **Circle = operational triage and action.**  
 **Insights = explanation, pattern context, and reflection.**
 
-Circle should answer in under 3 seconds:
+Circle should answer in under 3 seconds, without a new explicit "Why now?" surface:
 1. Who needs attention right now?
-2. Why?
-3. What should I do next?
+2. What should I do next?
 
 ### 4.2 Circle information architecture (target)
 
-1. **Needs Attention Now** (top block, cross-tier prioritized list)  
-2. **Tier Browser** (Inner / Close / Community for full network management)  
-3. **Quick Actions** (log, plan, add; same as today)  
-4. **Search/Filters** (current behavior preserved but ranking semantics unified)
+1. **Tier Browser** (Inner / Close / Community remains primary)  
+2. **Quick Actions** (log, plan, add; same as today)  
+3. **Search/Filters** (preserved; semantics unified)
 
-### 4.3 Friend row design contract ("Why now?")
+### 4.3 Tier-aware sorting contract (default behavior)
 
-Each prioritized friend row should include:
-- Primary state chip: `Critical`, `Needs care`, `Stable`, `Thriving`.
-- Reason sentence (single line):  
-  - "12 days since last interaction; below Inner Circle rhythm."  
-  - "Strong momentum cooling; light check-in recommended."  
-  - "Your energy is low: suggest text/voice-note."
-- Primary CTA derived from suggestion/action policy.
+When a user is viewing a specific tier, ordering should be evaluated against that tier's expectations.
 
-This makes ranking legible and reduces cognitive overhead.
+Default sort in a tier view:
+1. Tier-aware health state severity (worst first, computed against that tier).  
+2. `S_current` ascending.  
+3. `lastUpdated` ascending.
+
+Example:
+- User is in **Inner Circle** view.
+- Four friends are green, one is yellow.
+- Yellow appears at the top (even if absolute score might look acceptable in a lower tier).
 
 ---
 
@@ -136,13 +142,16 @@ Policy: all user-facing priority/ranking logic must use `S_current`.
 
 #### Canonical ranking function
 
-For any friend list where priority matters:
+For tier-based lists:
 1. Compute `S_current`.
-2. Compute tier-aware attention band.
+2. Compute tier-aware health band using the friend's tier threshold (for example: Inner Circle < 50 drifts sooner than Community).  
 3. Sort by:
-   - attention band severity (worst first),
+   - tier-aware health severity (worst first),
    - then `S_current` ascending,
-   - then `lastUpdated` ascending (oldest first) for tie-break.
+   - then `lastUpdated` ascending.
+
+For cross-tier search/sort:
+- Keep one deterministic order but preserve tier-aware state logic so users do not see contradictory prioritization between views.
 
 ### 5.2 Decay and backfill correctness
 
@@ -191,38 +200,34 @@ Target: visible recommendation adaptation within the same app session, without r
 ### Changes
 1. Fix grace/gap logic in `calculateDecayAmount` to use function inputs deterministically.
 2. Pass `season` in all gap decay/penalty calls in orchestrator scoring.
-3. Make tier view ranking use `calculateCurrentScore` (same semantics as search/sort).
+3. Make tier view ranking use `calculateCurrentScore` and tier-aware health severity.
 4. Expand `FriendListRow` score memo dependencies to include fields that influence decay (tier/archetype).
 5. Add tests for:
    - grace boundary,
    - backfill penalty correctness,
    - season-aware gap scoring,
+   - tier-aware ordering behavior (including "yellow above green in active tier"),
    - ranking parity between tier and search views.
 
 ### Acceptance criteria
 - Same friend ordering logic across Circle tier view and search default sort.
+- Tier view always prioritizes the most at-risk relationship for that tier first.
 - Backfilled interaction score outcomes match deterministic expected values.
 - No stale health state after tier/archetype update.
 
 ---
 
-### Workstream B: Circle Triage UX ("Why Now?")
+### Workstream B: De-scoped (Preserve Weave Tone)
 
-### Files to update
-- `src/modules/relationships/screens/FriendsDashboardScreen.tsx`
-- `src/modules/relationships/components/FriendListRow.tsx`
-- (new) `src/modules/relationships/components/NeedsAttentionSection.tsx`
-- (new) `src/modules/relationships/services/friend-priority.service.ts`
+No new "Why now?" section/tab is planned for this phase.
 
-### Changes
-1. Add top-level **Needs Attention Now** section in Circle using canonical ranking function.
-2. Add "why now" explanation line and state chip to row presentation.
-3. Keep existing tier carousel for full browsing and management.
-4. Ensure quick actions (log/plan/reach out) remain one tap from priority list.
+Rationale:
+1. It risks a naggy product tone.
+2. Priority can be inferred from tier-aware sorting + existing suggestion surfaces.
+3. This phase should focus on trust and loop integrity, not major IA shifts.
 
-### Acceptance criteria
-- Users can identify top 3 needed relationships without switching tabs.
-- Every prioritized row has explicit, human-readable reason text.
+Status:
+- Moved to backlog as an optional future experiment only.
 
 ---
 
@@ -284,6 +289,9 @@ Target: visible recommendation adaptation within the same app session, without r
 - At-risk but decayed friends appear reliably in candidate pool for larger networks.
 - Suggestion generation latency remains within acceptable budget.
 
+Status:
+- Deferred unless scale pain is observed (large network users, suggestion quality drop, or generation latency regressions).
+
 ---
 
 ## 7) Telemetry and Success Metrics
@@ -295,8 +303,6 @@ Target: visible recommendation adaptation within the same app session, without r
 - **Energy Adaptation Latency:** time from battery check-in to updated suggestion set.
 
 ### Suggested events
-- `circle_priority_viewed`
-- `circle_priority_action_clicked`
 - `suggestion_dismissed`
 - `suggestion_snoozed`
 - `battery_checkin_submitted`
@@ -309,10 +315,10 @@ Target: visible recommendation adaptation within the same app session, without r
 ### Unit
 - Decay/backfill deterministic math.
 - Suggestion action mapping and fallback behavior.
-- Candidate selection tier/decay fairness.
 
 ### Integration
 - Circle ranking parity across tier and search views.
+- Tier-aware in-list ordering behavior by active tier.
 - Today Focus dismiss persistence and refresh behavior.
 - Battery check-in -> season update -> suggestion refresh chain.
 
@@ -335,8 +341,8 @@ Target: visible recommendation adaptation within the same app session, without r
 ### Phase 3 (Week 3): Energy Adaptation
 - Workstream D
 
-### Phase 4 (Week 4): Experience Clarity and Scale
-- Workstream B + Workstream E
+### Phase 4 (Backlog, only if needed): Scale hardening
+- Workstream E (conditional)
 
 ---
 
@@ -347,7 +353,6 @@ Target: visible recommendation adaptation within the same app session, without r
 | Score behavior changes feel abrupt to existing users | Medium | Release notes + stable thresholds + staged rollout |
 | Over-invalidation hurts performance | Medium | debounce, query dedupe, cache guards |
 | Category mapping mistakes in action routing | High | strict mapper tests + safe defaults |
-| Candidate expansion increases compute cost | Medium | adaptive cap with upper bound and profiling |
 
 ---
 
@@ -361,5 +366,5 @@ Target: visible recommendation adaptation within the same app session, without r
 
 ## 12) Final Recommendation
 
-Prioritize **score trust + loop integrity** first (Workstreams A and C).  
-Those two tracks unlock the highest user trust gain with the least design risk, and they create the foundation for a much clearer Circle triage experience in the next phase.
+Prioritize **A -> C -> D**.  
+Keep Circle's current calm interaction model, and improve prioritization through **tier-aware default sorting** rather than introducing a new explanatory UI layer.

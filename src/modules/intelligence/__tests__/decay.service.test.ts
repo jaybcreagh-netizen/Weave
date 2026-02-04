@@ -23,6 +23,36 @@ describe('Decay Service', () => {
   });
 
   describe('calculateDecayAmount', () => {
+    it('uses the provided days argument for grace checks (backfill-safe)', () => {
+      // lastUpdated is very old, but calculation should respect passed `days`
+      // so this remains in grace period (Unknown grace = 7 days).
+      mockFriend.lastUpdated = daysAgo(100);
+      expect(calculateDecayAmount(mockFriend as FriendModel, 3)).toBe(0);
+    });
+
+    it('applies season decay multipliers when provided', () => {
+      mockFriend.lastUpdated = daysAgo(10);
+
+      const balancedDecay = calculateDecayAmount(
+        mockFriend as FriendModel,
+        10,
+        'balanced',
+        true,
+        'balanced'
+      );
+      const restingDecay = calculateDecayAmount(
+        mockFriend as FriendModel,
+        10,
+        'balanced',
+        true,
+        'resting'
+      );
+
+      expect(restingDecay).toBeLessThan(balancedDecay);
+      expect(restingDecay).toBeCloseTo(11.25);
+      expect(balancedDecay).toBeCloseTo(15);
+    });
+
     it('calculates full decay when outside grace period', () => {
       // 10 days (outside grace of 7)
       // Rate: 1.5 (CloseFriends) * 1.0 (Archetype) * 1.0 (Zone) = 1.5

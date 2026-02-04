@@ -6,7 +6,7 @@ import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2, Coffee, M
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
-import { useSuggestions, useInteractions, usePlans } from '@/modules/interactions';
+import { useSuggestions, useInteractions, usePlans, getSuggestionCooldownDays } from '@/modules/interactions';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';
@@ -21,7 +21,6 @@ import { FocusDetailSheet } from '@/modules/home/components/FocusDetailSheet';
 import { FocusPlanItem } from './components/FocusPlanItem';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
-import { getCategoryLabel } from '@/modules/interactions';
 import { SeasonAnalyticsService } from '@/modules/intelligence';
 import { parseFlexibleDate } from '@/shared/utils/date-utils';
 import { useReachOut, ContactLinker } from '@/modules/messaging';
@@ -35,6 +34,7 @@ import { getPendingIncomingRequests, LinkRequest } from '@/modules/relationships
 import { UserPlus, Send } from 'lucide-react-native';
 import { CachedImage } from '@/shared/ui/CachedImage';
 import { StreakService } from '@/modules/gamification/services/streak.service';
+import { resolveSuggestionInteractionCategory } from '@/modules/interactions/utils/suggestion-action-mapper';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -254,7 +254,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const { friends } = useFriendsObservable();
     const { tokens, typography, spacing } = useTheme();
     const router = useRouter();
-    const { suggestions } = useSuggestions();
+    const { suggestions, dismissSuggestion } = useSuggestions();
     const { allInteractions: interactions } = useInteractions();
     const { completePlan } = usePlans();
     const { openPostWeaveRating, openWeeklyReflection } = useUIStore();
@@ -584,12 +584,14 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     };
 
     const handlePlanSuggestion = (suggestion: Suggestion, friend: FriendModel) => {
+        const interactionCategory = resolveSuggestionInteractionCategory(suggestion, 'hangout');
+
         // Navigate to weave logger (Plan mode)
         router.push({
             pathname: '/weave-logger',
             params: {
                 friendId: friend.id,
-                initialCategory: suggestion.category,
+                initialCategory: interactionCategory,
                 mode: 'plan'
             }
         });
@@ -603,8 +605,9 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
     };
 
-    const handleSuggestionDismiss = (suggestion: Suggestion) => {
-        // In the future: call dismissal service
+    const handleSuggestionDismiss = async (suggestion: Suggestion) => {
+        const cooldownDays = getSuggestionCooldownDays(suggestion.id);
+        await dismissSuggestion(suggestion.id, cooldownDays);
         setSelectedSuggestion(null);
     };
 
@@ -706,10 +709,11 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     }, [hasNoCalendarEvents, dailyReflection, isLoadingReflection]);
 
     const handleReflectSuggestion = (suggestion: Suggestion, friend: FriendModel) => {
+        const interactionCategory = resolveSuggestionInteractionCategory(suggestion, 'deep-talk');
         showMicroReflectionSheet({
             friendId: friend.id,
             friendName: friend.name,
-            activityId: suggestion.category || 'hangout',
+            activityId: interactionCategory,
             activityLabel: suggestion.title || 'Interaction',
             interactionId: suggestion.action?.interactionId || '',
             friendArchetype: friend.archetype,

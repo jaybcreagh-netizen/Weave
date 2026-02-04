@@ -109,6 +109,7 @@ export const YourPulseWidget: React.FC = () => {
     const cache = useDashboardCacheStore((state) => state.socialSeasonCache);
     const isCacheStale = useDashboardCacheStore((state) => state.isSocialSeasonStale);
     const setCache = useDashboardCacheStore((state) => state.setSocialSeasonCache);
+    const batteryRefreshSignal = useDashboardCacheStore((state) => state.batteryRefreshSignal);
 
     const [isCalculating, setIsCalculating] = useState(false);
     const [season, setSeason] = useState<SocialSeason>(cache.season);
@@ -118,7 +119,13 @@ export const YourPulseWidget: React.FC = () => {
     const [currentStreak, setCurrentStreak] = useState(cache.currentStreak);
     const [networkHealth, setNetworkHealth] = useState(cache.networkHealth);
 
-    const prevDepsRef = useRef({ interactionCount: 0, friendCount: 0 });
+    const batteryDependencyKey = `${batteryStats.average ?? 'none'}:${batteryStats.trend ?? 'none'}:${profile?.socialBatteryLastCheckin ?? 'none'}`;
+    const prevDepsRef = useRef({
+        interactionCount: 0,
+        friendCount: 0,
+        batteryKey: 'none',
+        batteryRefreshSignal: 0,
+    });
 
     // Sync season from profile when cache is stale
     useEffect(() => {
@@ -272,24 +279,39 @@ export const YourPulseWidget: React.FC = () => {
 
         const hasSignificantChange =
             currentInteractionCount !== prevDeps.interactionCount ||
-            currentFriendCount !== prevDeps.friendCount;
+            currentFriendCount !== prevDeps.friendCount ||
+            batteryDependencyKey !== prevDeps.batteryKey ||
+            batteryRefreshSignal !== prevDeps.batteryRefreshSignal;
 
         prevDepsRef.current = {
             interactionCount: currentInteractionCount,
             friendCount: currentFriendCount,
+            batteryKey: batteryDependencyKey,
+            batteryRefreshSignal,
         };
 
         if (!isCacheStale() && !hasSignificantChange && cache.lastCalculated) {
             return;
         }
 
+        // Debounce fast-moving profile/query updates so one check-in produces one recalculation.
         const timeout = setTimeout(async () => {
             await calculateActivityStats();
             await calculateAndUpdateSeason();
-        }, 1000);
+        }, 700);
 
         return () => clearTimeout(timeout);
-    }, [allInteractions.length, friends.length, profile?.id]);
+    }, [
+        allInteractions.length,
+        friends.length,
+        profile?.id,
+        profile?.socialBatteryLastCheckin,
+        batteryStats.average,
+        batteryStats.trend,
+        batteryDependencyKey,
+        batteryRefreshSignal,
+        cache.lastCalculated,
+    ]);
 
     useEffect(() => {
         if (!isCalculating && season && networkHealth > 0) {

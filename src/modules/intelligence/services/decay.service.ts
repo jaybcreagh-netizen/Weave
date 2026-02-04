@@ -38,12 +38,10 @@ export function calculateDecayAmount(
   const archetype = (friend.archetype as Archetype) || 'Unknown';
   const archetypeConfig = ArchetypeDecayConfigs[archetype] ?? ArchetypeDecayConfigs.Unknown;
 
-  // 2. Grace Period Check: No decay if within archetype-specific grace window
-  // `lastUpdated` is set to the interaction date when weaves are logged (see orchestrator.service.ts)
-  // so it accurately represents "days since last interaction"
-  const totalDaysSilent = daysSince(friend.lastUpdated);
-
-  if (totalDaysSilent < archetypeConfig.graceDays) {
+  // 2. Grace Period Check: No decay if within archetype-specific grace window.
+  // IMPORTANT: use the provided `days` argument so hypothetical/backfill calculations
+  // are deterministic and not tied to "now".
+  if (days < archetypeConfig.graceDays) {
     return 0; // Grace period active - no decay yet
   }
 
@@ -90,4 +88,3 @@ export function applyDecay(
 
   return Math.max(0, friend.weaveScore - decayAmount);
 }
-

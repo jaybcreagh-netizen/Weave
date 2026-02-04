@@ -20,6 +20,9 @@ import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { ActivityInboxSheet, useActivityCounts } from '@/modules/sync';
 import { TutorialAlert } from '@/shared/ui/TutorialAlert';
 import { CalendarNudgeModal, useCalendarNudge } from '@/modules/interactions';
+import { queryClient } from '@/shared/api/query-client';
+import { SOCIAL_BATTERY_STATS_QUERY_KEY } from '@/modules/auth/hooks/useSocialBatteryStats';
+import { useDashboardCacheStore } from '@/shared/stores/dashboardCacheStore';
 
 export default function Dashboard() {
     const theme = useTheme();
@@ -362,6 +365,13 @@ export default function Dashboard() {
                 <SocialBatterySheet
                     isVisible={isSocialBatterySheetOpen}
                     onSubmit={async (value, note) => {
+                        const submittedAt = Date.now();
+
+                        // Optimistically trigger energy-adapted UI refresh before async write completes.
+                        useDashboardCacheStore.getState().triggerBatterySeasonRefresh(submittedAt);
+                        void queryClient.invalidateQueries({ queryKey: SOCIAL_BATTERY_STATS_QUERY_KEY });
+                        void queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
+
                         // 1. Close immediately for snappy UI (optimistic)
                         closeSocialBatterySheet();
 
@@ -369,7 +379,7 @@ export default function Dashboard() {
                         // We use a small timeout to let the sheet close animation start smoothly
                         setTimeout(async () => {
                             try {
-                                await submitBatteryCheckin(value, note);
+                                await submitBatteryCheckin(value, note, submittedAt);
                             } catch (error) {
                                 console.error('Failed to submit battery checkin:', error);
                                 // Optional: Show toast error here if needed, but for now silent failure is better than stuck UI

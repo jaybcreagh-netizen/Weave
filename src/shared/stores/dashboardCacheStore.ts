@@ -13,6 +13,7 @@ import { type SocialSeason, type SeasonExplanationData } from '@/modules/intelli
 
 // Staleness threshold: 5 minutes
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+const BATTERY_INVALIDATION_COOLDOWN_MS = 750;
 
 interface SocialSeasonCache {
     season: SocialSeason;
@@ -29,6 +30,9 @@ interface DashboardCacheStore {
     setSocialSeasonCache: (data: Omit<SocialSeasonCache, 'lastCalculated'>) => void;
     isSocialSeasonStale: () => boolean;
     invalidateSocialSeasonCache: () => void;
+    triggerBatterySeasonRefresh: (batteryCheckinTimestamp: number) => boolean;
+    batteryRefreshSignal: number;
+    lastBatteryRefreshTimestamp: number | null;
 
     // Generic cache invalidation (e.g., after logging a weave)
     invalidateAll: () => void;
@@ -45,6 +49,8 @@ const DEFAULT_SOCIAL_SEASON_CACHE: SocialSeasonCache = {
 
 export const useDashboardCacheStore = create<DashboardCacheStore>((set, get) => ({
     socialSeasonCache: { ...DEFAULT_SOCIAL_SEASON_CACHE },
+    batteryRefreshSignal: 0,
+    lastBatteryRefreshTimestamp: null,
 
     setSocialSeasonCache: (data) => {
         set({
@@ -67,9 +73,33 @@ export const useDashboardCacheStore = create<DashboardCacheStore>((set, get) => 
         });
     },
 
+    triggerBatterySeasonRefresh: (batteryCheckinTimestamp: number) => {
+        const { batteryRefreshSignal, lastBatteryRefreshTimestamp } = get();
+
+        // Dedupe repeated invalidations for the same persisted check-in.
+        if (lastBatteryRefreshTimestamp === batteryCheckinTimestamp) {
+            return false;
+        }
+
+        // Coalesce rapid invalidation attempts into a single refresh pulse.
+        if (batteryRefreshSignal && Date.now() - batteryRefreshSignal < BATTERY_INVALIDATION_COOLDOWN_MS) {
+            set({ lastBatteryRefreshTimestamp: batteryCheckinTimestamp });
+            return false;
+        }
+
+        set({
+            socialSeasonCache: { ...DEFAULT_SOCIAL_SEASON_CACHE },
+            batteryRefreshSignal: Date.now(),
+            lastBatteryRefreshTimestamp: batteryCheckinTimestamp,
+        });
+        return true;
+    },
+
     invalidateAll: () => {
         set({
             socialSeasonCache: { ...DEFAULT_SOCIAL_SEASON_CACHE },
+            batteryRefreshSignal: 0,
+            lastBatteryRefreshTimestamp: null,
         });
     },
 }));

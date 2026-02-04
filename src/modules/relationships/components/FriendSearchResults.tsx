@@ -13,24 +13,16 @@ import { resolveFriendPhotoUrl } from '../utils/photo-path.utils';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
-import { SearchFilters, HealthStatus, SortOption } from './FriendSearchBar';
+import { SearchFilters, SortOption } from './FriendSearchBar';
 import { Archetype, Tier } from '../types';
+import {
+  buildFriendPrioritySnapshot,
+  compareFriendPrioritySnapshots,
+  getTierAwareHealthStatus,
+} from '../services/friend-priority.service';
 
 const { width: screenWidth } = Dimensions.get('window');
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
-
-// Health thresholds for search filters
-const THRIVING_THRESHOLD = 70;
-const ATTENTION_THRESHOLD = 35;
-const DRIFTING_THRESHOLD = 20;
-
-// Helper to determine health status from score
-const getHealthStatus = (score: number): HealthStatus => {
-  if (score >= THRIVING_THRESHOLD) return 'thriving';
-  if (score >= ATTENTION_THRESHOLD) return 'stable';
-  if (score >= DRIFTING_THRESHOLD) return 'attention';
-  return 'drifting';
-};
 
 // Sort label mapping for display
 const SORT_LABELS: Record<SortOption, string> = {
@@ -112,6 +104,21 @@ const FriendSearchResultsContent = ({
   // Filter and sort friends based on search query, filters, and sort option
   const filteredFriends = useMemo(() => {
     let results = [...friends];
+    const scoreCache = new Map<string, number>();
+
+    const getCachedCurrentScore = (friend: FriendModel): number => {
+      if (scoreCache.has(friend.id)) {
+        return scoreCache.get(friend.id)!;
+      }
+      const score = calculateCurrentScore(friend);
+      scoreCache.set(friend.id, score);
+      return score;
+    };
+
+    const buildPrioritySnapshots = (items: FriendModel[]) =>
+      items.map(friend =>
+        buildFriendPrioritySnapshot(friend, null, getCachedCurrentScore(friend))
+      );
 
     // Text search filter
     if (searchQuery.trim()) {
@@ -124,8 +131,8 @@ const FriendSearchResultsContent = ({
     // Health status filter
     if (filters.healthStatus.length > 0) {
       results = results.filter(friend => {
-        const currentScore = calculateCurrentScore(friend);
-        const status = getHealthStatus(currentScore);
+        const currentScore = getCachedCurrentScore(friend);
+        const status = getTierAwareHealthStatus(currentScore, friend.dunbarTier);
         return filters.healthStatus.includes(status);
       });
     }
@@ -147,20 +154,25 @@ const FriendSearchResultsContent = ({
     // Apply sorting
     switch (sortOption) {
       case 'needs-attention':
-        // Weave score ascending (lowest/needs attention first)
-        return results.sort((a, b) => {
-          const scoreA = calculateCurrentScore(a);
-          const scoreB = calculateCurrentScore(b);
-          return scoreA - scoreB;
-        });
+        return buildPrioritySnapshots(results)
+          .sort(compareFriendPrioritySnapshots)
+          .map(snapshot => snapshot.friend);
 
       case 'thriving-first':
-        // Weave score descending (highest/thriving first)
-        return results.sort((a, b) => {
-          const scoreA = calculateCurrentScore(a);
-          const scoreB = calculateCurrentScore(b);
-          return scoreB - scoreA;
-        });
+        return buildPrioritySnapshots(results)
+          .sort((a, b) => {
+            // Best health first
+            if (a.healthSeverity !== b.healthSeverity) {
+              return a.healthSeverity - b.healthSeverity;
+            }
+            // Then highest score first
+            if (a.currentScore !== b.currentScore) {
+              return b.currentScore - a.currentScore;
+            }
+            // Then most recently connected first
+            return b.lastUpdatedMs - a.lastUpdatedMs;
+          })
+          .map(snapshot => snapshot.friend);
 
       case 'recently-connected':
         // Last updated descending (most recent first)
@@ -186,12 +198,10 @@ const FriendSearchResultsContent = ({
 
       case 'default':
       default:
-        // Default: needs attention first (same as needs-attention)
-        return results.sort((a, b) => {
-          const scoreA = calculateCurrentScore(a);
-          const scoreB = calculateCurrentScore(b);
-          return scoreA - scoreB;
-        });
+        // Default: needs attention first (tier-aware)
+        return buildPrioritySnapshots(results)
+          .sort(compareFriendPrioritySnapshots)
+          .map(snapshot => snapshot.friend);
     }
   }, [friends, searchQuery, filters, sortOption]);
 

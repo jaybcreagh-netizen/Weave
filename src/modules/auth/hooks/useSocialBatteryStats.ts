@@ -9,12 +9,16 @@ interface BatteryStats {
     trend: 'rising' | 'falling' | 'stable' | null;
 }
 
+export const SOCIAL_BATTERY_STATS_QUERY_KEY = ['social-battery-stats'] as const;
+export const getSocialBatteryStatsQueryKey = (userId?: string) =>
+    [...SOCIAL_BATTERY_STATS_QUERY_KEY, userId] as const;
+
 export function useSocialBatteryStats(options?: { enabled?: boolean }) {
     const { user } = useAuth();
     const enabled = options?.enabled ?? true;
 
     return useQuery({
-        queryKey: ['social-battery-stats', user?.id],
+        queryKey: getSocialBatteryStatsQueryKey(user?.id),
         queryFn: async (): Promise<BatteryStats> => {
             if (!user) throw new Error('User not logged in');
 

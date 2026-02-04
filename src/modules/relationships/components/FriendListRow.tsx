@@ -95,7 +95,7 @@ export const FriendListRowContent = ({
   // Calculate current score with decay - memoized by ID to avoid recalculation
   const weaveScore = useMemo(
     () => calculateCurrentScore(friend),
-    [friend.id, friend.weaveScore, friend.lastUpdated]
+    [friend.id, friend.weaveScore, friend.lastUpdated, friend.archetype, friend.dunbarTier]
   );
 
   // Determine gradient colors based on score

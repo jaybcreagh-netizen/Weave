@@ -305,13 +305,13 @@ export async function calculateWeaveScoring(
 
     if (isAfter(interactionDate, lastUpdated)) {
       const gap = differenceInDays(interactionDate, lastUpdated);
-      const decay = calculateDecayAmount(friend, gap);
+      const decay = calculateDecayAmount(friend, gap, 'balanced', true, season);
       newScore = Math.max(0, rawScore - decay) + pointsEarned;
       newLastUpdated = interactionDate;
       isNewerInteraction = true;
     } else {
       const gap = differenceInDays(lastUpdated, interactionDate);
-      const penalty = calculateDecayAmount(friend, gap);
+      const penalty = calculateDecayAmount(friend, gap, 'balanced', true, season);
       effectivePoints = Math.max(0, pointsEarned - penalty);
       newScore = rawScore + effectivePoints;
     }

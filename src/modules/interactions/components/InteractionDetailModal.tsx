@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, LayoutAnimation, Platform, ActivityIndicator } from 'react-native';
-import { TouchableOpacity } from 'react-native-gesture-handler';
+import { View, LayoutAnimation, Platform, ActivityIndicator, TouchableOpacity, Pressable } from 'react-native';
 import {
   Calendar,
   MapPin,
@@ -433,23 +432,19 @@ export function InteractionDetailModal({
         footerComponent={footerComponent}
         titleComponent={<View />}
         headerLeft={
-          (onEdit || onDelete) ? (
-            <View className="flex-row items-center gap-2">
-              {onEdit && (
-                <HeaderIconButton
-                  icon={<Edit3 size={21} color={colors.primary} />}
-                  onPress={handleEditPress}
-                  accessibilityLabel="Edit interaction"
-                />
-              )}
-              {onDelete && (
-                <HeaderIconButton
-                  icon={<Trash2 size={21} color={colors.destructive} />}
-                  onPress={handleDeletePress}
-                  accessibilityLabel="Delete interaction"
-                />
-              )}
-            </View>
+          onDelete ? (
+            <Pressable
+              onPress={handleDeletePress}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="Delete interaction"
+              style={({ pressed }) => ({
+                padding: 8,
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Trash2 size={22} color={colors.destructive} />
+            </Pressable>
           ) : undefined
         }
       >
@@ -514,6 +509,31 @@ export function InteractionDetailModal({
                       Shared
                     </Text>
                   </View>
+                )}
+
+                {onEdit && (
+                  <Pressable
+                    onPress={handleEditPress}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit interaction"
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 9999,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      backgroundColor: pressed ? colors.muted : colors.background,
+                    })}
+                  >
+                    <Edit3 size={14} color={colors.primary} />
+                    <Text variant="caption" weight="medium" style={{ color: colors.primary }}>
+                      Edit
+                    </Text>
+                  </Pressable>
                 )}
               </View>
             </View>
@@ -725,31 +745,6 @@ export function InteractionDetailModal({
           </View>
       </StandardBottomSheet>
     </>
-  );
-}
-
-interface HeaderIconButtonProps {
-  icon: React.ReactNode;
-  onPress: () => void;
-  accessibilityLabel: string;
-}
-
-function HeaderIconButton({
-  icon,
-  onPress,
-  accessibilityLabel,
-}: HeaderIconButtonProps) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.7}
-      className="p-2 items-center justify-center"
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-    >
-      {icon}
-    </TouchableOpacity>
   );
 }
 

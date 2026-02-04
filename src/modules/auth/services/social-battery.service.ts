@@ -2,6 +2,9 @@ import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
 import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 import { Q } from '@nozbe/watermelondb';
+import { queryClient } from '@/shared/api/query-client';
+import { useDashboardCacheStore } from '@/shared/stores/dashboardCacheStore';
+import { SOCIAL_BATTERY_STATS_QUERY_KEY } from '@/modules/auth/hooks/useSocialBatteryStats';
 
 export const SocialBatteryService = {
     /**
@@ -55,6 +58,11 @@ export const SocialBatteryService = {
         await database.write(async () => {
             await database.batch(...batchOps);
         });
+
+        // Keep season/suggestions responsive for service-based check-ins (e.g., calendar backfills).
+        useDashboardCacheStore.getState().triggerBatterySeasonRefresh(timestamp);
+        void queryClient.invalidateQueries({ queryKey: SOCIAL_BATTERY_STATS_QUERY_KEY });
+        void queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
 
         // Trigger smart notification evaluation after battery check-in
         try {

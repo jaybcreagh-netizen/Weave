@@ -20,6 +20,7 @@ import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { tierColors } from '@/shared/constants/constants';
 import { type Tier } from '../types';
 import { resolveFriendPhotoUrl } from '../utils/photo-path.utils';
+import { rankFriendsForTier } from '../services/friend-priority.service';
 
 const { width: screenWidth } = Dimensions.get('window');
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
@@ -120,11 +121,12 @@ export const FriendTierList = React.memo(({ tier, scrollHandler, isQuickWeaveOpe
     const { colors, isDarkMode } = useTheme();
     const tierBgColor = getTierBackground(tier, isDarkMode);
 
-    // Filter friends by tier - memoized for performance
+    // Filter friends by tier and apply tier-specific ranking
+    // Inner Circle & Close Friends: needs attention first (actionable)
+    // Community: recent activity first (neutral, non-judgmental)
     const friends = useMemo(() => {
-        return allFriends
-            .filter(f => f.tier === tier)
-            .sort((a, b) => (b.weaveScore ?? 0) - (a.weaveScore ?? 0));
+        const tierFriends = allFriends.filter(f => f.tier === tier);
+        return rankFriendsForTier(tierFriends, tier);
     }, [allFriends, tier]);
 
     if (friends.length === 0) {

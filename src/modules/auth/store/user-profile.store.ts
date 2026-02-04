@@ -3,6 +3,9 @@ import { database, initializeUserProfile } from '@/db';
 import UserProfile, { SocialSeason } from '@/db/models/UserProfile';
 import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 import { SeasonAnalyticsService } from '@/modules/intelligence/services/social-season/season-analytics.service';
+import { SOCIAL_BATTERY_STATS_QUERY_KEY } from '@/modules/auth/hooks/useSocialBatteryStats';
+import { queryClient } from '@/shared/api/query-client';
+import { useDashboardCacheStore } from '@/shared/stores/dashboardCacheStore';
 // Removed service imports as logic is now inline
 
 import { Q } from '@nozbe/watermelondb';
@@ -119,10 +122,10 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
   submitBatteryCheckin: async (value: number, note?: string, customTimestamp?: number, overwriteDay?: boolean) => {
     const { profile } = get();
     if (!profile) return;
+    const timestamp = customTimestamp || Date.now();
 
     await database.write(async () => {
       const now = Date.now();
-      const timestamp = customTimestamp || now;
 
       // If overwriting, delete existing logs for this day
       if (overwriteDay) {
@@ -162,6 +165,12 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
         log.timestamp = timestamp;
       });
     });
+
+    // Keep energy-adapted UI in sync after every battery check-in.
+    useDashboardCacheStore.getState().triggerBatterySeasonRefresh(timestamp);
+    void queryClient.invalidateQueries({ queryKey: SOCIAL_BATTERY_STATS_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
+    void get().refreshBatteryStats();
 
     // Trigger smart notification evaluation after battery check-in
     // This is a good time since user is engaged and we have fresh battery data
