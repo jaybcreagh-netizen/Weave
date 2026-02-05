@@ -83,3 +83,7 @@ yarn-error.*
 
 # secrets
 .env
+
+# Temporary and Output files
+tmp/
+output/

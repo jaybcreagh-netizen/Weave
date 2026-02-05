@@ -9,8 +9,8 @@ export interface UseOracleResult {
     messages: OracleTurn[]
     isLoading: boolean
     error: string | null
-    askQuestion: (text: string, context?: string, displayOverride?: string) => Promise<void>
-    startWithContext: (instruction: string, context?: string) => Promise<void>
+    askQuestion: (text: string, context?: string, displayOverride?: string, friendIds?: string[]) => Promise<void>
+    startWithContext: (instruction: string, context?: string, friendIds?: string[]) => Promise<void>
     loadConversation: (id: string) => Promise<void>
     remainingQuestions: number
     resetParams: () => void
@@ -25,7 +25,7 @@ export function useOracle(): UseOracleResult {
     const [remainingQuestions, setRemainingQuestions] = useState(oracleService.getRemainingQuestions())
     const [isSaved, setIsSaved] = useState(false)
 
-    const askQuestion = useCallback(async (text: string, context?: string, displayOverride?: string) => {
+    const askQuestion = useCallback(async (text: string, context?: string, displayOverride?: string, friendIds: string[] = []) => {
         if (!text.trim()) return
 
         setIsLoading(true)
@@ -44,7 +44,7 @@ export function useOracle(): UseOracleResult {
         try {
             // Call Oracle (Non-streaming for Supabase Proxy compatibility)
             // Note: oracleService.ask returns { text, action }
-            const response = await oracleService.ask(text, [], context)
+            const response = await oracleService.ask(text, friendIds, context)
 
             const assistantMsg: OracleTurn = {
                 role: 'assistant',
@@ -65,7 +65,7 @@ export function useOracle(): UseOracleResult {
         }
     }, [])
 
-    const startWithContext = useCallback(async (instruction: string, context?: string) => {
+    const startWithContext = useCallback(async (instruction: string, context?: string, friendIds: string[] = []) => {
         setIsLoading(true)
         setError(null)
         setIsSaved(false)
@@ -73,7 +73,7 @@ export function useOracle(): UseOracleResult {
         try {
             // Send instruction as user message BUT do not add to local state
             // OracleService will track it in session, but UI won't show it
-            const response = await oracleService.ask(instruction, [], context)
+            const response = await oracleService.ask(instruction, friendIds, context)
 
             const oracleMsg: OracleTurn = {
                 role: 'assistant',

@@ -115,6 +115,14 @@ function classifyAuthError(error: any): { code: AuthErrorCode; message: string }
         };
     }
 
+    // Identity unlinking blocked by project auth settings
+    if (errorCode === 'manual_linking_disabled' || msg.includes('manual linking disabled')) {
+        return {
+            code: 'NOT_CONFIGURED',
+            message: 'Phone unlinking is disabled by auth configuration. Please contact support.',
+        };
+    }
+
     // Phone already in use
     if (
         msg.includes('phone') &&
@@ -874,8 +882,9 @@ export async function getUserProfile(userId: string): Promise<{
 /**
  * Unlink phone number from user account
  *
- * This only clears the phone from user_profiles (for UI/contact matching).
- * It does NOT remove phone from auth.users to avoid SMS provider latency.
+ * This clears phone from BOTH auth.users and user_profiles.
+ * We use updateUser({ phone: '' }) instead of unlinkIdentity() to avoid
+ * manual-linking restrictions in GoTrue project settings.
  *
  * If phone is the user's ONLY auth method, this operation is blocked.
  */
@@ -916,24 +925,21 @@ export async function unlinkPhone(): Promise<AuthResult> {
             };
         }
 
-        // 3. Find the phone identity to unlink
-        const phoneIdentity = identities.find(i => i.provider === 'phone');
-        if (!phoneIdentity) {
-            console.log('[Auth] No phone identity found to unlink');
-            // Check if profile has it stashed (inconsistent state), maybe clear profile anyway?
-        } else {
-            // 4. Unlink the identity
-            console.log('[Auth] Unlinking identity:', phoneIdentity.id);
-            const { error: unlinkError } = await client.auth.unlinkIdentity(phoneIdentity);
+        // 3. Clear phone from auth.users
+        // This is the canonical way to remove phone without identity-unlink config dependencies.
+        const { error: authError } = await withTimeout(
+            client.auth.updateUser({ phone: '' }),
+            AUTH_TIMEOUTS.OTP_SEND,
+            'Unlink Phone'
+        );
 
-            if (unlinkError) {
-                console.error('[Auth] Failed to unlink identity:', unlinkError);
-                const classified = classifyAuthError(unlinkError);
-                return { success: false, error: classified.message, errorCode: classified.code };
-            }
+        if (authError) {
+            console.error('[Auth] Failed to clear phone from auth.users:', authError);
+            const classified = classifyAuthError(authError);
+            return { success: false, error: classified.message, errorCode: classified.code };
         }
 
-        // 5. Clear phone from user_profiles (keep for UI consistency and contact matching)
+        // 4. Clear phone from user_profiles (keep for UI consistency and contact matching)
         const { error: profileError } = await client
             .from('user_profiles')
             .update({
@@ -945,7 +951,7 @@ export async function unlinkPhone(): Promise<AuthResult> {
 
         if (profileError) {
             console.error('[Auth] Failed to clear phone from user_profiles:', profileError);
-            // We successfully unlinked auth identity, so we should probably return success 
+            // We successfully cleared auth phone, so we should probably return success
             // but warn about profile sync
         }
 

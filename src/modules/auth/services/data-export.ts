@@ -11,6 +11,8 @@ import LifeEvent from '@/db/models/LifeEvent';
 import Intention from '@/db/models/Intention';
 import IntentionFriend from '@/db/models/IntentionFriend';
 import PortfolioSnapshot from '@/db/models/PortfolioSnapshot';
+import FriendMemory from '@/db/models/FriendMemory';
+import FriendMemoryCandidate from '@/db/models/FriendMemoryCandidate';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, Share } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -152,6 +154,37 @@ interface ExportData {
     interactionsPerWeek: number;
     diversityScore: number;
     createdAt: number;
+  }>;
+  friendMemories?: Array<{
+    id: string;
+    friendId: string;
+    type: string;
+    title: string;
+    content: string;
+    source: string;
+    sourceEntryId: string | null;
+    confidence: number | null;
+    effectiveDate: number | null;
+    expiresAt: number | null;
+    tagsJson: string | null;
+    isArchived: boolean;
+    createdAt: number;
+    updatedAt: number;
+  }>;
+  friendMemoryCandidates?: Array<{
+    id: string;
+    friendId: string;
+    type: string;
+    title: string;
+    content: string;
+    source: string;
+    sourceEntryId: string | null;
+    confidence: number | null;
+    fingerprint: string;
+    status: string;
+    reviewedAt: number | null;
+    createdAt: number;
+    updatedAt: number;
   }>;
 }
 
@@ -331,6 +364,37 @@ export async function exportAllData(): Promise<string> {
         interactionsPerWeek: s.interactionsPerWeek,
         diversityScore: s.diversityScore,
         createdAt: s.createdAt.getTime(),
+      })),
+      friendMemories: (await database.get<FriendMemory>('friend_memories').query().fetch()).map(memory => ({
+        id: memory.id,
+        friendId: memory.friendId,
+        type: memory.type,
+        title: memory.title,
+        content: memory.content,
+        source: memory.source,
+        sourceEntryId: memory.sourceEntryId || null,
+        confidence: typeof memory.confidence === 'number' ? memory.confidence : null,
+        effectiveDate: typeof memory.effectiveDate === 'number' ? memory.effectiveDate : null,
+        expiresAt: typeof memory.expiresAt === 'number' ? memory.expiresAt : null,
+        tagsJson: memory.tagsRaw || null,
+        isArchived: memory.isArchived,
+        createdAt: memory.createdAt.getTime(),
+        updatedAt: memory.updatedAt.getTime(),
+      })),
+      friendMemoryCandidates: (await database.get<FriendMemoryCandidate>('friend_memory_candidates').query().fetch()).map(candidate => ({
+        id: candidate.id,
+        friendId: candidate.friendId,
+        type: candidate.type,
+        title: candidate.title,
+        content: candidate.content,
+        source: candidate.source,
+        sourceEntryId: candidate.sourceEntryId || null,
+        confidence: typeof candidate.confidence === 'number' ? candidate.confidence : null,
+        fingerprint: candidate.fingerprint,
+        status: candidate.status,
+        reviewedAt: candidate.reviewedAt ?? null,
+        createdAt: candidate.createdAt.getTime(),
+        updatedAt: candidate.updatedAt.getTime(),
       })),
 
       userProgress: userProgressRecords[0]

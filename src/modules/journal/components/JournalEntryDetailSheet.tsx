@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { useRouter } from 'expo-router';
 import {
     Calendar,
     Sparkles,
@@ -55,6 +56,7 @@ export function JournalEntryDetailSheet({
     onReachOut,
 }: JournalEntryDetailSheetProps) {
     const { colors, typography } = useTheme();
+    const router = useRouter();
 
     const [friends, setFriends] = useState<FriendModel[]>([]);
     const [linkedWeaveInfo, setLinkedWeaveInfo] = useState<{
@@ -215,6 +217,32 @@ export function JournalEntryDetailSheet({
                     .concat([{ text: 'Cancel', style: 'cancel', onPress: () => { } }])
             );
         }
+    };
+
+    const handleUpdateProfile = () => {
+        if (friends.length === 0) return;
+        if (friends.length === 1) {
+            onClose();
+            router.push({
+                pathname: '/edit-friend',
+                params: { friendId: friends[0].id }
+            });
+            return;
+        }
+
+        Alert.alert('Select Friend', 'Whose profile should we update?',
+            friends.map(f => ({
+                text: f.name,
+                onPress: () => {
+                    onClose();
+                    router.push({
+                        pathname: '/edit-friend',
+                        params: { friendId: f.id }
+                    });
+                }
+            } as { text: string; onPress: () => void; style?: 'default' | 'cancel' | 'destructive' }))
+                .concat([{ text: 'Cancel', style: 'cancel', onPress: () => { } }])
+        );
     };
 
     const handleDelete = () => {
@@ -420,7 +448,9 @@ export function JournalEntryDetailSheet({
                                                 onPress = () => handleReachOut();
                                                 break;
                                             case 'update_profile': // Phase 3
+                                            case 'add_memory':
                                                 icon = <Edit3 size={24} color={colors.primary} opacity={0.8} />;
+                                                onPress = () => handleUpdateProfile();
                                                 break;
                                         }
 

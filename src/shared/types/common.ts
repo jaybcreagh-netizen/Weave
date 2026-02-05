@@ -107,11 +107,16 @@ export interface Suggestion {
   reason?: string;
   priority?: 'high' | 'medium' | 'low';
   action: {
-    type: 'plan' | 'log' | 'reflect' | 'connect' | 'intention' | 'tier-review' | 'reach-out' | 'oracle';
+    type: 'plan' | 'log' | 'reflect' | 'connect' | 'intention' | 'tier-review' | 'reach-out' | 'oracle' | 'life-event';
     interactionId?: string;
     prefilledCategory?: string;
     prefilledMode?: 'plan' | 'log' | 'reflect' | 'connect' | 'detailed';
     prefillPrompt?: string; // For Oracle suggestions - prefills the Oracle chat
+    lifeEventType?: string;
+    lifeEventTitle?: string;
+    lifeEventNotes?: string;
+    lifeEventDate?: string;
+    lifeEventId?: string;
   };
   category?: string;
   friendName?: string;

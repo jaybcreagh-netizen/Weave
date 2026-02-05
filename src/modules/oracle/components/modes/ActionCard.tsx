@@ -24,6 +24,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({ action, onExecute, index
             case 'schedule_event': return 'Calendar';
             case 'create_intention': return 'Sparkles';
             case 'reach_out': return 'Heart';
+            case 'add_memory':
             case 'update_profile': return 'UserPlus';
             default: return 'Check';
         }

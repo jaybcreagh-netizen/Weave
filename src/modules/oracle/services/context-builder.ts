@@ -8,6 +8,7 @@ import LifeEvent from '@/db/models/LifeEvent'
 import SocialBatteryLog from '@/db/models/SocialBatteryLog'
 import UserFact from '@/db/models/UserFact'
 import Intention from '@/db/models/Intention'
+import FriendMemory from '@/db/models/FriendMemory'
 import { SocialSeasonService } from '@/modules/intelligence/services/social-season.service'
 import { logger } from '@/shared/services/logger.service'
 import { getExpectedCadence } from './insight-rules'
@@ -15,6 +16,7 @@ import UserProfile from '@/db/models/UserProfile'
 import { intelligenceEnhancer, DailyPersona, TriangulationCandidate } from '@/modules/intelligence/services/intelligence-enhancer.service'
 import { predictiveHealth } from '@/modules/intelligence/services/predictive-health.service'
 import { valueAlignment } from '@/modules/intelligence/services/value-alignment.service'
+import { archiveExpiredFriendMemories } from '@/modules/relationships/services/memory-life-event.service'
 
 /**
  * Oracle Context Tiers
@@ -99,6 +101,7 @@ interface FriendOracleContext {
 
     // NEW: Context V2
     lifeEvents?: SimplifiedLifeEvent[] // Upcoming or recent significant events
+    friendMemories?: SimplifiedFriendMemory[]
 
     // NEW: Past activities and venues with this friend
     pastActivities?: string[]  // e.g. ["coffee", "dinner", "hiking"]
@@ -123,6 +126,18 @@ interface JournalSummary {
     sentiment: string
 }
 
+interface SimplifiedFriendMemory {
+    type: string
+    title: string
+    content: string
+    tags?: string[]
+    confidence?: number
+    effectiveDate?: string
+    expiresAt?: string
+    source: string
+    recency: string
+}
+
 // NEW: Archetype-based venue/activity suggestions
 interface VenueSuggestions {
     byArchetype: Record<string, string[]>  // e.g. { "Hermit": ["quiet coffee shop", "bookstore"], ... }
@@ -140,6 +155,7 @@ class OracleContextBuilder {
      */
     async buildContext(friendIds: string[] = [], tier: ContextTier = ContextTier.PATTERN, question?: string): Promise<OracleContext> {
         logger.debug('OracleContextBuilder', `Building ${tier} context`, { friendCount: friendIds.length, hasQuestion: !!question })
+        await archiveExpiredFriendMemories()
 
         // If question is provided, try to find mentioned friends
         let mentionedFriendIds: string[] = []
@@ -305,6 +321,7 @@ class OracleContextBuilder {
 
         // NEW: Fetch life events for this friend
         base.lifeEvents = await this.getFriendLifeEvents(friend.id)
+        base.friendMemories = await this.getFriendMemories(friend.id)
 
         // Extract past activities and venues from interactions
         if (interactionFriends.length > 0) {
@@ -497,6 +514,41 @@ class OracleContextBuilder {
                 notes: e.notes
             }))
         } catch (e) {
+            return []
+        }
+    }
+
+    private async getFriendMemories(friendId: string): Promise<SimplifiedFriendMemory[]> {
+        try {
+            const memories = await database.get<FriendMemory>('friend_memories')
+                .query(
+                    Q.where('friend_id', friendId),
+                    Q.where('is_archived', false),
+                    Q.sortBy('updated_at', Q.desc),
+                    Q.take(8)
+                ).fetch()
+
+            return memories.map(memory => {
+                const daysSince = Math.floor((Date.now() - memory.updatedAt.getTime()) / (1000 * 60 * 60 * 24))
+                const recency = daysSince <= 0 ? 'today' : daysSince === 1 ? '1 day ago' : `${daysSince} days ago`
+                return {
+                    type: memory.type,
+                    title: memory.title,
+                    content: memory.content,
+                    tags: memory.tags.length > 0 ? memory.tags.slice(0, 5) : undefined,
+                    confidence: typeof memory.confidence === 'number' ? Math.round(memory.confidence * 100) / 100 : undefined,
+                    effectiveDate: typeof memory.effectiveDate === 'number'
+                        ? new Date(memory.effectiveDate).toISOString()
+                        : undefined,
+                    expiresAt: typeof memory.expiresAt === 'number'
+                        ? new Date(memory.expiresAt).toISOString()
+                        : undefined,
+                    source: memory.source,
+                    recency,
+                }
+            })
+        } catch (e) {
+            logger.warn('OracleContextBuilder', 'Error fetching friend memories', { friendId, error: e })
             return []
         }
     }

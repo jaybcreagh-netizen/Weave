@@ -6,6 +6,7 @@ import { logger } from '@/shared/services/logger.service';
 import FriendModel from '@/db/models/Friend';
 import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import { Q } from '@nozbe/watermelondb';
+import { memoryBridgeService } from '@/modules/journal/services/memory-bridge.service';
 
 import { SmartAction } from './types';
 
@@ -100,6 +101,8 @@ class ActionExtractionService {
                         rec.smartActions = actions;
                     });
                 });
+
+                await memoryBridgeService.ingestSmartActions(entry, friends, actions);
                 logger.info('ActionExtractionService', 'Actions saved', { count: actions.length });
             } else {
                 logger.info('ActionExtractionService', 'No actions detected', { actions });

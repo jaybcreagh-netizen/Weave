@@ -227,6 +227,17 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 // prevents excessive rescans. Running it here caused duplicate scans.
 
                 setTimeout(() => {
+                    import('@/modules/relationships/services/memory-life-event.service').then(({ archiveExpiredFriendMemories }) => {
+                        archiveExpiredFriendMemories().catch(err => {
+                            console.error('[App] Error archiving expired friend memories on launch:', err);
+                        });
+                    });
+                    import('@/modules/relationships/services/memory-candidate.service').then(({ cleanupReviewedMemoryCandidates }) => {
+                        cleanupReviewedMemoryCandidates().catch(err => {
+                            console.error('[App] Error cleaning reviewed memory candidates on launch:', err);
+                        });
+                    });
+
                     // Run image cleanup (non-blocking)
                     import('@/modules/relationships/services/image.service').then(({ verifyAndCleanupFriendImages }) => {
                         verifyAndCleanupFriendImages().catch(err => {
@@ -350,6 +361,17 @@ export function DataInitializer({ children }: DataInitializerProps) {
 
                 PlanService.checkPendingPlans().catch(err => {
                     console.error('[App] Error checking pending plans on active:', err);
+                });
+
+                import('@/modules/relationships/services/memory-life-event.service').then(({ archiveExpiredFriendMemories }) => {
+                    archiveExpiredFriendMemories().catch(err => {
+                        console.error('[App] Error archiving expired friend memories on foreground:', err);
+                    });
+                });
+                import('@/modules/relationships/services/memory-candidate.service').then(({ cleanupReviewedMemoryCandidates }) => {
+                    cleanupReviewedMemoryCandidates().catch(err => {
+                        console.error('[App] Error cleaning reviewed memory candidates on foreground:', err);
+                    });
                 });
 
                 // Sync outgoing link request statuses (checks if any pending requests were accepted)

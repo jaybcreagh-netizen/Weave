@@ -13,8 +13,12 @@ import { of, combineLatest } from 'rxjs';
 import IntentionFriend from '@/db/models/IntentionFriend';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
+import FriendMemoryModel from '@/db/models/FriendMemory';
+import FriendMemoryCandidateModel from '@/db/models/FriendMemoryCandidate';
 import { useRouter } from 'expo-router';
 import { useInteractionShareStatus, type ShareInfoMap } from '@/modules/sync';
+import { archiveExpiredFriendMemories } from '@/modules/relationships/services/memory-life-event.service';
+import { cleanupReviewedMemoryCandidates } from '@/modules/relationships/services/memory-candidate.service';
 
 export function useFriendProfileData(friendId: string | undefined) {
     const router = useRouter();
@@ -29,6 +33,8 @@ export function useFriendProfileData(friendId: string | undefined) {
     const [error, setError] = useState<Error | null>(null); // Added error state
 
     const [friendModel, setFriendModel] = useState<FriendModel | null>(null);
+    const [friendMemoriesModels, setFriendMemoriesModels] = useState<FriendMemoryModel[]>([]);
+    const [friendMemoryCandidatesModels, setFriendMemoryCandidatesModels] = useState<FriendMemoryCandidateModel[]>([]);
     const [interactionsModels, setInteractionsModels] = useState<InteractionModel[]>([]);
     const [friendIntentionsModels, setFriendIntentionsModels] = useState<IntentionModel[]>([]);
     const [hasMoreInteractions, setHasMoreInteractions] = useState(false);
@@ -111,6 +117,72 @@ export function useFriendProfileData(friendId: string | undefined) {
 
         return () => subscription.unsubscribe();
     }, [friendId, interactionsLimit]);
+
+    // Observe Friend Memories (active only)
+    useEffect(() => {
+        if (!friendId || typeof friendId !== 'string') return;
+
+        Promise.all([
+            archiveExpiredFriendMemories(),
+            cleanupReviewedMemoryCandidates(),
+        ]).catch(err => {
+            logger.warn('FriendProfileData', 'Error running memory maintenance on profile load:', err);
+        });
+    }, [friendId]);
+
+    // Observe Friend Memories (active only)
+    useEffect(() => {
+        if (!friendId || typeof friendId !== 'string') {
+            setFriendMemoriesModels([]);
+            return;
+        }
+
+        const subscription = database.get<FriendMemoryModel>('friend_memories')
+            .query(
+                Q.where('friend_id', friendId),
+                Q.where('is_archived', false),
+                Q.sortBy('updated_at', Q.desc),
+            )
+            .observe()
+            .subscribe({
+                next: (memories) => {
+                    setFriendMemoriesModels(memories);
+                },
+                error: (err) => {
+                    logger.error('FriendProfileData', 'Error observing friend memories:', err);
+                    setError(err instanceof Error ? err : new Error('Unknown error observing friend memories'));
+                }
+            });
+
+        return () => subscription.unsubscribe();
+    }, [friendId]);
+
+    // Observe Friend Memory Candidates (pending review only)
+    useEffect(() => {
+        if (!friendId || typeof friendId !== 'string') {
+            setFriendMemoryCandidatesModels([]);
+            return;
+        }
+
+        const subscription = database.get<FriendMemoryCandidateModel>('friend_memory_candidates')
+            .query(
+                Q.where('friend_id', friendId),
+                Q.where('status', 'pending'),
+                Q.sortBy('updated_at', Q.desc),
+            )
+            .observe()
+            .subscribe({
+                next: (candidates) => {
+                    setFriendMemoryCandidatesModels(candidates);
+                },
+                error: (err) => {
+                    logger.error('FriendProfileData', 'Error observing friend memory candidates:', err);
+                    setError(err instanceof Error ? err : new Error('Unknown error observing friend memory candidates'));
+                }
+            });
+
+        return () => subscription.unsubscribe();
+    }, [friendId]);
 
     // Observe Intentions
     useEffect(() => {
@@ -231,6 +303,8 @@ export function useFriendProfileData(friendId: string | undefined) {
     return {
         friend,
         friendModel, // Expose the raw model for reactive components
+        friendMemories: friendMemoriesModels,
+        friendMemoryCandidates: friendMemoryCandidatesModels,
         interactions,
         interactionsModels, // Expose models for modals that need them
         shareInfoMap, // Map of interactionId -> ShareInfo for timeline styling

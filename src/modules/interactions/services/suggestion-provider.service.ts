@@ -3,11 +3,13 @@ import { Q } from '@nozbe/watermelondb';
 import Logger from '@/shared/utils/Logger';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
+import FriendMemory from '@/db/models/FriendMemory';
+import LifeEvent from '@/db/models/LifeEvent';
 import SuggestionEvent from '@/db/models/SuggestionEvent';
 import { generateSuggestion } from './suggestion-engine';
 import { generateGuaranteedSuggestions } from './guaranteed-suggestions.service';
 import * as SuggestionStorageService from './suggestion-storage.service';
-import { Suggestion } from '@/shared/types/common';
+import { Suggestion, InteractionCategory } from '@/shared/types/common';
 import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import {
     filterSuggestionsBySeason,
@@ -33,6 +35,10 @@ import { selectDiverseSuggestions } from './suggestion-system/SuggestionDiversif
 import { TriageGenerator } from './suggestion-engine/generators/TriageGenerator';
 import { WeeklyReflectionGenerator } from './suggestion-engine/generators/WeeklyReflectionGenerator';
 import { SignalDrivenGenerator } from './suggestion-engine/generators/SignalDrivenGenerator';
+import {
+    archiveExpiredFriendMemories,
+    buildLifeEventPrefillFromMemory,
+} from '@/modules/relationships/services/memory-life-event.service';
 
 /**
  * Maps proactive suggestion types to appropriate icons
@@ -52,6 +58,7 @@ function getProactiveIcon(type: string): string {
 const ADAPTIVE_WINDOW_DAYS = 30;
 const FRIEND_SUPPRESSION_DISMISSAL_THRESHOLD = 3;
 const TYPE_PENALTY_DISMISSAL_THRESHOLD = 3;
+const LIFE_EVENT_DATE_DUPLICATE_WINDOW_DAYS = 14;
 
 type SuggestionUrgency = NonNullable<Suggestion['urgency']>;
 
@@ -60,11 +67,340 @@ interface DismissalLearningProfile {
     typeDismissalCounts: Map<string, number>;
 }
 
+export interface FriendMemoryProfile {
+    preferredCategories: Set<InteractionCategory>;
+    avoidCategories: Set<InteractionCategory>;
+    hasUpcoming: boolean;
+    hasMilestone: boolean;
+    topInterest?: string;
+}
+
+const CATEGORY_KEYWORDS: Record<InteractionCategory, string[]> = {
+    'text-call': ['text', 'message', 'call', 'phone', 'reach out'],
+    'voice-note': ['voice note', 'audio', 'voice memo'],
+    'meal-drink': ['coffee', 'lunch', 'dinner', 'brunch', 'drink', 'meal', 'restaurant'],
+    'hangout': ['hangout', 'chill', 'visit', 'walk', 'catch up', 'meet up'],
+    'deep-talk': ['deep talk', 'heart to heart', 'open up', 'reflect', 'meaningful talk'],
+    'event-party': ['party', 'event', 'concert', 'festival', 'show', 'gathering'],
+    'activity-hobby': ['hike', 'run', 'gym', 'game', 'hobby', 'activity', 'class', 'sport'],
+    'favor-support': ['support', 'help', 'favor', 'check in', 'be there'],
+    'celebration': ['birthday', 'anniversary', 'celebrate', 'celebration', 'milestone', 'wedding'],
+};
+
 function downgradeUrgency(urgency?: SuggestionUrgency): SuggestionUrgency {
     if (urgency === 'critical') return 'high';
     if (urgency === 'high') return 'medium';
     if (urgency === 'medium') return 'low';
     return 'low';
+}
+
+function upgradeUrgency(urgency?: SuggestionUrgency): SuggestionUrgency {
+    if (urgency === 'low') return 'medium';
+    if (urgency === 'medium') return 'high';
+    if (urgency === 'high') return 'critical';
+    return 'critical';
+}
+
+function extractCategoriesFromMemory(memory: FriendMemory): InteractionCategory[] {
+    const searchable = `${memory.title} ${memory.content} ${memory.tags.join(' ')}`.toLowerCase();
+    const matches: InteractionCategory[] = [];
+
+    for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS) as Array<[InteractionCategory, string[]]>) {
+        if (keywords.some(keyword => searchable.includes(keyword))) {
+            matches.push(category);
+        }
+    }
+
+    return matches;
+}
+
+function appendSubtitle(base: string, addition: string): string {
+    if (!addition) return base;
+    if (!base) return addition;
+    const combined = `${base} ${addition}`.trim();
+    return combined.length > 180 ? `${combined.slice(0, 177)}...` : combined;
+}
+
+function normalizeText(value: string): string {
+    return value
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function tokenSimilarity(a: string, b: string): number {
+    const aTokens = new Set(normalizeText(a).split(' ').filter(Boolean));
+    const bTokens = new Set(normalizeText(b).split(' ').filter(Boolean));
+    if (aTokens.size === 0 || bTokens.size === 0) return 0;
+
+    let overlap = 0;
+    aTokens.forEach(token => {
+        if (bTokens.has(token)) overlap += 1;
+    });
+
+    return overlap / Math.max(aTokens.size, bTokens.size);
+}
+
+export async function loadFriendMemoryProfiles(friendIds: string[]): Promise<Map<string, FriendMemoryProfile>> {
+    const profiles = new Map<string, FriendMemoryProfile>();
+    if (friendIds.length === 0) return profiles;
+
+    const memories = await database.get<FriendMemory>('friend_memories')
+        .query(
+            Q.where('friend_id', Q.oneOf(friendIds)),
+            Q.where('is_archived', false),
+            Q.sortBy('updated_at', Q.desc)
+        )
+        .fetch();
+
+    for (const memory of memories) {
+        const profile = profiles.get(memory.friendId) || {
+            preferredCategories: new Set<InteractionCategory>(),
+            avoidCategories: new Set<InteractionCategory>(),
+            hasUpcoming: false,
+            hasMilestone: false,
+            topInterest: undefined,
+        };
+
+        const categories = extractCategoriesFromMemory(memory);
+
+        if (memory.type === 'upcoming') {
+            profile.hasUpcoming = true;
+        }
+        if (memory.type === 'milestone') {
+            profile.hasMilestone = true;
+        }
+        if (!profile.topInterest && (memory.type === 'interest' || memory.type === 'activity_win' || memory.type === 'preference')) {
+            profile.topInterest = memory.title;
+        }
+
+        if (memory.type === 'avoid') {
+            categories.forEach(category => profile.avoidCategories.add(category));
+        }
+
+        if (memory.type === 'interest' || memory.type === 'activity_win' || memory.type === 'preference') {
+            categories.forEach(category => profile.preferredCategories.add(category));
+        }
+
+        profiles.set(memory.friendId, profile);
+    }
+
+    return profiles;
+}
+
+export function applyMemoryAwareScoring(
+    suggestions: Suggestion[],
+    profiles: Map<string, FriendMemoryProfile>
+): Suggestion[] {
+    return suggestions.map(suggestion => {
+        if (!suggestion.friendId) return suggestion;
+        const profile = profiles.get(suggestion.friendId);
+        if (!profile) return suggestion;
+
+        const adjusted: Suggestion = {
+            ...suggestion,
+            action: {
+                ...suggestion.action,
+            },
+        };
+
+        const preferredCategories = Array.from(profile.preferredCategories);
+        const prefilledCategory = adjusted.action.prefilledCategory as InteractionCategory | undefined;
+
+        if (!prefilledCategory && adjusted.action.type === 'plan' && preferredCategories.length > 0) {
+            adjusted.action.prefilledCategory = preferredCategories[0];
+        }
+
+        const resolvedCategory = (adjusted.action.prefilledCategory as InteractionCategory | undefined) || prefilledCategory;
+
+        if (resolvedCategory && profile.avoidCategories.has(resolvedCategory)) {
+            adjusted.urgency = downgradeUrgency(downgradeUrgency(adjusted.urgency || 'medium'));
+            adjusted.subtitle = appendSubtitle(adjusted.subtitle, 'Your notes suggest avoiding this format right now.');
+        } else if (resolvedCategory && profile.preferredCategories.has(resolvedCategory) && adjusted.urgency !== 'critical') {
+            adjusted.urgency = upgradeUrgency(adjusted.urgency || 'medium');
+        }
+
+        if ((profile.hasUpcoming || profile.hasMilestone) && adjusted.urgency !== 'critical') {
+            adjusted.urgency = upgradeUrgency(adjusted.urgency || 'medium');
+            adjusted.subtitle = appendSubtitle(
+                adjusted.subtitle,
+                profile.hasMilestone
+                    ? 'You tagged a milestone here, this is a good time to show up.'
+                    : 'You logged something upcoming, a check-in now could help.'
+            );
+            if (!adjusted.category || adjusted.category === 'maintain') {
+                adjusted.category = 'life-event';
+            }
+        }
+
+        if (profile.topInterest && (adjusted.action.type === 'plan' || adjusted.action.type === 'log')) {
+            adjusted.subtitle = appendSubtitle(adjusted.subtitle, `Based on your notes: ${profile.topInterest}.`);
+        }
+
+        return adjusted;
+    });
+}
+
+function getLifeEventUrgency(eventDate?: string): SuggestionUrgency {
+    if (!eventDate) return 'medium';
+    const parsed = new Date(eventDate);
+    if (Number.isNaN(parsed.getTime())) return 'medium';
+
+    const daysUntil = Math.floor((parsed.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (daysUntil <= 1) return 'high';
+    if (daysUntil <= 10) return 'medium';
+    return 'low';
+}
+
+function buildLifeEventPrompt(friendName: string, prefill: ReturnType<typeof buildLifeEventPrefillFromMemory>): string {
+    if (!prefill) return `Help me add a life event for ${friendName}.`;
+    const parts = [
+        `Help me add a life event for ${friendName}.`,
+        prefill.title ? `Title: ${prefill.title}.` : '',
+        prefill.notes ? `Notes: ${prefill.notes}.` : '',
+        prefill.eventDate ? `Date: ${prefill.eventDate}.` : '',
+    ].filter(Boolean);
+    return parts.join(' ');
+}
+
+async function generateMemoryLifeEventSuggestions(friends: FriendModel[]): Promise<Suggestion[]> {
+    if (!friends.length) return [];
+
+    const friendIds = friends.map(friend => friend.id);
+    const friendLookup = new Map(friends.map(friend => [friend.id, friend]));
+    const [memories, existingLifeEvents] = await Promise.all([
+        database.get<FriendMemory>('friend_memories')
+            .query(
+                Q.where('friend_id', Q.oneOf(friendIds)),
+                Q.where('is_archived', false),
+                Q.where('type', Q.oneOf(['upcoming', 'milestone'])),
+                Q.sortBy('updated_at', Q.desc),
+            )
+            .fetch(),
+        database.get<LifeEvent>('life_events')
+            .query(
+                Q.where('friend_id', Q.oneOf(friendIds)),
+                Q.sortBy('event_date', Q.desc),
+                Q.take(400),
+            )
+            .fetch(),
+    ]);
+
+    const existingLifeEventsByFriend = new Map<string, LifeEvent[]>();
+    existingLifeEvents.forEach(event => {
+        const friendEvents = existingLifeEventsByFriend.get(event.friendId) || [];
+        friendEvents.push(event);
+        existingLifeEventsByFriend.set(event.friendId, friendEvents);
+    });
+
+    const suggestions: Suggestion[] = [];
+    const seenFriendIds = new Set<string>();
+
+    for (const memory of memories) {
+        if (seenFriendIds.has(memory.friendId)) continue;
+
+        const friend = friendLookup.get(memory.friendId);
+        if (!friend) continue;
+
+        const prefill = buildLifeEventPrefillFromMemory({
+            type: memory.type,
+            title: memory.title,
+            content: memory.content,
+            effectiveDate: memory.effectiveDate,
+        });
+        if (!prefill) continue;
+
+        const candidateDateMs = prefill.eventDate ? new Date(prefill.eventDate).getTime() : NaN;
+        const friendLifeEvents = existingLifeEventsByFriend.get(memory.friendId) || [];
+        const duplicateLifeEvent = friendLifeEvents.find(existing => {
+            const typeMatch = !prefill.eventType || existing.eventType === prefill.eventType;
+            if (!typeMatch) return false;
+
+            const titleSimilarity = tokenSimilarity(existing.title || '', prefill.title || memory.title || '');
+            const notesSimilarity = tokenSimilarity(existing.notes || '', prefill.notes || memory.content || '');
+
+            if (!Number.isNaN(candidateDateMs)) {
+                const existingDateMs = existing.eventDate?.getTime?.() || NaN;
+                if (!Number.isNaN(existingDateMs)) {
+                    const deltaDays = Math.abs(existingDateMs - candidateDateMs) / (1000 * 60 * 60 * 24);
+                    if (deltaDays <= LIFE_EVENT_DATE_DUPLICATE_WINDOW_DAYS && (titleSimilarity >= 0.55 || notesSimilarity >= 0.62)) {
+                        return true;
+                    }
+                }
+            }
+
+            return titleSimilarity >= 0.82 || (titleSimilarity >= 0.55 && notesSimilarity >= 0.7);
+        });
+        if (duplicateLifeEvent) {
+            suggestions.push({
+                id: `memory-life-event-review-${memory.id}-${duplicateLifeEvent.id}`,
+                type: 'celebrate',
+                friendId: friend.id,
+                friendName: friend.name,
+                title: `Review ${friend.name}'s life event`,
+                subtitle: `You already logged "${duplicateLifeEvent.title}". Update it if this note adds new details.`,
+                icon: 'ClipboardCheck',
+                category: 'life-event',
+                urgency: getLifeEventUrgency(
+                    duplicateLifeEvent.eventDate ? duplicateLifeEvent.eventDate.toISOString() : undefined,
+                ),
+                actionLabel: 'Review Life Event',
+                action: {
+                    type: 'life-event',
+                    prefillPrompt: `Review the life event for ${friend.name} and update anything that changed.`,
+                    lifeEventId: duplicateLifeEvent.id,
+                    lifeEventType: duplicateLifeEvent.eventType,
+                    lifeEventTitle: duplicateLifeEvent.title,
+                    lifeEventNotes: duplicateLifeEvent.notes || prefill.notes,
+                    lifeEventDate: duplicateLifeEvent.eventDate
+                        ? duplicateLifeEvent.eventDate.toISOString()
+                        : prefill.eventDate,
+                },
+                dismissible: true,
+                createdAt: new Date(),
+            });
+
+            seenFriendIds.add(friend.id);
+            if (suggestions.length >= 2) break;
+            continue;
+        }
+
+        const dateLabel = prefill.eventDate
+            ? new Date(prefill.eventDate).toLocaleDateString()
+            : null;
+        const subtitle = dateLabel
+            ? `You noted "${memory.title}" for ${dateLabel}. Save it as a life event so it stays visible.`
+            : `You noted "${memory.title}". Save it as a life event so it stays visible.`;
+
+        suggestions.push({
+            id: `memory-life-event-${memory.id}`,
+            type: 'celebrate',
+            friendId: friend.id,
+            friendName: friend.name,
+            title: `Capture a milestone for ${friend.name}`,
+            subtitle,
+            icon: 'Gift',
+            category: 'life-event',
+            urgency: getLifeEventUrgency(prefill.eventDate),
+            actionLabel: 'Add Life Event',
+            action: {
+                type: 'life-event',
+                prefillPrompt: buildLifeEventPrompt(friend.name, prefill),
+                lifeEventType: prefill.eventType,
+                lifeEventTitle: prefill.title,
+                lifeEventNotes: prefill.notes,
+                lifeEventDate: prefill.eventDate,
+            },
+            dismissible: true,
+            createdAt: new Date(),
+        });
+
+        seenFriendIds.add(friend.id);
+        if (suggestions.length >= 2) break;
+    }
+
+    return suggestions;
 }
 
 function getSuggestionTypeKey(suggestion: Suggestion): string {
@@ -178,6 +514,8 @@ export async function fetchSuggestions(
         // 2. Data Loading: Fetch Context (Friend + Interactions) only for candidates
         const contextMap = await SuggestionDataLoader.loadContextForCandidates(candidateIds);
         const friends = Array.from(contextMap.values()).map(c => c.friend);
+        await archiveExpiredFriendMemories();
+        const memoryProfiles = await loadFriendMemoryProfiles(friends.map(friend => friend.id));
 
 
 
@@ -364,6 +702,13 @@ export async function fetchSuggestions(
             Logger.error('[Suggestions] Error generating signal-driven suggestions', error);
         }
 
+        try {
+            const memoryLifeEventSuggestions = await generateMemoryLifeEventSuggestions(friends);
+            allSuggestions.push(...memoryLifeEventSuggestions);
+        } catch (error) {
+            Logger.error('[Suggestions] Error generating memory life-event suggestions', error);
+        }
+
         // 6. Sunday Reflection
         const weeklyReflection = await WeeklyReflectionGenerator.generate();
         if (weeklyReflection) {
@@ -407,6 +752,8 @@ export async function fetchSuggestions(
                 allSuggestions.push(portfolioInsight);
             }
         }
+
+        allSuggestions = applyMemoryAwareScoring(allSuggestions, memoryProfiles);
 
         // Filter out dismissed (unless critical)
         const active = allSuggestions.filter(s => {

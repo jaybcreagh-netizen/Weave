@@ -22,12 +22,20 @@ import {
   updateLifeEventCalendarEvent,
   deleteLifeEventCalendarEvent,
 } from '@/modules/interactions/services/calendar.service';
+import { UIEventBus } from '@/shared/services/ui-event-bus';
 
 interface LifeEventModalProps {
   visible: boolean;
   onClose: () => void;
   friendId: string;
   existingEvent?: LifeEvent | null;
+  prefill?: {
+    eventType?: string;
+    title?: string;
+    notes?: string;
+    eventDate?: string;
+    source?: 'oracle' | 'memory';
+  };
 }
 
 const EVENT_TYPES: Array<{ value: LifeEventType; label: string; icon: LucideIcon }> = [
@@ -50,11 +58,25 @@ const IMPORTANCE_LEVELS: Array<{ value: LifeEventImportance; label: string; desc
   { value: 'critical', label: 'Special', description: 'A milestone to celebrate' },
 ];
 
+const EVENT_TYPE_SET = new Set<LifeEventType>(EVENT_TYPES.map(type => type.value));
+
+function normalizeEventType(value?: string): LifeEventType {
+  if (!value) return 'other';
+  return EVENT_TYPE_SET.has(value as LifeEventType) ? (value as LifeEventType) : 'other';
+}
+
+function parseEventDate(value?: string): Date {
+  if (!value) return startOfDay(new Date());
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? startOfDay(new Date()) : startOfDay(parsed);
+}
+
 export const LifeEventModal: React.FC<LifeEventModalProps> = ({
   visible,
   onClose,
   friendId,
   existingEvent,
+  prefill,
 }) => {
   const { colors, isDarkMode } = useTheme();
   const [eventType, setEventType] = useState<LifeEventType>(existingEvent?.eventType || 'other');
@@ -83,17 +105,17 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
         setNotes(existingEvent.description || '');
         setImportance(existingEvent.importance);
       } else {
-        // Reset to defaults for new event
-        setEventType('other');
-        setEventDate(startOfDay(new Date()));
+        // Reset to defaults (or incoming prefill) for new event
+        setEventType(normalizeEventType(prefill?.eventType));
+        setEventDate(parseEventDate(prefill?.eventDate));
         setEndDate(undefined);
         setIsRange(false);
-        setTitle('');
-        setNotes('');
+        setTitle(prefill?.title?.trim() || '');
+        setNotes(prefill?.notes?.trim() || '');
         setImportance('medium');
       }
     }
-  }, [visible, existingEvent]);
+  }, [visible, existingEvent, prefill]);
 
   const handleDateSelect = (date: Date) => {
     if (pickingDateType === 'start') {
@@ -183,6 +205,15 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
           await progress.update(p => {
             p.scribeProgress += 1;
           });
+        });
+      }
+
+      if (!existingEvent && (prefill?.source === 'oracle' || prefill?.source === 'memory')) {
+        UIEventBus.emit({
+          type: 'SHOW_TOAST',
+          message: prefill.source === 'memory'
+            ? 'Saved from relationship note.'
+            : 'Added to Life Events.',
         });
       }
 

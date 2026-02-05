@@ -16,6 +16,7 @@ import { JSONSchema } from '@/shared/services/llm/types'
 const ORACLE_ACTION_TYPES = [
     'log_weave',
     'add_life_event',
+    'add_memory',
     'create_reflection',
     'plan_weave',
     'set_reminder',
@@ -106,6 +107,8 @@ export const OracleActionSchema: JSONSchema = {
                 activity: { type: 'string' },
                 vibe: { type: 'string' },
                 notes: { type: 'string' },
+                memoryType: { type: 'string' },
+                memoryTitle: { type: 'string' },
                 eventType: { type: 'string' },
                 eventDate: { type: 'string' },
                 eventDescription: { type: 'string' },

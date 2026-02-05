@@ -47,6 +47,7 @@ import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
 import { ArchetypeCard } from '@/modules/intelligence';
 import { Archetype } from '@/shared/types/legacy-types';
 import { archetypeData } from '@/shared/constants/constants';
+import { AnalyticsEvents, trackEvent } from '@/shared/services/analytics.service';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -301,10 +302,44 @@ export function FriendsDashboardScreen() {
                 // If no specific friend suggested, open the friend picker
                 setFriendPickerVisible(true);
             }
+        } else if (suggestion.action.type === 'life-event') {
+            trackEvent(AnalyticsEvents.MEMORY_LIFE_EVENT_SUGGESTION_ACTED, {
+                suggestion_id: suggestion.id,
+                friend_id: suggestion.friendId,
+                memory_event_type: suggestion.action.lifeEventType || 'other',
+                mode: suggestion.action.lifeEventId ? 'review_existing' : 'create_new',
+            });
+            if (suggestion.friendId) {
+                router.push({
+                    pathname: '/friend-profile',
+                    params: {
+                        friendId: suggestion.friendId,
+                        action: 'add_life_event',
+                        lifeEventType: suggestion.action.lifeEventType || '',
+                        lifeEventTitle: suggestion.action.lifeEventTitle || suggestion.title,
+                        lifeEventNotes: suggestion.action.lifeEventNotes || suggestion.subtitle || '',
+                        lifeEventDate: suggestion.action.lifeEventDate || '',
+                        lifeEventId: suggestion.action.lifeEventId || '',
+                        lifeEventSource: 'memory',
+                    },
+                });
+            } else {
+                setFriendPickerVisible(true);
+            }
         }
     };
 
     const handleDismissSuggestion = async (suggestionId: string) => {
+        const suggestion = suggestions.find(item => item.id === suggestionId);
+        if (suggestion?.action.type === 'life-event') {
+            trackEvent(AnalyticsEvents.MEMORY_LIFE_EVENT_SUGGESTION_DISMISSED, {
+                suggestion_id: suggestion.id,
+                friend_id: suggestion.friendId,
+                reason: 'unspecified',
+                mode: suggestion.action.lifeEventId ? 'review_existing' : 'create_new',
+            });
+        }
+
         const cooldownDays = getSuggestionCooldownDays(suggestionId);
         await dismissSuggestion(suggestionId, cooldownDays);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

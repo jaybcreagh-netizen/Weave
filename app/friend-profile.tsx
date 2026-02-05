@@ -10,10 +10,12 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriendProfileData, useFriendTimeline } from '@/modules/relationships';
 import { useFriendProfileModals } from '@/modules/relationships';
 import { InteractionShape } from '@/shared/types/derived';
+import { LifeEvent } from '@/shared/types/legacy-types';
 
 import {
   ProfileHeader,
   ActionButtons,
+  MemoryEditor,
   LifeEventsSection,
   TimelineList,
   FriendProfileModals,
@@ -22,9 +24,13 @@ import { OracleFAB } from '@/modules/home/components/OracleFAB';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { LinkFriendSheet } from '@/modules/relationships/components/LinkFriendSheet';
 import { syncOutgoingLinkStatus, unlinkFriend } from '@/modules/relationships/services/friend-linking.service';
+import { dismissAllPendingMemoryCandidates } from '@/modules/relationships/services/memory-candidate.service';
 import { UIEventBus } from '@/shared/services/ui-event-bus';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
+import LifeEventModel from '@/db/models/LifeEvent';
+import FriendMemoryModel from '@/db/models/FriendMemory';
+import FriendMemoryCandidateModel from '@/db/models/FriendMemoryCandidate';
 import { Q } from '@nozbe/watermelondb';
 import { usePendingWeavesForFriend, PendingWeavesSection } from '@/modules/sync';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
@@ -41,6 +47,8 @@ export default function FriendProfile() {
   const {
     friend,
     friendModel,
+    friendMemories,
+    friendMemoryCandidates,
     interactions,
     shareInfoMap,
     friendIntentions,
@@ -59,6 +67,23 @@ export default function FriendProfile() {
 
   const { timelineSections } = useFriendTimeline(interactions);
   const [isPendingSheetVisible, setIsPendingSheetVisible] = useState(false);
+  const [showMemoryEditor, setShowMemoryEditor] = useState(false);
+  const [editingMemory, setEditingMemory] = useState<FriendMemoryModel | null>(null);
+  const [editingMemoryCandidate, setEditingMemoryCandidate] = useState<FriendMemoryCandidateModel | null>(null);
+  const [isReviewingMemoryQueue, setIsReviewingMemoryQueue] = useState(false);
+  const [memoryPrefill, setMemoryPrefill] = useState<{
+    type?: 'interest' | 'preference' | 'upcoming' | 'milestone' | 'activity_win' | 'avoid' | 'context' | 'general';
+    title?: string;
+    content?: string;
+    source?: 'oracle';
+  } | null>(null);
+  const [lifeEventPrefill, setLifeEventPrefill] = useState<{
+    eventType?: string;
+    title?: string;
+    notes?: string;
+    eventDate?: string;
+    source?: 'oracle' | 'memory';
+  } | null>(null);
 
   // Track weave IDs currently being accepted to prevent duplicate display
   const [acceptingWeaveIds, setAcceptingWeaveIds] = useState<Set<string>>(new Set());
@@ -318,13 +343,58 @@ export default function FriendProfile() {
     }
   }, [deleteWeave]);
 
+  // Handle profile actions from deep links and Oracle actions
+  const {
+    action,
+    interactionId: paramInteractionId,
+    lifeEventType: paramLifeEventType,
+    lifeEventTitle: paramLifeEventTitle,
+    lifeEventNotes: paramLifeEventNotes,
+    lifeEventDate: paramLifeEventDate,
+    lifeEventId: paramLifeEventId,
+    lifeEventSource: paramLifeEventSource,
+    memoryType: paramMemoryType,
+    memoryTitle: paramMemoryTitle,
+    memoryNotes: paramMemoryNotes,
+    memorySource: paramMemorySource,
+  } = useLocalSearchParams();
 
+  const getParamValue = (value: string | string[] | undefined) =>
+    (typeof value === 'string' && value.trim().length > 0 ? value : undefined);
 
-  // Handle reschedule deep link
-  const { action, interactionId: paramInteractionId } = useLocalSearchParams();
+  const getMemoryTypeParam = (value: string | string[] | undefined) => {
+    const rawType = getParamValue(value);
+    if (!rawType) return undefined;
+    const validTypes = new Set([
+      'interest',
+      'preference',
+      'upcoming',
+      'milestone',
+      'activity_win',
+      'avoid',
+      'context',
+      'general',
+    ]);
+    return validTypes.has(rawType) ? rawType as 'interest' | 'preference' | 'upcoming' | 'milestone' | 'activity_win' | 'avoid' | 'context' | 'general' : undefined;
+  };
+
+  const mapLifeEventModelToDto = (event: LifeEventModel): LifeEvent => ({
+    id: event.id,
+    friendId: event.friendId,
+    title: event.title,
+    date: event.eventDate,
+    endDate: event.endDate,
+    eventType: event.eventType,
+    description: event.notes,
+    importance: event.importance,
+    isRecurring: event.isRecurring,
+    source: event.source,
+    createdAt: event.createdAt,
+    updatedAt: event.updatedAt,
+  });
 
   useEffect(() => {
-    if (action === 'reschedule' && paramInteractionId && interactions && isDataLoaded) {
+    if (action === 'reschedule' && typeof paramInteractionId === 'string' && interactions && isDataLoaded) {
       const interaction = interactions.find(i => i.id === paramInteractionId);
       if (interaction) {
         // Slight delay to allow profile to load and render
@@ -335,7 +405,95 @@ export default function FriendProfile() {
         }, 500);
       }
     }
-  }, [action, paramInteractionId, interactions, isDataLoaded, modals.handleEditInteraction]);
+
+    if (action === 'add_life_event' && isDataLoaded) {
+      const openLifeEventModal = async () => {
+        const lifeEventId = getParamValue(paramLifeEventId);
+        const lifeEventSource = getParamValue(paramLifeEventSource);
+
+        let existingEventForEdit: LifeEvent | null = null;
+        if (lifeEventId) {
+          existingEventForEdit = activeLifeEvents.find(event => event.id === lifeEventId) || null;
+          if (!existingEventForEdit) {
+            try {
+              const eventModel = await database.get<LifeEventModel>('life_events').find(lifeEventId);
+              existingEventForEdit = mapLifeEventModelToDto(eventModel);
+            } catch {
+              existingEventForEdit = null;
+            }
+          }
+        }
+
+        if (existingEventForEdit) {
+          setLifeEventPrefill(null);
+          modals.setEditingLifeEvent(existingEventForEdit);
+        } else {
+          setLifeEventPrefill({
+            eventType: getParamValue(paramLifeEventType),
+            title: getParamValue(paramLifeEventTitle),
+            notes: getParamValue(paramLifeEventNotes),
+            eventDate: getParamValue(paramLifeEventDate),
+            source: lifeEventSource === 'oracle' || lifeEventSource === 'memory'
+              ? lifeEventSource
+              : undefined,
+          });
+          modals.setEditingLifeEvent(null);
+        }
+
+        modals.setShowLifeEventModal(true);
+        router.setParams({
+          action: '',
+          lifeEventType: '',
+          lifeEventTitle: '',
+          lifeEventNotes: '',
+          lifeEventDate: '',
+          lifeEventId: '',
+          lifeEventSource: '',
+        });
+      };
+
+      void openLifeEventModal();
+    }
+
+    if (action === 'add_memory' && isDataLoaded) {
+      setIsReviewingMemoryQueue(false);
+      setEditingMemory(null);
+      setEditingMemoryCandidate(null);
+      setMemoryPrefill({
+        type: getMemoryTypeParam(paramMemoryType),
+        title: getParamValue(paramMemoryTitle),
+        content: getParamValue(paramMemoryNotes),
+        source: getParamValue(paramMemorySource) === 'oracle' ? 'oracle' : undefined,
+      });
+      setShowMemoryEditor(true);
+      router.setParams({
+        action: '',
+        memoryType: '',
+        memoryTitle: '',
+        memoryNotes: '',
+        memorySource: '',
+      });
+    }
+  }, [
+    action,
+    paramInteractionId,
+    paramLifeEventType,
+    paramLifeEventTitle,
+    paramLifeEventNotes,
+    paramLifeEventDate,
+    paramLifeEventId,
+    paramLifeEventSource,
+    paramMemoryType,
+    paramMemoryTitle,
+    paramMemoryNotes,
+    paramMemorySource,
+    interactions,
+    isDataLoaded,
+    modals.handleEditInteraction,
+    modals.setEditingLifeEvent,
+    modals.setShowLifeEventModal,
+    router,
+  ]);
 
   const handleEditInteractionWrapper = useCallback((interactionId: string) => {
     const interaction = interactions?.find(i => i.id === interactionId);
@@ -343,6 +501,58 @@ export default function FriendProfile() {
       modals.handleEditInteraction(interaction);
     }
   }, [interactions, modals]);
+
+  const handleMemoryCandidateResolved = useCallback((
+    resolvedCandidateId: string,
+    _resolution: 'approved' | 'dismissed',
+  ): boolean => {
+    if (!isReviewingMemoryQueue) return true;
+
+    const remainingCandidates = friendMemoryCandidates.filter(candidate => candidate.id !== resolvedCandidateId);
+    const nextCandidate = remainingCandidates[0];
+
+    if (!nextCandidate) {
+      setIsReviewingMemoryQueue(false);
+      return true;
+    }
+
+    setEditingMemory(null);
+    setEditingMemoryCandidate(nextCandidate);
+    setMemoryPrefill(null);
+
+    return false;
+  }, [friendMemoryCandidates, isReviewingMemoryQueue]);
+
+  const handleDismissAllMemorySuggestions = useCallback(() => {
+    if (!validFriendId || friendMemoryCandidates.length === 0) return;
+
+    Alert.alert(
+      'Dismiss all suggestions?',
+      'This clears pending journal note suggestions for this friend.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Dismiss all',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const dismissedCount = await dismissAllPendingMemoryCandidates(validFriendId);
+              if (dismissedCount > 0) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                UIEventBus.emit({
+                  type: 'SHOW_TOAST',
+                  message: `${dismissedCount} suggestion${dismissedCount > 1 ? 's' : ''} dismissed`,
+                });
+              }
+            } catch (error) {
+              console.error('Error dismissing memory suggestions:', error);
+              Alert.alert('Error', 'Could not dismiss suggestions. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  }, [friendMemoryCandidates.length, validFriendId]);
 
   // Show error if friendId is invalid
   if (hasInvalidId) {
@@ -440,10 +650,12 @@ export default function FriendProfile() {
                 <LifeEventsSection
                   lifeEvents={activeLifeEvents}
                   onAdd={() => {
+                    setLifeEventPrefill(null);
                     modals.setEditingLifeEvent(null);
                     modals.setShowLifeEventModal(true);
                   }}
                   onEdit={(event) => {
+                    setLifeEventPrefill(null);
                     modals.setEditingLifeEvent(event);
                     modals.setShowLifeEventModal(true);
                   }}
@@ -459,6 +671,50 @@ export default function FriendProfile() {
             friendIntentions={friendIntentions}
             // Derive the live interaction object from the reactive list using the ID
             selectedInteraction={interactions.find(i => i.id === modals.selectedInteractionId) || null}
+            lifeEventPrefill={lifeEventPrefill}
+            friendMemories={friendMemories}
+            friendMemoryCandidates={friendMemoryCandidates}
+            onAddMemory={() => {
+              setIsReviewingMemoryQueue(false);
+              setEditingMemoryCandidate(null);
+              setEditingMemory(null);
+              setMemoryPrefill(null);
+              setShowMemoryEditor(true);
+            }}
+            onEditMemory={(memory) => {
+              setIsReviewingMemoryQueue(false);
+              setEditingMemoryCandidate(null);
+              setEditingMemory(memory);
+              setMemoryPrefill(null);
+              setShowMemoryEditor(true);
+            }}
+            onReviewMemorySuggestions={() => {
+              const firstCandidate = friendMemoryCandidates[0];
+              if (!firstCandidate) return;
+              setIsReviewingMemoryQueue(true);
+              setEditingMemory(null);
+              setEditingMemoryCandidate(firstCandidate);
+              setMemoryPrefill(null);
+              setShowMemoryEditor(true);
+            }}
+            onDismissAllMemorySuggestions={handleDismissAllMemorySuggestions}
+            onCreateLifeEventFromMemory={(prefill) => {
+              Alert.alert(
+                'Create Life Event',
+                'Open this note in Life Events to save it to timeline and reminders?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Continue',
+                    onPress: () => {
+                      setLifeEventPrefill(prefill);
+                      modals.setEditingLifeEvent(null);
+                      modals.setShowLifeEventModal(true);
+                    },
+                  },
+                ],
+              );
+            }}
             updateReflection={updateReflection}
             updateInteraction={updateInteraction}
             createIntention={createIntention}
@@ -472,6 +728,22 @@ export default function FriendProfile() {
             params={{
               friendId: friend.id,
               friendName: friend.name
+            }}
+          />
+
+          <MemoryEditor
+            visible={showMemoryEditor}
+            friendId={friend.id}
+            memory={editingMemory}
+            candidate={editingMemoryCandidate}
+            prefill={memoryPrefill}
+            onCandidateResolved={handleMemoryCandidateResolved}
+            onClose={() => {
+              setIsReviewingMemoryQueue(false);
+              setShowMemoryEditor(false);
+              setEditingMemory(null);
+              setEditingMemoryCandidate(null);
+              setMemoryPrefill(null);
             }}
           />
 

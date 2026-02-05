@@ -80,6 +80,7 @@ const QuickActionsView = ({ entries }: QuickActionsViewProps) => {
                 return <Sparkles size={20} color={colors.primary} />;
             case 'reach_out':
                 return <Heart size={20} color={colors.primary} />;
+            case 'add_memory':
             case 'update_profile':
                 return <UserPlus size={20} color={colors.primary} />;
             default:

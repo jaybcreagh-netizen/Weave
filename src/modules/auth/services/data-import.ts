@@ -11,6 +11,8 @@ import LifeEvent from '@/db/models/LifeEvent';
 import Intention from '@/db/models/Intention';
 import IntentionFriend from '@/db/models/IntentionFriend';
 import PortfolioSnapshot from '@/db/models/PortfolioSnapshot';
+import FriendMemory from '@/db/models/FriendMemory';
+import FriendMemoryCandidate from '@/db/models/FriendMemoryCandidate';
 import { Q } from '@nozbe/watermelondb';
 import { eventBus } from '@/shared/events/event-bus';
 
@@ -139,6 +141,37 @@ interface ExportData {
     interactionsPerWeek: number;
     diversityScore: number;
     createdAt: number;
+  }>;
+  friendMemories?: Array<{
+    id: string;
+    friendId: string;
+    type: string;
+    title: string;
+    content: string;
+    source: string;
+    sourceEntryId: string | null;
+    confidence?: number | null;
+    effectiveDate?: number | null;
+    expiresAt?: number | null;
+    tagsJson?: string | null;
+    isArchived: boolean;
+    createdAt: number;
+    updatedAt: number;
+  }>;
+  friendMemoryCandidates?: Array<{
+    id: string;
+    friendId: string;
+    type: string;
+    title: string;
+    content: string;
+    source: string;
+    sourceEntryId: string | null;
+    confidence: number | null;
+    fingerprint: string;
+    status: string;
+    reviewedAt: number | null;
+    createdAt: number;
+    updatedAt: number;
   }>;
   userProgress: {
     totalWeaves: number;
@@ -329,6 +362,8 @@ export async function importData(
       const intentionsCollection = database.get<Intention>('intentions');
       const intentionFriendsCollection = database.get<IntentionFriend>('intention_friends');
       const portfolioSnapshotsCollection = database.get<PortfolioSnapshot>('portfolio_snapshots');
+      const friendMemoriesCollection = database.get<FriendMemory>('friend_memories');
+      const friendMemoryCandidatesCollection = database.get<FriendMemoryCandidate>('friend_memory_candidates');
 
       // Import social battery logs
       if (data.socialBatteryLogs && Array.isArray(data.socialBatteryLogs)) {
@@ -547,6 +582,83 @@ export async function importData(
           result.errors.push(
             `Failed to import friend ${friendData.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
           );
+        }
+      }
+
+      // Import friend memories
+      if (data.friendMemories && Array.isArray(data.friendMemories)) {
+        for (const memoryData of data.friendMemories) {
+          try {
+            if (!clearExisting) {
+              const existing = await friendMemoriesCollection.find(memoryData.id).catch(() => null);
+              if (existing) {
+                continue;
+              }
+            }
+
+            await friendMemoriesCollection.create(memory => {
+              memory._raw.id = memoryData.id;
+              memory.friendId = memoryData.friendId;
+              memory.type = memoryData.type as any;
+              memory.title = memoryData.title;
+              memory.content = memoryData.content;
+              memory.source = memoryData.source as any;
+              memory.sourceEntryId = memoryData.sourceEntryId || undefined;
+              if (typeof memoryData.confidence === 'number') {
+                memory.confidence = memoryData.confidence;
+              }
+              if (typeof memoryData.effectiveDate === 'number') {
+                memory.effectiveDate = memoryData.effectiveDate;
+              }
+              if (typeof memoryData.expiresAt === 'number') {
+                memory.expiresAt = memoryData.expiresAt;
+              }
+              memory.tagsRaw = memoryData.tagsJson || undefined;
+              memory.isArchived = memoryData.isArchived;
+              // @ts-ignore
+              memory._raw.created_at = memoryData.createdAt;
+              // @ts-ignore
+              memory._raw.updated_at = memoryData.updatedAt;
+            });
+          } catch (error) {
+            console.warn('[DataImport] Failed to import friend memory:', error);
+          }
+        }
+      }
+
+      // Import friend memory candidates
+      if (data.friendMemoryCandidates && Array.isArray(data.friendMemoryCandidates)) {
+        for (const candidateData of data.friendMemoryCandidates) {
+          try {
+            if (!clearExisting) {
+              const existing = await friendMemoryCandidatesCollection.find(candidateData.id).catch(() => null);
+              if (existing) {
+                continue;
+              }
+            }
+
+            await friendMemoryCandidatesCollection.create(candidate => {
+              candidate._raw.id = candidateData.id;
+              candidate.friendId = candidateData.friendId;
+              candidate.type = candidateData.type as any;
+              candidate.title = candidateData.title;
+              candidate.content = candidateData.content;
+              candidate.source = candidateData.source as any;
+              candidate.sourceEntryId = candidateData.sourceEntryId || undefined;
+              if (typeof candidateData.confidence === 'number') {
+                candidate.confidence = candidateData.confidence;
+              }
+              candidate.fingerprint = candidateData.fingerprint;
+              candidate.status = candidateData.status as any;
+              candidate.reviewedAt = candidateData.reviewedAt ?? undefined;
+              // @ts-ignore
+              candidate._raw.created_at = candidateData.createdAt;
+              // @ts-ignore
+              candidate._raw.updated_at = candidateData.updatedAt;
+            });
+          } catch (error) {
+            console.warn('[DataImport] Failed to import friend memory candidate:', error);
+          }
         }
       }
 

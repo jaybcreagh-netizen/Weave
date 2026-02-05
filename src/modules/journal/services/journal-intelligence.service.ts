@@ -12,8 +12,9 @@ import FriendModel from '@/db/models/Friend'
 import UserProfile from '@/db/models/UserProfile'
 import { Q } from '@nozbe/watermelondb'
 import { extractSignals, SignalExtractionResult } from './signal-extractor'
-import { extractThreads } from './thread-extractor'
+import { extractThreads, ExtractedThread } from './thread-extractor'
 import { insightOrchestratorService } from '@/modules/intelligence/services/InsightOrchestratorService'
+import { memoryBridgeService } from './memory-bridge.service'
 import Logger from '@/shared/utils/Logger'
 
 class JournalIntelligenceService {
@@ -49,19 +50,25 @@ class JournalIntelligenceService {
                 await insightOrchestratorService.processJournalEntry(friends.map(friend => friend.id))
 
                 // 4. Extract conversation threads per friend (for follow-up prompts)
+                const extractedThreadsByFriend: Record<string, ExtractedThread[]> = {}
                 for (const friend of friends) {
                     try {
-                        await extractThreads(entry.content, friend.id, friend.name, entry.id, resolvedAiEnabled)
+                        const extractedThreads = await extractThreads(entry.content, friend.id, friend.name, entry.id, resolvedAiEnabled)
+                        extractedThreadsByFriend[friend.id] = extractedThreads
                     } catch (threadError) {
+                        extractedThreadsByFriend[friend.id] = []
                         Logger.warn('JournalIntelligence', 'Thread extraction failed for friend', {
                             friendId: friend.id,
                             error: threadError
                         })
                     }
                 }
+
+                // 5. Bridge existing extraction output into friend memory candidates
+                await memoryBridgeService.ingestSignalsAndThreads(entry, friends, signals, extractedThreadsByFriend)
             }
 
-            // 5. Trigger style analysis (fire-and-forget, runs periodically)
+            // 6. Trigger style analysis (fire-and-forget, runs periodically)
             this.maybeAnalyzeStyle()
 
         } catch (error) {

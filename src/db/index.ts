@@ -45,6 +45,8 @@ import OracleConversation from './models/OracleConversation';
 import ConversationThread from './models/ConversationThread';
 import LLMQualityLog from './models/LLMQualityLog';
 import UserFact from './models/UserFact';
+import FriendMemory from './models/FriendMemory';
+import FriendMemoryCandidate from './models/FriendMemoryCandidate';
 // v65: Friendship Narrative (Phase 2)
 import FriendshipNarrative from './models/FriendshipNarrative';
 import NarrativeMoment from './models/NarrativeMoment';
@@ -138,6 +140,10 @@ export const database = new Database({
     OracleConversation,
     // v56: Crystalized Memory
     UserFact,
+    // v70: Friend memory system
+    FriendMemory,
+    // v71: Friend memory candidate review queue
+    FriendMemoryCandidate,
     // v65: Friendship Narrative
     FriendshipNarrative,
     NarrativeMoment,

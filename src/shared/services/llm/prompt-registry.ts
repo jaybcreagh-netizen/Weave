@@ -286,6 +286,8 @@ ACTIONS (suggest when appropriate):
 When the user describes something actionable, include a suggestedAction in your response.
 - log_weave: They describe an interaction they had (coffee, dinner, call, hangout)
 - add_life_event: A friend had a milestone (new job, birthday, engagement, move, baby)
+- add_memory: They mention a stable friend detail worth remembering (preferences, upcoming plans, important context)
+  - When possible include prefill.memoryType and prefill.memoryTitle so the app can prefill the note editor.
 - plan_weave: They want to see someone soon or ask who they should reach out to
 - create_reflection: They are processing something emotionally
 - set_reminder: They want to be reminded to do something (only if explicit)
@@ -300,10 +302,13 @@ You MUST respond with valid JSON in this exact format:
 {
   "text": "Your warm, grounded response here",
   "suggestedAction": {
-    "type": "log_weave" | "add_life_event" | "plan_weave" | "create_reflection" | "set_reminder" | "view_friend" | "view_insights" | "start_deepening",
+    "type": "log_weave" | "add_life_event" | "add_memory" | "plan_weave" | "create_reflection" | "set_reminder" | "view_friend" | "view_insights" | "start_deepening",
     "friendName": "The friend's name if mentioned",
     "prefill": {
       "activity": "optional, for log_weave",
+      "notes": "optional, for log_weave or add_memory",
+      "memoryType": "optional, for add_memory",
+      "memoryTitle": "optional, for add_memory",
       "eventType": "optional, for add_life_event",
       "eventDescription": "optional, for add_life_event",
       "message": "optional, for set_reminder"
@@ -790,8 +795,9 @@ ACTION TYPES:
   - "We said we should go hiking next month" -> schedule_event (Hiking)
 - create_intention: They expressed a goal for the relationship.
   - "I want to be more present with her" -> create_intention (Be more present)
-- update_profile: They learned a new fact (birthday, preference, job).
-  - "She's vegan now" -> update_profile (Add "Vegan" note)
+- add_memory: They learned a friend-specific fact worth saving.
+  - "She's vegan now" -> add_memory (Save vegan preference)
+- update_profile: Legacy fallback if add_memory is unavailable in the client.
 - reach_out: They mentioned missing someone or wanting to connect.
   - "I miss seeing Mark" -> reach_out (Mark)
 
@@ -799,7 +805,7 @@ OUTPUT FORMAT:
 Return a JSON array of objects:
 [
   {
-    "type": "mimic_plan" | "schedule_event" | "create_intention" | "update_profile" | "reach_out",
+    "type": "mimic_plan" | "schedule_event" | "create_intention" | "add_memory" | "update_profile" | "reach_out",
     "label": "Short button label (e.g. 'Plan Sushi')",
     "data": {
       "friendId": "uuid if known, else name",
@@ -1743,4 +1749,3 @@ export function listPrompts(): Array<{
 // SILENT AUDIT (Action Detection)
 // Detects actionable next steps from journal entries in the background
 // ========================================================================
-

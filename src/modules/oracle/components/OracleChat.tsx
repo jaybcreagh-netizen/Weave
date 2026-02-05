@@ -49,6 +49,7 @@ import { useAuth } from '@/modules/auth/context/AuthContext';
 import { CachedImage } from '@/shared/ui/CachedImage';
 import { MessageItem } from './MessageItem';
 import { ThinkingBubble } from './ThinkingBubble';
+import { UIEventBus } from '@/shared/services/ui-event-bus';
 
 interface OracleChatProps {
     context?: OracleEntryPoint
@@ -85,6 +86,7 @@ export function OracleChat({ context = 'default', friendId, friendName, onClose,
     // Guided reflection state
     const [showGuidedReflection, setShowGuidedReflection] = useState(false)
     const [reflectionInsightId, setReflectionInsightId] = useState<string | null>(null)
+    const scopedFriendIds = useMemo(() => (friendId ? [friendId] : []), [friendId])
 
     // Helper to build rich context
     const buildContextPayload = () => {
@@ -128,13 +130,13 @@ INSTRUCTIONS:
 2. Ask the user the suggested question (or a variation that fits the context).
 3. Do NOT mention you are an AI. Be the voice.`
 
-                startWithContext(prompt, contextPayload)
+                startWithContext(prompt, contextPayload, scopedFriendIds)
             } else {
                 // Standard mode: User asks the question
-                askQuestion(initialQuestion, contextPayload)
+                askQuestion(initialQuestion, contextPayload, undefined, scopedFriendIds)
             }
         }
-    }, [initialQuestion, conversationId])
+    }, [initialQuestion, conversationId, lensContext, messages.length, scopedFriendIds])
 
     useEffect(() => {
         if (messages.length > 0) {
@@ -169,7 +171,7 @@ INSTRUCTIONS:
 
     const handleSend = () => {
         if (!input.trim() || isLoading) return
-        askQuestion(input, buildContextPayload())
+        askQuestion(input, buildContextPayload(), undefined, scopedFriendIds)
         setInput('')
     }
 
@@ -183,7 +185,8 @@ INSTRUCTIONS:
 
         // Ask the Oracle about this insight
         const question = `Tell me more about this insight: "${insight.headline}". ${insight.body}`
-        askQuestion(question)
+        const insightFriendId = insight.actionParams?.friendId
+        askQuestion(question, undefined, undefined, insightFriendId ? [insightFriendId] : scopedFriendIds)
     }
 
     // Handle "Plan" action - navigate to weave logger
@@ -197,18 +200,23 @@ INSTRUCTIONS:
         onClose?.()
         router.push({
             pathname: '/weave-logger',
-            params: insight.actionParams?.friendId ? { friendIds: insight.actionParams.friendId } : undefined
+            params: insight.actionParams?.friendId
+                ? { friendId: insight.actionParams.friendId, mode: 'plan' }
+                : { mode: 'plan' }
         })
     }
 
     // Memoized action handler
-    const handleActionPress = React.useCallback((action: OracleAction) => {
+    const handleActionPress = React.useCallback(async (action: OracleAction) => {
+        const resolvedFriendId = action.friendId || (context === 'friend' ? friendId : undefined)
+
         switch (action.type) {
             case 'log_weave':
                 onClose?.()
                 router.push({
                     pathname: '/weave-logger',
                     params: {
+                        ...(resolvedFriendId ? { friendId: resolvedFriendId } : {}),
                         notes: action.prefill?.notes || '',
                         category: action.prefill?.activity || '',
                     }
@@ -216,25 +224,97 @@ INSTRUCTIONS:
                 break
             case 'plan_weave':
                 onClose?.()
-                // If we have a specific friend, could pass ID
-                if (action.friendId) {
+                router.push({
+                    pathname: '/weave-logger',
+                    params: {
+                        ...(resolvedFriendId ? { friendId: resolvedFriendId } : {}),
+                        mode: 'plan',
+                    }
+                })
+                break
+            case 'add_life_event':
+                if (!resolvedFriendId) {
+                    UIEventBus.emit({ type: 'SHOW_TOAST', message: 'Open a friend profile to add a life event' })
+                    break
+                }
+
+                const lifeEventParams: Record<string, string> = {
+                    action: 'add_life_event',
+                    lifeEventSource: 'oracle',
+                }
+
+                if (action.prefill?.eventType) {
+                    lifeEventParams.lifeEventType = action.prefill.eventType
+                }
+                if (action.prefill?.eventDescription) {
+                    lifeEventParams.lifeEventNotes = action.prefill.eventDescription
+                }
+                if (action.prefill?.eventDate) {
+                    lifeEventParams.lifeEventDate = action.prefill.eventDate
+                }
+
+                onClose?.()
+                if (context === 'friend' && resolvedFriendId === friendId) {
+                    router.setParams(lifeEventParams)
+                } else {
                     router.push({
                         pathname: '/friend-profile',
-                        params: { id: action.friendId }
+                        params: {
+                            friendId: resolvedFriendId,
+                            ...lifeEventParams,
+                        }
                     })
-                } else {
-                    router.push('/weave-logger')
                 }
                 break
             case 'create_reflection':
                 saveToJournal()
                 break
+            case 'add_memory':
+                if (!resolvedFriendId) {
+                    UIEventBus.emit({ type: 'SHOW_TOAST', message: 'Open a friend profile to save this note' })
+                    break
+                }
+
+                const rawNote = action.prefill?.notes?.trim() || ''
+                const suggestedTitle = action.prefill?.memoryTitle?.trim()
+                    || action.prefill?.eventDescription?.trim()
+                    || (action.prefill?.activity?.trim() ? `Note: ${action.prefill?.activity?.trim()}` : '')
+                const fallbackTitle = rawNote
+                    ? (rawNote.split(/[.!?]/)[0]?.trim() || rawNote).slice(0, 80)
+                    : ''
+
+                const memoryParams: Record<string, string> = {
+                    action: 'add_memory',
+                    memorySource: 'oracle',
+                    memoryType: action.prefill?.memoryType || 'context',
+                }
+
+                if (rawNote) {
+                    memoryParams.memoryNotes = rawNote
+                }
+                if (suggestedTitle || fallbackTitle) {
+                    memoryParams.memoryTitle = (suggestedTitle || fallbackTitle).slice(0, 80)
+                }
+
+                onClose?.()
+                if (context === 'friend' && resolvedFriendId === friendId) {
+                    router.setParams(memoryParams)
+                } else {
+                    router.push({
+                        pathname: '/friend-profile',
+                        params: {
+                            friendId: resolvedFriendId,
+                            ...memoryParams,
+                        }
+                    })
+                }
+                break
             case 'view_friend':
-                if (action.friendId) {
+                if (resolvedFriendId) {
                     onClose?.()
                     router.push({
                         pathname: '/friend-profile',
-                        params: { id: action.friendId }
+                        params: { friendId: resolvedFriendId }
                     })
                 }
                 break
@@ -253,7 +333,7 @@ INSTRUCTIONS:
                 // Implement sharing logic
                 break
         }
-    }, [onClose, router.push, saveToJournal, setShowGuidedReflection])
+    }, [context, friendId, onClose, router, saveToJournal])
 
     const handleGuidedComplete = () => {
         setShowGuidedReflection(false)
@@ -305,9 +385,9 @@ INSTRUCTIONS:
 
         // If they differ, we use displayOverride
         if (instruction !== displayLabel) {
-            askQuestion(instruction, context, displayLabel)
+            askQuestion(instruction, buildContextPayload(), displayLabel, scopedFriendIds)
         } else {
-            askQuestion(instruction)
+            askQuestion(instruction, buildContextPayload(), undefined, scopedFriendIds)
         }
     }
 
@@ -330,7 +410,7 @@ INSTRUCTIONS:
 
             <StarterPromptChips onSelect={handlePromptSelect} context={context} onRequestInsight={handleRequestInsight} isGeneratingInsight={isGeneratingInsight} />
         </View>
-    ), [colors, typography, animatedProps, context, askQuestion, hasInsights, isGeneratingInsight])
+    ), [animatedProps, colors, context, handlePromptSelect, handleRequestInsight, hasInsights, isGeneratingInsight, typography])
 
     return (
         <>

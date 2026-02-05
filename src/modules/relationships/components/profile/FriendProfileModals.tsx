@@ -20,6 +20,8 @@ import { TierFitBottomSheetWrapper } from './TierFitBottomSheetWrapper';
 import { useFriendProfileModals } from '@/modules/relationships';
 import { FriendDetailSheet } from '../FriendDetailSheet';
 import { InviteFriendSheet } from '@/modules/interactions/components/InviteFriendSheet';
+import FriendMemoryModel from '@/db/models/FriendMemory';
+import FriendMemoryCandidateModel from '@/db/models/FriendMemoryCandidate';
 
 import { Intention } from '@/shared/types/legacy-types';
 
@@ -27,7 +29,27 @@ interface FriendProfileModalsProps {
     friend: FriendShape;
     modals: ReturnType<typeof useFriendProfileModals>;
     friendIntentions: Intention[];
+    lifeEventPrefill?: {
+        eventType?: string;
+        title?: string;
+        notes?: string;
+        eventDate?: string;
+        source?: 'oracle' | 'memory';
+    } | null;
     selectedInteraction: InteractionShape | null; // Reactive selected interaction
+    friendMemories: FriendMemoryModel[];
+    friendMemoryCandidates: FriendMemoryCandidateModel[];
+    onAddMemory: () => void;
+    onEditMemory: (memory: FriendMemoryModel) => void;
+    onReviewMemorySuggestions: () => void;
+    onDismissAllMemorySuggestions: () => void;
+    onCreateLifeEventFromMemory: (prefill: {
+        eventType?: string;
+        title?: string;
+        notes?: string;
+        eventDate?: string;
+        source?: 'memory';
+    }) => void;
     updateReflection: (id: string, reflection: StructuredReflection) => Promise<void>;
     updateInteraction: (id: string, updates: any) => Promise<void>; // Using any to avoid Model vs DTO conflicts
     createIntention: (friendIds: string[], description: string, category?: InteractionCategory) => Promise<void>;
@@ -40,7 +62,15 @@ export function FriendProfileModals({
     friend,
     modals,
     friendIntentions,
+    lifeEventPrefill,
     selectedInteraction, // Deconstruct explicit prop
+    friendMemories,
+    friendMemoryCandidates,
+    onAddMemory,
+    onEditMemory,
+    onReviewMemorySuggestions,
+    onDismissAllMemorySuggestions,
+    onCreateLifeEventFromMemory,
     updateReflection,
     updateInteraction,
     createIntention,
@@ -214,6 +244,7 @@ export function FriendProfileModals({
                 }}
                 friendId={friend.id}
                 existingEvent={editingLifeEvent as any}
+                prefill={lifeEventPrefill || undefined}
             />
 
 
@@ -231,6 +262,13 @@ export function FriendProfileModals({
                     isVisible={modals.showFriendDetailSheet}
                     onClose={() => modals.setShowFriendDetailSheet(false)}
                     friendId={friend.id}
+                    memories={friendMemories}
+                    memoryCandidates={friendMemoryCandidates}
+                    onAddMemory={onAddMemory}
+                    onEditMemory={onEditMemory}
+                    onReviewMemorySuggestions={onReviewMemorySuggestions}
+                    onDismissAllMemorySuggestions={onDismissAllMemorySuggestions}
+                    onCreateLifeEventFromMemory={onCreateLifeEventFromMemory}
                 />
             )}
 

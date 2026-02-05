@@ -6,6 +6,7 @@
 export type OracleActionType =
     | 'log_weave'
     | 'add_life_event'
+    | 'add_memory'
     | 'create_reflection'
     | 'plan_weave'
     | 'set_reminder'
@@ -22,7 +23,10 @@ export interface OracleAction {
         // For log_weave
         activity?: string
         vibe?: string
-        notes?: string
+        notes?: string // Also used by add_memory
+        // For add_memory
+        memoryType?: 'interest' | 'preference' | 'upcoming' | 'milestone' | 'activity_win' | 'avoid' | 'context' | 'general'
+        memoryTitle?: string
         // For add_life_event
         eventType?: string
         eventDate?: string
@@ -45,6 +49,7 @@ export interface OracleStructuredResponse {
 export const ACTION_LABELS: Record<OracleActionType, { label: string; icon: string }> = {
     log_weave: { label: 'Log this weave', icon: 'calendar-plus' },
     add_life_event: { label: 'Add life event', icon: 'gift' },
+    add_memory: { label: 'Save friend note', icon: 'book-open' },
     create_reflection: { label: 'Save as reflection', icon: 'book-open' },
     plan_weave: { label: 'Plan a meetup', icon: 'calendar' },
     set_reminder: { label: 'Set reminder', icon: 'bell' },
@@ -199,7 +204,7 @@ export interface AssessDraftResult {
 }
 
 export interface SmartAction {
-    type: 'mimic_plan' | 'schedule_event' | 'create_intention' | 'update_profile' | 'reach_out';
+    type: 'mimic_plan' | 'schedule_event' | 'create_intention' | 'update_profile' | 'add_memory' | 'reach_out';
     label: string;
     data: {
         friendId?: string;
@@ -209,4 +214,3 @@ export interface SmartAction {
     };
     confidence: number;
 }
-

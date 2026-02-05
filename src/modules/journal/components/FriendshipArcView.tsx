@@ -39,8 +39,13 @@ import {
   FriendshipArc,
   FriendshipArcEntry,
 } from '@/modules/journal';
+import { database } from '@/db';
+import { Q } from '@nozbe/watermelondb';
+import FriendMemory from '@/db/models/FriendMemory';
+import FriendMemoryCandidate from '@/db/models/FriendMemoryCandidate';
 import { resolveImageUri } from '@/modules/relationships/services/image.service';
 import { normalizeContactImageUri } from '@/modules/relationships/utils/image.utils';
+import { archiveExpiredFriendMemories } from '@/modules/relationships/services/memory-life-event.service';
 import * as Haptics from 'expo-haptics';
 
 // ============================================================================
@@ -181,6 +186,8 @@ export function FriendshipArcView({
   const [groupedEntries, setGroupedEntries] = useState<GroupedEntries[]>([]);
   const [resolvedPhotoUrl, setResolvedPhotoUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
+  const [relationshipNotes, setRelationshipNotes] = useState<FriendMemory[]>([]);
+  const [pendingNoteSuggestions, setPendingNoteSuggestions] = useState(0);
 
   // Load friendship arc
   useEffect(() => {
@@ -201,8 +208,34 @@ export function FriendshipArcView({
   const loadArc = async () => {
     setLoading(true);
     try {
+      await archiveExpiredFriendMemories().catch((error) => {
+        console.warn('[FriendshipArcView] Failed to archive expired memories:', error);
+      });
+
       const friendshipArc = await getFriendshipArc(friendId);
+      const [notes, candidates] = await Promise.all([
+        database
+          .get<FriendMemory>('friend_memories')
+          .query(
+            Q.where('friend_id', friendId),
+            Q.where('is_archived', false),
+            Q.sortBy('updated_at', Q.desc),
+            Q.take(6)
+          )
+          .fetch()
+          .catch(() => []),
+        database
+          .get<FriendMemoryCandidate>('friend_memory_candidates')
+          .query(
+            Q.where('friend_id', friendId),
+            Q.where('status', 'pending')
+          )
+          .fetch()
+          .catch(() => []),
+      ]);
       setArc(friendshipArc);
+      setRelationshipNotes(notes);
+      setPendingNoteSuggestions(candidates.length);
 
       if (friendshipArc) {
         const grouped = groupEntriesByDate(friendshipArc.timeline);
@@ -288,6 +321,16 @@ export function FriendshipArcView({
       default:
         return BookOpen;
     }
+  };
+
+  const getExpiryLabel = (expiresAt?: number): string | null => {
+    if (typeof expiresAt !== 'number') return null;
+    const daysRemaining = Math.ceil((expiresAt - Date.now()) / 86400000);
+    if (daysRemaining < 0) return 'Expired';
+    if (daysRemaining === 0) return 'Expires today';
+    if (daysRemaining === 1) return 'Expires tomorrow';
+    if (daysRemaining <= 14) return `Expires in ${daysRemaining}d`;
+    return null;
   };
 
   const renderStatCard = (
@@ -429,20 +472,20 @@ export function FriendshipArcView({
                 <BookOpen size={18} color={colors.primary} />
               )}
               {renderStatCard(
-                'themes',
+                'patterns',
                 arc.commonThemes.length,
                 <Heart size={18} color={colors.primary} />
               )}
             </View>
 
-            {/* Themes */}
+            {/* Journal Patterns */}
             {arc.commonThemes.length > 0 && (
               <View className="mb-4">
                 <Text
                   className="text-xs mb-2"
                   style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
                 >
-                  Common themes
+                  Patterns from your journal
                 </Text>
                 <View className="flex-row flex-wrap gap-2">
                   {arc.commonThemes.map((theme, i) => (
@@ -462,6 +505,97 @@ export function FriendshipArcView({
                 </View>
               </View>
             )}
+
+            {/* Relationship Notes */}
+            <View className="mb-4">
+              <View className="mb-2 flex-row items-center justify-between">
+                <Text
+                  className="text-xs"
+                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                >
+                  Relationship notes
+                </Text>
+                <Text
+                  className="text-xs"
+                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                >
+                  {relationshipNotes.length} saved
+                </Text>
+              </View>
+
+              <View
+                className="rounded-xl p-3"
+                style={{ backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border }}
+              >
+                {pendingNoteSuggestions > 0 && (
+                  <Text
+                    className="mb-2 text-xs"
+                    style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                  >
+                    {pendingNoteSuggestions} new suggestion{pendingNoteSuggestions > 1 ? 's' : ''} waiting for review.
+                  </Text>
+                )}
+
+                {relationshipNotes.length === 0 ? (
+                  <Text
+                    className="text-sm"
+                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                  >
+                    Add notes in Friend Details so Oracle can remember context for future plans.
+                  </Text>
+                ) : (
+                  relationshipNotes.slice(0, 2).map((note, index) => (
+                    <View key={note.id} className={index === 1 ? '' : 'mb-2'}>
+                      <Text
+                        className="text-sm"
+                        style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                        numberOfLines={1}
+                      >
+                        {note.title}
+                      </Text>
+                      <Text
+                        className="text-xs mt-0.5"
+                        style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                        numberOfLines={2}
+                      >
+                        {note.content}
+                      </Text>
+                      {note.tags.length > 0 && (
+                        <View className="mt-1 flex-row flex-wrap gap-1.5">
+                          {note.tags.slice(0, 3).map(tag => (
+                            <View
+                              key={`${note.id}-${tag}`}
+                              className="rounded-full px-2 py-0.5"
+                              style={{ backgroundColor: `${colors.primary}14`, borderWidth: 1, borderColor: `${colors.primary}30` }}
+                            >
+                              <Text
+                                className="text-[10px]"
+                                style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                              >
+                                #{tag}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                      {getExpiryLabel(note.expiresAt) && (
+                        <View
+                          className="mt-1 self-start rounded-full px-2 py-0.5"
+                          style={{ backgroundColor: `${colors.primary}14`, borderWidth: 1, borderColor: `${colors.primary}30` }}
+                        >
+                          <Text
+                            className="text-[10px]"
+                            style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                          >
+                            {getExpiryLabel(note.expiresAt)}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
 
             {/* Write Button */}
             <TouchableOpacity

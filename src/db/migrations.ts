@@ -1545,6 +1545,78 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v69 to v70
+      // Friend memory system
+      toVersion: 70,
+      steps: [
+        createTable({
+          name: 'friend_memories',
+          columns: [
+            { name: 'friend_id', type: 'string', isIndexed: true },
+            { name: 'type', type: 'string', isIndexed: true },
+            { name: 'title', type: 'string' },
+            { name: 'content', type: 'string' },
+            { name: 'source', type: 'string' },
+            { name: 'source_entry_id', type: 'string', isOptional: true },
+            { name: 'is_archived', type: 'boolean', isIndexed: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v70 to v71
+      // Friend memory candidate review queue
+      toVersion: 71,
+      steps: [
+        createTable({
+          name: 'friend_memory_candidates',
+          columns: [
+            { name: 'friend_id', type: 'string', isIndexed: true },
+            { name: 'type', type: 'string', isIndexed: true },
+            { name: 'title', type: 'string' },
+            { name: 'content', type: 'string' },
+            { name: 'source', type: 'string' },
+            { name: 'source_entry_id', type: 'string', isOptional: true },
+            { name: 'confidence', type: 'number', isOptional: true },
+            { name: 'fingerprint', type: 'string', isIndexed: true },
+            { name: 'status', type: 'string', isIndexed: true },
+            { name: 'reviewed_at', type: 'number', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v71 to v72
+      // Structured tags for friend memories
+      toVersion: 72,
+      steps: [
+        addColumns({
+          table: 'friend_memories',
+          columns: [
+            { name: 'tags_json', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v72 to v73
+      // Temporal metadata + confidence for friend memories
+      toVersion: 73,
+      steps: [
+        addColumns({
+          table: 'friend_memories',
+          columns: [
+            { name: 'confidence', type: 'number', isOptional: true },
+            { name: 'effective_date', type: 'number', isOptional: true },
+            { name: 'expires_at', type: 'number', isOptional: true, isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
-

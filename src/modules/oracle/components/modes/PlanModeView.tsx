@@ -26,6 +26,10 @@ export const PlanModeView = () => {
     const [isScanning, setIsScanning] = useState(false)
     const [actions, setActions] = useState<SmartAction[]>([])
     const [hasScanned, setHasScanned] = useState(false)
+    const isLikelyRecordId = React.useCallback((value?: string) => {
+        if (!value) return false
+        return /^[a-zA-Z0-9_-]{16}$/.test(value) || /^[0-9a-fA-F-]{36}$/.test(value)
+    }, [])
 
     const handleScan = async () => {
         if (!text.trim()) return
@@ -36,15 +40,27 @@ export const PlanModeView = () => {
         setActions([])
 
         try {
-            const results = await oracleService.detectActions(text)
-            setActions(results)
+            const results = await oracleService.detectActions(text, params.friendName || '')
+            const normalizedResults = (params.context === 'friend' && params.friendId)
+                ? results.map(action => ({
+                    ...action,
+                    data: {
+                        ...action.data,
+                        friendId: (!action.data?.friendId || !isLikelyRecordId(action.data.friendId))
+                            ? params.friendId
+                            : action.data.friendId,
+                    },
+                }))
+                : results
+
+            setActions(normalizedResults)
             setHasScanned(true)
-            if (results.length > 0) {
+            if (normalizedResults.length > 0) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
                 trackEvent(AnalyticsEvents.ORACLE_ACTION_DETECTED, {
                     source: 'plan_mode',
-                    action_count: results.length,
-                    types: results.map(r => r.type)
+                    action_count: normalizedResults.length,
+                    types: normalizedResults.map(r => r.type)
                 })
             } else {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)

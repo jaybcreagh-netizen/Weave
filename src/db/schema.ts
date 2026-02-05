@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 69, // v69: Add suggestion dismissal feedback columns
+  version: 73, // v73: Add temporal metadata to friend memories
   tables: [
     // ===== RELATIONSHIP INSIGHTS (Phase 3C) =====
     tableSchema({
@@ -860,6 +860,43 @@ export default appSchema({
         { name: 'payload', type: 'string' }, // JSON
         { name: 'retry_count', type: 'number' },
         { name: 'created_at', type: 'number', isIndexed: true },
+      ]
+    }),
+    // v70: Friend memory system
+    tableSchema({
+      name: 'friend_memories',
+      columns: [
+        { name: 'friend_id', type: 'string', isIndexed: true },
+        { name: 'type', type: 'string', isIndexed: true },
+        { name: 'title', type: 'string' },
+        { name: 'content', type: 'string' },
+        { name: 'source', type: 'string' },
+        { name: 'source_entry_id', type: 'string', isOptional: true },
+        { name: 'tags_json', type: 'string', isOptional: true },
+        { name: 'confidence', type: 'number', isOptional: true },
+        { name: 'effective_date', type: 'number', isOptional: true },
+        { name: 'expires_at', type: 'number', isOptional: true, isIndexed: true },
+        { name: 'is_archived', type: 'boolean', isIndexed: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    // v71: Friend memory candidates (journal review queue)
+    tableSchema({
+      name: 'friend_memory_candidates',
+      columns: [
+        { name: 'friend_id', type: 'string', isIndexed: true },
+        { name: 'type', type: 'string', isIndexed: true },
+        { name: 'title', type: 'string' },
+        { name: 'content', type: 'string' },
+        { name: 'source', type: 'string' },
+        { name: 'source_entry_id', type: 'string', isOptional: true },
+        { name: 'confidence', type: 'number', isOptional: true },
+        { name: 'fingerprint', type: 'string', isIndexed: true },
+        { name: 'status', type: 'string', isIndexed: true },
+        { name: 'reviewed_at', type: 'number', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
       ]
     }),
     // NEW: Crystalized Memory (Oracle V2)

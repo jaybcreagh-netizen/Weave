@@ -93,7 +93,19 @@ export function OracleSheet() {
             case 'quick_actions':
                 return <QuickActionsView />
             case 'consultation':
-                return <OracleChat onClose={close} />
+                return (
+                    <OracleChat
+                        context={params.context || 'default'}
+                        friendId={params.friendId}
+                        friendName={params.friendName}
+                        initialQuestion={params.initialQuestion}
+                        journalContent={params.journalContent}
+                        lensContext={params.lensContext}
+                        insightContext={params.insightContext}
+                        conversationId={selectedConversationId}
+                        onClose={close}
+                    />
+                )
             default:
                 return (
                     <Animated.View

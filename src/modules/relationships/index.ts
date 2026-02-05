@@ -36,6 +36,7 @@ export {
 export * from './utils/image.utils';
 export * from './services/life-event-detection';
 export * from './services/life-event.service';
+export * from './services/memory-life-event.service';
 export {
   syncBirthdayToCalendar,
   syncAnniversaryToCalendar,
@@ -71,7 +72,10 @@ export { FriendPickerSheet } from './components/FriendPickerSheet';
 export { DuplicateResolverModal } from './components/DuplicateResolverModal';
 export { ProfileHeader } from './components/profile/ProfileHeader';
 export { ActionButtons } from './components/profile/ActionButtons';
+export { FriendIntelligenceSection } from './components/profile/FriendIntelligenceSection';
 export { LifeEventsSection } from './components/profile/LifeEventsSection';
+export { MemorySection } from './components/profile/MemorySection';
+export { MemoryEditor } from './components/profile/MemoryEditor';
 export { TimelineList } from './components/profile/TimelineList';
 export { FriendProfileModals } from './components/profile/FriendProfileModals';
 export { IntentionsFAB } from './components/IntentionsFAB';
@@ -86,4 +90,3 @@ export {
 export { FriendsDashboardScreen } from './screens/FriendsDashboardScreen';
 export { ClaimInviteSheet } from './components/ClaimInviteSheet';
 export { checkClaimedInvites } from './services/friend-linking.service';
-

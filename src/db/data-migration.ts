@@ -1,5 +1,7 @@
 import { Database, Q } from '@nozbe/watermelondb';
 import Interaction from '@/db/models/Interaction';
+import Friend from '@/db/models/Friend';
+import FriendMemory from '@/db/models/FriendMemory';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InteractionCategory, ActivityType } from '@/shared/types/legacy-types';
 import { logger } from '@/shared/services/logger.service';
@@ -7,7 +9,7 @@ import { logger } from '@/shared/services/logger.service';
 
 // Version tracking for data migrations - bump when adding new migrations
 const MIGRATION_VERSION_KEY = 'DATA_MIGRATION_VERSION';
-const CURRENT_MIGRATION_VERSION = 3;
+const CURRENT_MIGRATION_VERSION = 4;
 
 // Helper to migrate old activity types to new categories
 function migrateActivityToCategory(activity: string): InteractionCategory {
@@ -285,6 +287,11 @@ export async function runDataMigrationIfNeeded(database: Database): Promise<void
     await backfillLastInteractionDates(database);
   }
 
+  // Backfill legacy friend notes into friend memories (v70 friend memory rollout)
+  if (CURRENT_MIGRATION_VERSION >= 4) {
+    await backfillLegacyFriendNotes(database);
+  }
+
   // Mark migrations as complete
   try {
     await AsyncStorage.setItem(MIGRATION_VERSION_KEY, CURRENT_MIGRATION_VERSION.toString());
@@ -337,3 +344,69 @@ export async function backfillLastInteractionDates(database: Database): Promise<
   }
 }
 
+/**
+ * Backfill existing friend.notes into friend_memories as imported general memories.
+ * Idempotent via friend+content matching against existing imported memories.
+ */
+export async function backfillLegacyFriendNotes(database: Database): Promise<void> {
+  const friendsCollection = database.get<Friend>('friends');
+  const memoriesCollection = database.get<FriendMemory>('friend_memories');
+
+  try {
+    const allFriends = await friendsCollection.query().fetch();
+    const candidates = allFriends.filter(friend => (friend.notes || '').trim().length > 0);
+
+    if (candidates.length === 0) {
+      return;
+    }
+
+    const existingImported = await memoriesCollection.query(
+      Q.where('source', 'imported'),
+      Q.where('type', 'general')
+    ).fetch();
+
+    const importedByFriend = new Map<string, Set<string>>();
+    for (const memory of existingImported) {
+      const normalizedContent = (memory.content || '').trim();
+      if (!normalizedContent) continue;
+      if (!importedByFriend.has(memory.friendId)) {
+        importedByFriend.set(memory.friendId, new Set());
+      }
+      importedByFriend.get(memory.friendId)!.add(normalizedContent);
+    }
+
+    const batchOps: any[] = [];
+    const now = new Date();
+
+    for (const friend of candidates) {
+      const note = (friend.notes || '').trim();
+      if (!note) continue;
+
+      const existingNotes = importedByFriend.get(friend.id);
+      if (existingNotes?.has(note)) {
+        continue;
+      }
+
+      batchOps.push(
+        memoriesCollection.prepareCreate(rec => {
+          rec.friendId = friend.id;
+          rec.type = 'general';
+          rec.title = 'Legacy note';
+          rec.content = note;
+          rec.source = 'imported';
+          rec.isArchived = false;
+          rec.updatedAt = now;
+        })
+      );
+    }
+
+    if (batchOps.length > 0) {
+      await database.write(async () => {
+        await database.batch(...batchOps);
+      });
+      logger.info('DataMigration', `Backfilled ${batchOps.length} legacy friend notes into friend memories`);
+    }
+  } catch (error) {
+    logger.warn('DataMigration', 'Failed to backfill legacy friend notes', error);
+  }
+}

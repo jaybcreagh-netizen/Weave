@@ -117,6 +117,11 @@ export const AnalyticsEvents = {
   JOURNAL_ENTRY_DELETED: 'journal_entry_deleted',
   MEMORY_MOMENT_VIEWED: 'memory_moment_viewed',
   MEMORY_MOMENT_ACTION: 'memory_moment_action',
+  MEMORY_CANDIDATE_CREATED: 'memory_candidate_created',
+  MEMORY_CANDIDATE_APPROVED: 'memory_candidate_approved',
+  MEMORY_CANDIDATE_DISMISSED: 'memory_candidate_dismissed',
+  MEMORY_LIFE_EVENT_SUGGESTION_ACTED: 'memory_life_event_suggestion_acted',
+  MEMORY_LIFE_EVENT_SUGGESTION_DISMISSED: 'memory_life_event_suggestion_dismissed',
 } as const;
 
 export type AnalyticsEvent = typeof AnalyticsEvents[keyof typeof AnalyticsEvents];

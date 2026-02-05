@@ -36,6 +36,7 @@ import { UserPlus, Send } from 'lucide-react-native';
 import { CachedImage } from '@/shared/ui/CachedImage';
 import { StreakService } from '@/modules/gamification/services/streak.service';
 import { resolveSuggestionInteractionCategory } from '@/modules/interactions/utils/suggestion-action-mapper';
+import { AnalyticsEvents, trackEvent } from '@/shared/services/analytics.service';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -604,6 +605,31 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
     };
 
+    const handleLifeEventSuggestion = (suggestion: Suggestion, friend: FriendModel) => {
+        trackEvent(AnalyticsEvents.MEMORY_LIFE_EVENT_SUGGESTION_ACTED, {
+            suggestion_id: suggestion.id,
+            friend_id: friend.id,
+            memory_event_type: suggestion.action?.lifeEventType || 'other',
+            mode: suggestion.action?.lifeEventId ? 'review_existing' : 'create_new',
+        });
+
+        router.push({
+            pathname: '/friend-profile',
+            params: {
+                friendId: friend.id,
+                action: 'add_life_event',
+                lifeEventType: suggestion.action?.lifeEventType || '',
+                lifeEventTitle: suggestion.action?.lifeEventTitle || suggestion.title,
+                lifeEventNotes: suggestion.action?.lifeEventNotes || suggestion.subtitle || '',
+                lifeEventDate: suggestion.action?.lifeEventDate || '',
+                lifeEventId: suggestion.action?.lifeEventId || '',
+                lifeEventSource: 'memory',
+            },
+        });
+
+        SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
+    };
+
     const handleReachOutSuccess = (suggestion: Suggestion) => {
         // ANALYTICS: Track acceptance
         SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
@@ -613,6 +639,15 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         suggestion: Suggestion,
         reason?: SuggestionDismissalReason
     ) => {
+        if (suggestion.action?.type === 'life-event') {
+            trackEvent(AnalyticsEvents.MEMORY_LIFE_EVENT_SUGGESTION_DISMISSED, {
+                suggestion_id: suggestion.id,
+                friend_id: suggestion.friendId,
+                reason: reason || 'unspecified',
+                mode: suggestion.action?.lifeEventId ? 'review_existing' : 'create_new',
+            });
+        }
+
         const cooldownDays = getSuggestionCooldownDays(suggestion.id);
         await dismissSuggestion(suggestion.id, cooldownDays, reason);
         setSelectedSuggestion(null);
@@ -988,6 +1023,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 onDismiss={handleSuggestionDismiss}
                 onReachOutSuccess={handleReachOutSuccess}
                 onReflect={handleReflectSuggestion}
+                onLifeEvent={handleLifeEventSuggestion}
             />
         </>
     );

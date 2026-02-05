@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text as RNText, TouchableOpacity } from 'react-native';
-import { Calendar, MessageCircle, Sparkles } from 'lucide-react-native';
+import { Calendar, Gift, MessageCircle, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system/legacy';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -31,6 +31,10 @@ interface SuggestionActionSheetProps {
      * Callback for the reflect action
      */
     onReflect?: (suggestion: Suggestion, friend: FriendModel) => void;
+    /**
+     * Callback for memory-to-life-event suggestions
+     */
+    onLifeEvent?: (suggestion: Suggestion, friend: FriendModel) => void;
 }
 
 /**
@@ -50,6 +54,7 @@ export function SuggestionActionSheet({
     onDismiss,
     onReachOutSuccess,
     onReflect,
+    onLifeEvent,
 }: SuggestionActionSheetProps) {
     const { colors, tokens } = useTheme();
     const [showContactLinker, setShowContactLinker] = useState(false);
@@ -74,6 +79,17 @@ export function SuggestionActionSheet({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onClose();
         setTimeout(() => onReflect(suggestion, friend), 300);
+    };
+
+    const handleLifeEvent = () => {
+        if (!suggestion || !friend) return;
+        if (!onLifeEvent) {
+            handlePlan();
+            return;
+        }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onClose();
+        setTimeout(() => onLifeEvent(suggestion, friend), 300);
     };
 
     const dismissSuggestion = (reason?: SuggestionDismissalReason) => {
@@ -143,6 +159,8 @@ export function SuggestionActionSheet({
         : 'Sparkles';
 
     const isSpecial = suggestion.urgency === 'critical';
+    const lifeEventButtonLabel = suggestion.actionLabel
+        || (suggestion.action?.lifeEventId ? 'Review Life Event' : 'Add Life Event');
 
     return (
         <AnimatedBottomSheet
@@ -290,7 +308,50 @@ export function SuggestionActionSheet({
                 className="gap-3"
             >
                 {/* Dynamic Actions based on Suggestion Type */}
-                {suggestion.action?.type === 'reflect' || suggestion.type === 'reflect' ? (
+                {suggestion.action?.type === 'life-event' ? (
+                    <>
+                        <TouchableOpacity
+                            onPress={handleLifeEvent}
+                            activeOpacity={0.7}
+                            className="flex-row items-center justify-center gap-2 py-3.5 px-6 rounded-full"
+                            style={{
+                                backgroundColor: colors.primary,
+                            }}
+                        >
+                            <Gift color={colors['primary-foreground']} size={18} />
+                            <Text
+                                variant="body"
+                                weight="semibold"
+                                style={{
+                                    color: colors['primary-foreground'],
+                                }}
+                            >
+                                {lifeEventButtonLabel}
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={handlePlan}
+                            activeOpacity={0.7}
+                            className="flex-row items-center justify-center gap-2 py-3.5 px-6 rounded-full border"
+                            style={{
+                                backgroundColor: 'transparent',
+                                borderColor: colors.border,
+                            }}
+                        >
+                            <Calendar color={colors.foreground} size={18} />
+                            <Text
+                                variant="body"
+                                weight="semibold"
+                                style={{
+                                    color: colors.foreground,
+                                }}
+                            >
+                                Plan Weave
+                            </Text>
+                        </TouchableOpacity>
+                    </>
+                ) : suggestion.action?.type === 'reflect' || suggestion.type === 'reflect' ? (
                     /* Reflection Action */
                     <>
                         <TouchableOpacity

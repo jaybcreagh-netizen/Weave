@@ -23,6 +23,7 @@ const ACTION_CONFIG: Record<OracleActionType, {
 }> = {
     log_weave: { label: 'Log this weave', Icon: CalendarPlus, color: '#8B5CF6' },
     add_life_event: { label: 'Add life event', Icon: Gift, color: '#EC4899' },
+    add_memory: { label: 'Save note', Icon: BookOpen, color: '#0EA5E9' },
     create_reflection: { label: 'Save reflection', Icon: BookOpen, color: '#10B981' },
     plan_weave: { label: 'Plan a meetup', Icon: Calendar, color: '#F59E0B' },
     set_reminder: { label: 'Set reminder', Icon: AlarmClock, color: '#3B82F6' },
