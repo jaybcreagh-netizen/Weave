@@ -609,7 +609,7 @@ Ship Smart Prompts with foundation for more.
 | Background signal extraction | Populate journal_signals, Friend.detectedThemes |
 | Quality tracking | Log every LLM call, track acceptance rates |
 
-**Deliverable:** LLM-powered prompts in GuidedReflectionModal. Signal extraction running silently.
+**Deliverable:** LLM-powered prompts in PromptedReflectionFlow (GuidedReflectionSheet). Signal extraction running silently.
 
 ### Phase 3: Rule-Based Triage (Week 5)
 

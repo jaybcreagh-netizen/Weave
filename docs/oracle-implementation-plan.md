@@ -434,12 +434,12 @@ tableSchema({
 - [ ] Add quality logging (prompt acceptance tracking)
 
 #### 2.3 Integration
-- [ ] Update `GuidedReflectionModal` to use `PromptGenerator`
+- [ ] Update `PromptedReflectionFlow` (GuidedReflectionSheet) to use `PromptGenerator`
 - [ ] Ensure fallback works when offline or LLM fails
 - [ ] Add subtle "✨ AI-generated" indicator (or not, based on preference)
 
 **Acceptance Criteria:**
-- [ ] `GuidedReflectionModal` shows LLM-generated prompts
+- [ ] Prompted reflection flow (GuidedReflectionSheet) shows LLM-generated prompts
 - [ ] Prompts reference specific context (friend name, recent weave, patterns)
 - [ ] Prompts are concise (≤30 words, 2 sentences max)
 - [ ] Falls back to rule-based when LLM unavailable

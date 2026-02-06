@@ -1800,7 +1800,7 @@ Week 1:
 ├── PromptGenerator service
 │   ├── LLM generation with context
 │   └── Rule-based fallback
-└── Integration into GuidedReflectionModal
+└── Integration into PromptedReflectionFlow (GuidedReflectionSheet)
 
 Week 2:
 ├── Quality tracking (basic analytics)
@@ -1957,7 +1957,7 @@ src/
 **Total new code:** ~500 lines
 
 **Changes to existing code:**
-- `GuidedReflectionModal.tsx` - Use new PromptGenerator instead of existing rule-based
+- `PromptedReflectionFlow.tsx` (GuidedReflectionSheet) - Use new PromptGenerator instead of existing rule-based
 - Add analytics events for prompt selection
 
 ---
@@ -1971,7 +1971,7 @@ src/
 | 3 | Build error handling + retry logic |
 | 4 | Build PromptContextBuilder |
 | 5 | Build PromptGenerator with LLM + fallback |
-| 6 | Integrate into GuidedReflectionModal |
+| 6 | Integrate into PromptedReflectionFlow (GuidedReflectionSheet) |
 | 7 | Add quality tracking analytics |
 | 8 | Test with real usage, fix bugs |
 | 9 | Polish loading states, error handling UX |

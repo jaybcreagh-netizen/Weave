@@ -80,7 +80,7 @@ Weave's journal exists to help users feel like they are **thriving in their soci
 **UI Components:**
 - `JournalHome` — 4-tab hub (Feed, Reflections, Friends, Calendar)
 - `QuickCaptureSheet` — Minimal friction entry
-- `GuidedReflectionModal` — 3-step contextual flow
+- `GuidedReflectionSheet` — Unified guided flow (prompted + Oracle coach)
 - `FriendshipArcView` — Timeline visualization per friend
 
 ### Current Capabilities
@@ -1250,7 +1250,7 @@ RULES:
 | Create LLM abstraction layer (`src/shared/services/llm/`) | P0 | None |
 | Implement Gemini Flash provider | P0 | Abstraction layer |
 | Create PromptContextBuilder service | P0 | None |
-| Integrate LLM prompts in GuidedReflectionModal | P1 | Provider, Context |
+| Integrate LLM prompts in PromptedReflectionFlow (GuidedReflectionSheet) | P1 | Provider, Context |
 | Add fallback to rule-based prompts | P1 | LLM integration |
 | Add basic observability (latency, errors) | P2 | LLM integration |
 
