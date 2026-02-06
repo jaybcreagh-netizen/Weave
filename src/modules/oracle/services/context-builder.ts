@@ -4,6 +4,8 @@ import { Q } from '@nozbe/watermelondb'
 import Friend from '@/db/models/Friend'
 import Interaction from '@/db/models/Interaction'
 import JournalEntry from '@/db/models/JournalEntry'
+import JournalEntryFriend from '@/db/models/JournalEntryFriend'
+import JournalSignals, { RelationshipDynamics } from '@/db/models/JournalSignals'
 import LifeEvent from '@/db/models/LifeEvent'
 import SocialBatteryLog from '@/db/models/SocialBatteryLog'
 import UserFact from '@/db/models/UserFact'
@@ -121,9 +123,17 @@ interface SocialHealthContext {
 }
 
 interface JournalSummary {
+    id: string
     date: string
+    title?: string
     topics: string[]
     sentiment: string
+    sentimentScore?: number
+    coreThemes?: string[]
+    emergentThemes?: string[]
+    dynamics?: RelationshipDynamics
+    confidence?: number
+    linkedFriends?: { id: string; name: string }[]
 }
 
 interface SimplifiedFriendMemory {
@@ -188,7 +198,7 @@ class OracleContextBuilder {
             userProfile: userContext,
             friends: formattedFriends,
             socialHealth: await this.getSocialHealth(),
-            recentJournaling: await this.getRecentJournaling(tier),
+            recentJournaling: await this.getRecentJournaling(tier, allFriendIds),
             activeIntentions: await this.getActiveIntentions(friendIds),
             activeSuggestions: await this.getActiveSuggestions(friendIds),
             venueAndActivitySuggestions: venueSuggestions,
@@ -612,24 +622,99 @@ class OracleContextBuilder {
         }
     }
 
-    private async getRecentJournaling(tier: ContextTier): Promise<JournalSummary[]> {
+    private async getRecentJournaling(tier: ContextTier, friendIds: string[] = []): Promise<JournalSummary[]> {
         if (tier === ContextTier.ESSENTIAL) return []
 
         try {
             const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000
+            let entries: JournalEntry[] = []
 
-            const entries = await database.get<JournalEntry>('journal_entries')
-                .query(
-                    Q.where('entry_date', Q.gte(twoWeeksAgo)),
-                    Q.sortBy('entry_date', Q.desc),
-                    Q.take(5)
-                ).fetch()
+            if (friendIds.length > 0) {
+                entries = await database.get<JournalEntry>('journal_entries')
+                    .query(
+                        Q.where('entry_date', Q.gte(twoWeeksAgo)),
+                        Q.on('journal_entry_friends', 'friend_id', Q.oneOf(friendIds)),
+                        Q.sortBy('entry_date', Q.desc),
+                        Q.take(5)
+                    ).fetch()
+            }
 
-            return entries.map(entry => ({
-                date: entry.createdAt.toISOString().split('T')[0],
-                topics: entry.title ? [entry.title] : [],
-                sentiment: this.inferSentiment(entry)
-            }))
+            if (entries.length < 5) {
+                const fallbackEntries = await database.get<JournalEntry>('journal_entries')
+                    .query(
+                        Q.where('entry_date', Q.gte(twoWeeksAgo)),
+                        Q.sortBy('entry_date', Q.desc),
+                        Q.take(10)
+                    ).fetch()
+
+                const seen = new Set(entries.map(entry => entry.id))
+                for (const entry of fallbackEntries) {
+                    if (seen.has(entry.id)) continue
+                    entries.push(entry)
+                    if (entries.length >= 5) break
+                }
+            }
+
+            if (entries.length === 0) return []
+
+            const entryIds = entries.map(entry => entry.id)
+
+            const signals = await database.get<JournalSignals>('journal_signals')
+                .query(Q.where('journal_entry_id', Q.oneOf(entryIds)))
+                .fetch()
+
+            const signalsByEntryId = new Map(signals.map(signal => [signal.journalEntryId, signal]))
+
+            const entryFriends = await database.get<JournalEntryFriend>('journal_entry_friends')
+                .query(Q.where('journal_entry_id', Q.oneOf(entryIds)))
+                .fetch()
+
+            const friendIdSet = new Set(entryFriends.map(link => link.friendId))
+            const friendModels = friendIdSet.size > 0
+                ? await database.get<Friend>('friends')
+                    .query(Q.where('id', Q.oneOf(Array.from(friendIdSet))))
+                    .fetch()
+                : []
+
+            const friendsById = new Map(friendModels.map(friend => [friend.id, friend]))
+            const friendsByEntryId = new Map<string, { id: string; name: string }[]>()
+
+            for (const link of entryFriends) {
+                const friend = friendsById.get(link.friendId)
+                if (!friend) continue
+                const existing = friendsByEntryId.get(link.journalEntryId) || []
+                if (!existing.find(existingFriend => existingFriend.id === friend.id)) {
+                    existing.push({ id: friend.id, name: friend.name })
+                }
+                friendsByEntryId.set(link.journalEntryId, existing)
+            }
+
+            return entries.map(entry => {
+                const signal = signalsByEntryId.get(entry.id)
+                const coreThemes = signal?.coreThemes || []
+                const emergentThemes = signal?.emergentThemes || []
+                const topics = [
+                    ...(entry.title ? [entry.title] : []),
+                    ...coreThemes,
+                    ...emergentThemes
+                ].map(topic => topic?.trim?.() ?? topic).filter(Boolean)
+                const uniqueTopics = Array.from(new Set(topics))
+                const entryDate = entry.entryDate ? new Date(entry.entryDate) : entry.createdAt
+
+                return {
+                    id: entry.id,
+                    date: entryDate.toISOString().split('T')[0],
+                    title: entry.title,
+                    topics: uniqueTopics,
+                    sentiment: signal?.sentimentLabel || this.inferSentiment(entry),
+                    sentimentScore: signal?.sentiment,
+                    coreThemes,
+                    emergentThemes,
+                    dynamics: signal?.dynamics,
+                    confidence: signal?.confidence,
+                    linkedFriends: friendsByEntryId.get(entry.id) || []
+                }
+            })
         } catch (error) {
             logger.warn('OracleContextBuilder', 'Error fetching recent journaling', { error })
             return []

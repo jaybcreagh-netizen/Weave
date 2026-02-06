@@ -25,6 +25,8 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
     const { data, isLoading, isFetching, refetch, loadMore, invalidate } = useJournalFeed();
     const entries = data?.items ?? [];
     const hasMoreEntries = data?.hasMore ?? false;
+    const isWeeklyReflection = (entry: JournalFeedItem): entry is WeeklyReflection => 'weekStartDate' in entry;
+    const journalOffset = data?.journalOffset ?? entries.filter(entry => !isWeeklyReflection(entry)).length;
 
     // Local UI state
     const [loadingMore, setLoadingMore] = useState(false);
@@ -38,7 +40,7 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
         if (loadingMore || !hasMoreEntries) return;
         setLoadingMore(true);
         try {
-            await loadMore(entries.length);
+            await loadMore(journalOffset);
         } finally {
             setLoadingMore(false);
         }
@@ -126,8 +128,6 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
     const formatDate = (date: Date) => {
         return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     };
-
-    const isWeeklyReflection = (entry: JournalFeedItem): entry is WeeklyReflection => 'weekStartDate' in entry;
 
     const renderEntryCard = useCallback((entry: JournalFeedItem, index: number) => {
         const isReflection = isWeeklyReflection(entry);

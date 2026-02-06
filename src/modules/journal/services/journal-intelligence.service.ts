@@ -10,6 +10,7 @@ import JournalEntry from '@/db/models/JournalEntry'
 import JournalSignals from '@/db/models/JournalSignals'
 import FriendModel from '@/db/models/Friend'
 import UserProfile from '@/db/models/UserProfile'
+import JournalEntryFriend from '@/db/models/JournalEntryFriend'
 import { Q } from '@nozbe/watermelondb'
 import { extractSignals, SignalExtractionResult } from './signal-extractor'
 import { extractThreads, ExtractedThread } from './thread-extractor'
@@ -158,8 +159,24 @@ class JournalIntelligenceService {
      * Update friend models with new intelligence
      */
     private async updateFriendsIntelligence(friends: FriendModel[], signals: SignalExtractionResult): Promise<void> {
+        const friendIds = friends.map(friend => friend.id)
+        const mentionLinks = friendIds.length > 0
+            ? await database.get<JournalEntryFriend>('journal_entry_friends')
+                .query(Q.where('friend_id', Q.oneOf(friendIds)))
+                .fetch()
+            : []
+
+        const mentionsByFriend = new Map<string, Set<string>>()
+        for (const link of mentionLinks) {
+            const existing = mentionsByFriend.get(link.friendId) || new Set<string>()
+            existing.add(link.journalEntryId)
+            mentionsByFriend.set(link.friendId, existing)
+        }
+
         await database.write(async () => {
             for (const friend of friends) {
+                const mentionCount = mentionsByFriend.get(friend.id)?.size ?? 0
+
                 await friend.update(rec => {
                     // Update raw themes (simple merge for now, could be smarter)
                     // We treat emergent themes as transient, core themes as sticky
@@ -179,12 +196,9 @@ class JournalIntelligenceService {
 
                     rec.detectedThemesRaw = JSON.stringify(cappedThemes)
 
-                    // Update sentiment tracking
-                    // (Assuming these fields exist on Friend model from Phase 1)
-                    // If they don't exist yet, we wrap in try-catch or checks
-                    // Based on my view of Friend model earlier, these might be new fields we need to add?
-                    // Let's assume the fields from Phase 4 plan exist or we need to add them.
-                    // "last_journal_sentiment", "journal_mention_count"
+                    // Update sentiment tracking and mention counts
+                    rec.lastJournalSentiment = signals.sentiment
+                    rec.journalMentionCount = mentionCount
                 })
             }
         })

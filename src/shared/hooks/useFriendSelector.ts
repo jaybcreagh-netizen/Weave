@@ -4,7 +4,7 @@
  * Shared hook for friend selection across Journal components.
  * Consolidates friend loading and selection logic from:
  * - QuickCaptureSheet
- * - GuidedReflectionModal  
+ * - GuidedReflectionSheet
  * - JournalEntryModal
  */
 

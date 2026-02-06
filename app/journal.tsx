@@ -12,8 +12,8 @@ import { useTheme } from '@/shared/hooks/useTheme';
 const QuickCaptureSheet = lazy(() =>
     import('@/modules/journal/components/QuickCaptureSheet').then(m => ({ default: m.QuickCaptureSheet }))
 );
-const GuidedReflectionModal = lazy(() =>
-    import('@/modules/journal/components/GuidedReflectionModal').then(m => ({ default: m.GuidedReflectionModal }))
+const GuidedReflectionSheet = lazy(() =>
+    import('@/modules/journal/components/GuidedReflection/GuidedReflectionSheet').then(m => ({ default: m.GuidedReflectionSheet }))
 );
 const FriendshipArcView = lazy(() =>
     import('@/modules/journal/components/FriendshipArcView').then(m => ({ default: m.FriendshipArcView }))
@@ -45,6 +45,8 @@ export default function JournalScreen() {
         prefilledFriendIds?: string | string[];
         initialTab?: string;
         context?: string;
+        autoCreate?: string;
+        content?: string;
     }>();
 
     const [showQuickCapture, setShowQuickCapture] = useState(false);
@@ -80,9 +82,12 @@ export default function JournalScreen() {
                 }
             }
 
-            if (params.mode === 'guided') {
-                if (params.prefilledText) {
-                    setPrefilledText(params.prefilledText);
+            const shouldOpenGuided = params.mode === 'guided' || (params.autoCreate === 'true' && !!params.content);
+
+            if (shouldOpenGuided) {
+                const guidedPrefillText = params.prefilledText || params.content;
+                if (guidedPrefillText) {
+                    setPrefilledText(guidedPrefillText);
                 }
                 if (params.prefilledFriendIds) {
                     const friendIdList = (Array.isArray(params.prefilledFriendIds)
@@ -99,7 +104,7 @@ export default function JournalScreen() {
         };
 
         handleDeepLink();
-    }, [params.openEntryId, params.openEntryType, params.mode, params.prefilledText, params.prefilledFriendIds]);
+    }, [params.openEntryId, params.openEntryType, params.mode, params.prefilledText, params.prefilledFriendIds, params.autoCreate, params.content]);
 
     const handleArcEntryPress = async (id: string, type: 'journal' | 'reflection') => {
         try {
@@ -201,15 +206,18 @@ export default function JournalScreen() {
 
             <Suspense fallback={LazyFallback}>
                 {showGuided && (
-                    <GuidedReflectionModal
-                        visible={showGuided}
+                    <GuidedReflectionSheet
+                        isOpen={showGuided}
                         onClose={() => {
-                            setShowGuided(false);
-                            setPrefilledText('');
-                            setPrefilledFriendIds([]);
+                            setShowGuided(false)
+                            setPrefilledText('')
+                            setPrefilledFriendIds([])
                         }}
-                        onSave={(entry) => {
-                            console.log('Saved:', entry);
+                        onComplete={() => {
+                            // No-op: sheet handles save + close
+                        }}
+                        onEscape={() => {
+                            setShowGuided(false)
                         }}
                         prefilledWeaveId={params.weaveId}
                         prefilledText={prefilledText}
@@ -242,12 +250,14 @@ export default function JournalScreen() {
                                 }
                             });
                         }}
-                        onReflect={(entry, suggestion) => {
+                        onReflect={(entry, suggestion, friendContext) => {
                             setViewingEntry(null);
                             openOracle({
                                 context: 'journal',
                                 initialQuestion: suggestion?.initialQuestion,
                                 journalContent: entry.content,
+                                friendId: friendContext?.friendId,
+                                friendName: friendContext?.friendName,
                                 lensContext: suggestion ? {
                                     archetype: suggestion.archetype,
                                     title: suggestion.title,

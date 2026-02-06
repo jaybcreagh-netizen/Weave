@@ -13,6 +13,7 @@ export type JournalFeedItem = JournalEntry | WeeklyReflection;
 export interface JournalFeedData {
     items: JournalFeedItem[];
     hasMore: boolean;
+    journalOffset: number;
 }
 
 async function fetchJournalFeed(offset: number = 0): Promise<JournalFeedData> {
@@ -51,7 +52,8 @@ async function fetchJournalFeed(offset: number = 0): Promise<JournalFeedData> {
 
     return {
         items,
-        hasMore: journalEntries.length === ENTRIES_PAGE_SIZE
+        hasMore: journalEntries.length === ENTRIES_PAGE_SIZE,
+        journalOffset: offset + journalEntries.length
     };
 }
 
@@ -65,15 +67,16 @@ export function useJournalFeed() {
         gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     });
 
-    const loadMore = async (currentLength: number) => {
-        const moreData = await fetchJournalFeed(currentLength);
+    const loadMore = async (currentJournalOffset: number) => {
+        const moreData = await fetchJournalFeed(currentJournalOffset);
 
         // Append to existing data
         queryClient.setQueryData<JournalFeedData>(['journal-feed'], (old) => {
             if (!old) return moreData;
             return {
                 items: [...old.items, ...moreData.items],
-                hasMore: moreData.hasMore
+                hasMore: moreData.hasMore,
+                journalOffset: moreData.journalOffset
             };
         });
 

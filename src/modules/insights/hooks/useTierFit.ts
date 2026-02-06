@@ -1,5 +1,5 @@
 // src/modules/insights/hooks/useTierFit.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { database } from '@/db';
 import Friend from '@/db/models/Friend';
 import { analyzeTierFit, analyzeNetworkTierHealth, shouldShowTierSuggestion } from '../services/tier-fit.service';
@@ -86,6 +86,7 @@ export function useTierFit(friendId: string) {
 export function useNetworkTierHealth() {
   const [networkHealth, setNetworkHealth] = useState<NetworkTierHealth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -93,29 +94,46 @@ export function useNetworkTierHealth() {
 
     const setupSubscription = async () => {
       try {
-        // Initial load
-        const initialHealth = await analyzeNetworkTierHealth();
-        if (isMounted) {
-          setNetworkHealth(initialHealth);
-          setIsLoading(false);
-        }
+        const recomputeNetworkHealth = async () => {
+          try {
+            const updatedHealth = await analyzeNetworkTierHealth();
+            if (isMounted) {
+              setNetworkHealth(updatedHealth);
+              setIsLoading(false);
+            }
+          } catch (err) {
+            console.error('[useNetworkTierHealth] Error updating network health:', err);
+            if (isMounted) {
+              setIsLoading(false);
+            }
+          }
+        };
 
-        // Subscribe to ANY change in the friends collection
-        // This is a bit broad, but ensures we catch tier changes, new adds, etc.
+        const scheduleRecompute = () => {
+          if (debounceRef.current) {
+            clearTimeout(debounceRef.current);
+          }
+          debounceRef.current = setTimeout(() => {
+            recomputeNetworkHealth();
+          }, 300);
+        };
+
+        // Initial load
+        await recomputeNetworkHealth();
+
+        // Subscribe to relevant friend changes only (tier/analysis-related fields)
+        // Debounced to avoid bursts of recomputation.
         subscription = database.get<Friend>('friends')
           .query()
-          .observe()
-          .subscribe(async () => {
-            // When friends change, re-run analysis
-            // Note: analyzeNetworkTierHealth is async, so we can't just pass it to subscribe
-            try {
-              const updatedHealth = await analyzeNetworkTierHealth();
-              if (isMounted) {
-                setNetworkHealth(updatedHealth);
-              }
-            } catch (err) {
-              console.error('[useNetworkTierHealth] Error updating network health:', err);
-            }
+          .observeWithColumns([
+            'dunbar_tier',
+            'is_dormant',
+            'typical_interval_days',
+            'rated_weaves_count',
+            'name',
+          ])
+          .subscribe(() => {
+            scheduleRecompute();
           });
 
       } catch (error) {
@@ -130,6 +148,9 @@ export function useNetworkTierHealth() {
 
     return () => {
       isMounted = false;
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
       if (subscription) {
         subscription.unsubscribe();
       }

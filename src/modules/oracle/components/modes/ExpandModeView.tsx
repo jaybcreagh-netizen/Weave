@@ -24,6 +24,16 @@ export const ExpandModeView = () => {
     const [answers, setAnswers] = useState<{ question: string, answer: string }[]>([])
     const [finalEntry, setFinalEntry] = useState('')
 
+    const openGuidedJournal = (content: string) => {
+        router.push({
+            pathname: '/journal',
+            params: {
+                mode: 'guided',
+                prefilledText: content,
+            }
+        })
+    }
+
     const handleAssess = async () => {
         if (draft.length < 5) return
 
@@ -85,14 +95,8 @@ export const ExpandModeView = () => {
             questions_answered: answers.length
         });
 
-        // Navigate to Journal Entry creation with prefilled data
-        router.push({
-            pathname: '/journal',
-            params: {
-                autoCreate: 'true',
-                content: finalEntry
-            }
-        })
+        // Route through the supported journal deep-link contract
+        openGuidedJournal(finalEntry)
     }
 
     return (
@@ -218,14 +222,7 @@ export const ExpandModeView = () => {
                         <Button
                             label="Edit Manually"
                             onPress={() => {
-                                // Go to journal edit with this text
-                                router.push({
-                                    pathname: '/journal',
-                                    params: {
-                                        autoCreate: 'true',
-                                        content: finalEntry
-                                    }
-                                })
+                                openGuidedJournal(finalEntry)
                             }}
                             variant="outline"
                         />

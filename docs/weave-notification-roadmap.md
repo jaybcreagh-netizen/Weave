@@ -197,7 +197,7 @@ A dedicated modal that surfaces when user taps a memory nudge or when `JournalHo
 
 **Actions:**
 1. **Read entry** → Opens `JournalEntryModal` or `WeeklyReflectionDetailModal`
-2. **Write now** → Opens `GuidedReflectionModal` with prefilled friend + "A year ago, you wrote..." context
+2. **Write now** → Opens `GuidedReflectionSheet` (prompted flow) with prefilled friend + "A year ago, you wrote..." context
 3. **Maybe later** → Dismisses, optionally reschedules for tomorrow
 
 #### Integration Points

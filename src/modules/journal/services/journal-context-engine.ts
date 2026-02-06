@@ -385,7 +385,7 @@ export async function getFriendshipArc(friendId: string): Promise<FriendshipArc 
       .fetch();
 
     // Get weekly reflections that mention this friend
-    const reflections = await getReflectionsMentioningFriend(friendId);
+    const reflections = await getReflectionsMentioningFriend(friendId, friend.name);
 
     // Build timeline
     const timeline: FriendshipArcEntry[] = [];
@@ -754,17 +754,99 @@ async function getDetectedThemesForFriend(friendId: string): Promise<string[]> {
   return detectThemes(allText);
 }
 
-async function getReflectionsMentioningFriend(friendId: string): Promise<WeeklyReflection[]> {
-  // Note: This assumes weekly reflections might mention friends in gratitude text
-  // You may need to adjust based on your actual data model
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getNameTokens(friendName?: string): string[] {
+  if (!friendName) return [];
+  const normalized = friendName.trim();
+  if (!normalized) return [];
+  const parts = normalized.split(/\s+/).filter(part => part.length >= 3);
+  const tokens = [normalized, ...parts];
+  return Array.from(new Set(tokens));
+}
+
+function reflectionTextForSearch(reflection: WeeklyReflection): string {
+  const storyChipText = reflection.storyChips
+    .map(chip => chip.customText || '')
+    .filter(Boolean)
+    .join(' ');
+  const oracleObservations = reflection.oracleObservations.join(' ');
+
+  return [
+    reflection.gratitudeText,
+    reflection.gratitudePrompt,
+    reflection.promptContext,
+    storyChipText,
+    oracleObservations,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+}
+
+async function getReflectionsMentioningFriend(
+  friendId: string,
+  friendName?: string
+): Promise<WeeklyReflection[]> {
   const reflections = await database
     .get<WeeklyReflection>('weekly_reflections')
-    .query(Q.sortBy('week_start_date', Q.desc))
+    .query(
+      Q.sortBy('week_start_date', Q.desc),
+      Q.take(12)
+    )
     .fetch();
 
-  // For now, return reflections where the friend was likely involved
-  // This could be enhanced with proper friend linking in reflections
-  return reflections.slice(0, 10);  // Simplified for now
+  if (reflections.length === 0) return [];
+
+  const nameTokens = getNameTokens(friendName);
+  const nameMatchers = nameTokens.map(token => new RegExp(`\\b${escapeRegex(token)}\\b`, 'i'));
+
+  const mentioned = new Map<string, WeeklyReflection>();
+  const missingMention: WeeklyReflection[] = [];
+
+  for (const reflection of reflections) {
+    const searchable = reflectionTextForSearch(reflection);
+    const hasMention = searchable.length > 0 && nameMatchers.some(regex => regex.test(searchable));
+    if (hasMention) {
+      mentioned.set(reflection.id, reflection);
+    } else {
+      missingMention.push(reflection);
+    }
+  }
+
+  if (missingMention.length === 0) {
+    return Array.from(mentioned.values());
+  }
+
+  const minStart = Math.min(...missingMention.map(r => r.weekStartDate));
+  const maxEnd = Math.max(...missingMention.map(r => r.weekEndDate));
+
+  let interactionsInRange: InteractionModel[] = [];
+  try {
+    interactionsInRange = await database
+      .get<InteractionModel>('interactions')
+      .query(
+        Q.on('interaction_friends', 'friend_id', friendId),
+        Q.where('status', 'completed'),
+        Q.where('interaction_date', Q.between(minStart, maxEnd))
+      )
+      .fetch();
+  } catch (error) {
+    console.warn('[JournalContextEngine] Failed to load interactions for reflection matching', error);
+  }
+
+  const interactionDates = interactionsInRange.map(i => i.interactionDate?.getTime?.() || 0).filter(Boolean);
+
+  for (const reflection of missingMention) {
+    const hasWeaveThatWeek = interactionDates.some(date => date >= reflection.weekStartDate && date <= reflection.weekEndDate);
+    if (hasWeaveThatWeek) {
+      mentioned.set(reflection.id, reflection);
+    }
+  }
+
+  return Array.from(mentioned.values());
 }
 
 async function getCommonActivitiesForFriend(friendId: string): Promise<string[]> {
@@ -1109,4 +1191,3 @@ export async function getMemoryForNotification(
     return null;
   }
 }
-

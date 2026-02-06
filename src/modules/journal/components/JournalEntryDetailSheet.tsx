@@ -17,8 +17,6 @@ import {
 } from 'lucide-react-native';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
-import { oracleService } from '@/modules/oracle';
-import { useOracleSheet } from '@/modules/oracle/hooks/useOracleSheet';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import FriendModel from '@/db/models/Friend';
@@ -39,7 +37,7 @@ interface JournalEntryDetailSheetProps {
     onEdit: (entry: JournalEntry) => void;
     onDelete: () => void;
     onMimicWeave: (friendIds: string[], options?: { date?: string; category?: string }) => void;
-    onReflect: (entry: JournalEntry, suggestion?: any) => void;
+    onReflect: (entry: JournalEntry, suggestion?: any, friendContext?: { friendId?: string; friendName?: string }) => void;
     onCreateLifeEvent: (friendId: string) => void;
     onReachOut: (friendId: string) => void;
 }
@@ -68,18 +66,13 @@ export function JournalEntryDetailSheet({
     const [signals, setSignals] = useState<JournalSignals | null>(null);
     const [relatedEntries, setRelatedEntries] = useState<JournalEntry[]>([]);
 
-    // Oracle Lens State
-    const { open } = useOracleSheet();
-
     const handleAskOracle = () => {
         if (!entry) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-        open({
-            context: 'journal',
-            journalContent: entry.content,
-            friendId: friends.length > 0 ? friends[0].id : undefined,
-            friendName: friends.length > 0 ? friends[0].name : undefined
+        const primaryFriend = friends[0];
+        onReflect(entry, undefined, {
+            friendId: primaryFriend?.id,
+            friendName: primaryFriend?.name,
         });
     };
 

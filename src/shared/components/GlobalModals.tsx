@@ -221,6 +221,7 @@ export function GlobalModals() {
                         router.push({
                             pathname: '/journal',
                             params: {
+                                mode: 'guided',
                                 prefilledText: `Thinking about this memory: "${data.memory.title}"...\n\n`,
                                 prefilledFriendIds: data.friendId
                                     ? data.friendId

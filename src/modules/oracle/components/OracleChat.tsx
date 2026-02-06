@@ -87,6 +87,30 @@ export function OracleChat({ context = 'default', friendId, friendName, onClose,
     const [showGuidedReflection, setShowGuidedReflection] = useState(false)
     const [reflectionInsightId, setReflectionInsightId] = useState<string | null>(null)
     const scopedFriendIds = useMemo(() => (friendId ? [friendId] : []), [friendId])
+    const latestUserMessage = useMemo(() => {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const msg = messages[i]
+            if (msg.role === 'user') return msg.content
+        }
+        return undefined
+    }, [messages])
+    const guidedContext = useMemo(() => {
+        const seed = latestUserMessage?.trim()
+        if (friendId) {
+            return {
+                type: 'friend_reflection' as const,
+                friendIds: [friendId],
+                friendNames: friendName ? [friendName] : [],
+                quickCaptureText: seed || undefined,
+            }
+        }
+        return {
+            type: 'journal_entry' as const,
+            friendIds: [],
+            friendNames: [],
+            quickCaptureText: seed || undefined,
+        }
+    }, [friendId, friendName, latestUserMessage])
 
     // Helper to build rich context
     const buildContextPayload = () => {
@@ -504,6 +528,8 @@ INSTRUCTIONS:
                 onClose={() => setShowGuidedReflection(false)}
                 onComplete={handleGuidedComplete}
                 onEscape={handleGuidedEscape}
+                defaultMode="oracle"
+                context={guidedContext}
             />
         </>
     )
