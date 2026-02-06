@@ -1,10 +1,24 @@
-import { Alert } from 'react-native';
+import { Alert, InteractionManager } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { useOracleSheet } from './useOracleSheet';
 import { SmartAction } from '../services/types';
+
+/**
+ * Helper to wait for modal close animations to complete before opening another modal.
+ * Uses InteractionManager for proper animation coordination on iOS.
+ */
+const waitForModalClose = (): Promise<void> => {
+    return new Promise(resolve => {
+        // InteractionManager waits for all animations/transitions to complete
+        InteractionManager.runAfterInteractions(() => {
+            // Add extra buffer for iOS modal unmount (spring animations can be slow)
+            setTimeout(resolve, 150);
+        });
+    });
+};
 
 export function useActionExecutor() {
     const router = useRouter();
@@ -59,9 +73,9 @@ export function useActionExecutor() {
             case 'schedule_event':
             case 'mimic_plan':
                 if (friendId) {
-                    useOracleSheet.getState().close(); // Close Oracle to show Wizard
-                    // Short delay to allow Oracle to close smoothly
-                    setTimeout(() => {
+                    useOracleSheet.getState().close();
+                    // Wait for Oracle modal to fully close before opening PlanWizard
+                    waitForModalClose().then(() => {
                         useUIStore.getState().openPlanWizard({
                             friendId,
                             prefillData: {
@@ -69,7 +83,7 @@ export function useActionExecutor() {
                                 // We could parse date here from action.data.date if needed
                             }
                         });
-                    }, 300);
+                    });
                 } else {
                     Alert.alert("Which friend?", "We couldn't identify a specific friend for this plan. Please start from a friend's profile.");
                 }
@@ -78,12 +92,13 @@ export function useActionExecutor() {
             case 'create_intention':
                 if (friendId) {
                     useOracleSheet.getState().close();
-                    setTimeout(() => {
+                    // Wait for Oracle modal to fully close before opening IntentionForm
+                    waitForModalClose().then(() => {
                         useUIStore.getState().openIntentionForm({
                             friendId,
                             initialText: action.label
                         });
-                    }, 300);
+                    });
                 } else {
                     Alert.alert("Which friend?", "We couldn't identify a specific friend for this intention. Please start from a friend's profile.");
                 }
@@ -92,6 +107,7 @@ export function useActionExecutor() {
             case 'reach_out':
                 if (friendId) {
                     useOracleSheet.getState().close();
+                    // Navigation doesn't need modal wait, just route change
                     router.push({
                         pathname: '/friend-profile',
                         params: { friendId }
@@ -106,7 +122,8 @@ export function useActionExecutor() {
                 if (friendId) {
                     const memoryParams = buildMemoryParams(action);
                     useOracleSheet.getState().close();
-                    setTimeout(() => {
+                    // Wait for Oracle modal to close before navigation with params
+                    waitForModalClose().then(() => {
                         if (oracleParams.context === 'friend' && oracleParams.friendId === friendId) {
                             router.setParams(memoryParams);
                             return;
@@ -119,7 +136,7 @@ export function useActionExecutor() {
                                 ...memoryParams,
                             }
                         });
-                    }, 300);
+                    });
                 } else {
                     Alert.alert("Which friend?", "We couldn't identify whose profile to update.");
                 }

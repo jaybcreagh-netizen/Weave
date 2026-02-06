@@ -17,6 +17,7 @@ import { extractThreads, ExtractedThread } from './thread-extractor'
 import { insightOrchestratorService } from '@/modules/intelligence/services/InsightOrchestratorService'
 import { memoryBridgeService } from './memory-bridge.service'
 import Logger from '@/shared/utils/Logger'
+import { writeScheduler } from '@/shared/services/write-scheduler'
 
 class JournalIntelligenceService {
 
@@ -157,6 +158,9 @@ class JournalIntelligenceService {
 
     /**
      * Update friend models with new intelligence
+     *
+     * Uses writeScheduler.background() to avoid race conditions with user-initiated
+     * friend updates (e.g., saving notes from journal).
      */
     private async updateFriendsIntelligence(friends: FriendModel[], signals: SignalExtractionResult): Promise<void> {
         const friendIds = friends.map(friend => friend.id)
@@ -173,11 +177,15 @@ class JournalIntelligenceService {
             mentionsByFriend.set(link.friendId, existing)
         }
 
-        await database.write(async () => {
-            for (const friend of friends) {
+        // Use writeScheduler.background() to serialize with other friend updates
+        // This prevents "Cannot update a record with pending changes" errors
+        await writeScheduler.background('JournalIntelligence:updateFriends', async () => {
+            // Use prepareUpdate() + batch() instead of individual update() calls
+            // to perform all updates atomically
+            const updates = friends.map(friend => {
                 const mentionCount = mentionsByFriend.get(friend.id)?.size ?? 0
 
-                await friend.update(rec => {
+                return friend.prepareUpdate(rec => {
                     // Update raw themes (simple merge for now, could be smarter)
                     // We treat emergent themes as transient, core themes as sticky
                     // This logic assumes detectedThemesRaw is an array of strings
@@ -200,7 +208,9 @@ class JournalIntelligenceService {
                     rec.lastJournalSentiment = signals.sentiment
                     rec.journalMentionCount = mentionCount
                 })
-            }
+            })
+
+            await database.batch(...updates)
         })
     }
 }

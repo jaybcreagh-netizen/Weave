@@ -8,6 +8,8 @@
 import { useMutation, UseMutationOptions } from '@tanstack/react-query';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { logger } from '@/shared/services/logger.service';
+import { cancelUsernameNudgeOnClaim } from '@/modules/notifications/services/channels/username-nudge';
+import { isUsernameAvailable } from '@/modules/auth/services/username.service';
 
 /**
  * Error types for Supabase operations
@@ -390,6 +392,9 @@ export interface UpdateUsernameResponse {
 export function useUpdateUsername(
     options?: Omit<UseMutationOptions<UpdateUsernameResponse, SupabaseError, UpdateUsernameRequest>, 'mutationFn'>
 ) {
+    // Destructure onSuccess so we can wrap it with nudge cancellation
+    const { onSuccess: userOnSuccess, ...restOptions } = options || {};
+
     return useMutation<UpdateUsernameResponse, SupabaseError, UpdateUsernameRequest>({
         mutationFn: async ({ userId, username }) => {
             const supabase = getSupabaseClient();
@@ -408,15 +413,10 @@ export function useUpdateUsername(
             }
 
             try {
-                // Check availability first
-                const { count: existing } = await supabase
-                    .from('user_profiles')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('username', cleaned)
-                    .neq('id', userId);
-
-                if (existing && existing > 0) {
-                    throw new SupabaseError('Username is already taken', 'conflict');
+                // Check availability (includes reserved usernames check)
+                const available = await isUsernameAvailable(cleaned, userId);
+                if (!available) {
+                    throw new SupabaseError('Username is already taken or reserved', 'conflict');
                 }
 
                 // Update username
@@ -453,6 +453,22 @@ export function useUpdateUsername(
                 message: error.message,
             });
         },
-        ...options,
+        onSuccess: async (...args) => {
+            // Cancel any pending username nudge notification
+            try {
+                await cancelUsernameNudgeOnClaim();
+                logger.info('useUpdateUsername', 'Cancelled username nudge after successful claim');
+            } catch (e) {
+                // Non-fatal, just log
+                logger.warn('useUpdateUsername', 'Failed to cancel nudge', { error: e });
+            }
+
+            // Call user-provided onSuccess if any
+            if (userOnSuccess) {
+                userOnSuccess(...args);
+            }
+        },
+        // Spread remaining user options (retry, onError overrides, etc.)
+        ...restOptions,
     });
 }

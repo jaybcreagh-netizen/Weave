@@ -14,6 +14,7 @@ import { useUserProfile } from '../hooks/useUserProfile';
 import { useAuth } from '../context/AuthContext';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { useUpdateUsername, SupabaseError } from '@/shared/api/mutations';
+import { isTemporaryUsername } from '@/shared/utils/username-utils';
 
 const SNOOZE_KEY = 'profile_completion_snoozed_until';
 const SNOOZE_DAYS = 7;
@@ -64,29 +65,45 @@ export function ProfileCompletionSheet() {
             // Get username from local profile first
             let currentUsername = profile.username || '';
 
-            // If local username is empty, try fetching from Supabase
+            // If local username is empty or temporary, try fetching from Supabase
             // (This handles the case where WatermelonDB hasn't synced yet)
-            if (!currentUsername) {
+            if (isTemporaryUsername(currentUsername)) {
                 try {
                     const client = getSupabaseClient();
                     if (client) {
-                        const { data } = await client
+                        // Try primary lookup by id first
+                        const { data: byId } = await client
                             .from('user_profiles')
                             .select('username')
                             .eq('id', user.id)
-                            .single();
-                        currentUsername = data?.username || '';
-                        console.log('[ProfileCompletionSheet] Fetched username from Supabase:', currentUsername);
+                            .maybeSingle();
+
+                        if (byId?.username) {
+                            currentUsername = byId.username;
+                            console.log('[ProfileCompletionSheet] Fetched username from Supabase (by id):', currentUsername);
+                        } else {
+                            // Legacy fallback: some environments store auth id in user_id
+                            const { data: byUserId } = await client
+                                .from('user_profiles')
+                                .select('username')
+                                .eq('user_id', user.id)
+                                .maybeSingle();
+
+                            if (byUserId?.username) {
+                                currentUsername = byUserId.username;
+                                console.log('[ProfileCompletionSheet] Fetched username from Supabase (by user_id):', currentUsername);
+                            }
+                        }
                     }
                 } catch (e) {
                     console.warn('[ProfileCompletionSheet] Failed to fetch username:', e);
                 }
             }
 
-            console.log('[ProfileCompletionSheet] Username check:', { currentUsername, startsWithUser: currentUsername.startsWith('user_') });
+            console.log('[ProfileCompletionSheet] Username check:', { currentUsername, isTemporary: isTemporaryUsername(currentUsername) });
 
-            // Only prompt if username is missing OR starts with 'user_' (auto-assigned)
-            const needsUsername = !currentUsername || currentUsername.startsWith('user_');
+            // Only prompt if username is missing or matches a temporary pattern
+            const needsUsername = isTemporaryUsername(currentUsername);
 
             if (needsUsername) {
                 if (!isMounted) return;

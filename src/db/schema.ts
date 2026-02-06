@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 73, // v73: Add temporal metadata to friend memories
+  version: 74, // v74: Add username to user_profile schema
   tables: [
     // ===== RELATIONSHIP INSIGHTS (Phase 3C) =====
     tableSchema({
@@ -483,6 +483,9 @@ export default appSchema({
 
         // v58: Oracle Insight Frequency (Phase 1 Redesign)
         { name: 'insight_frequency', type: 'string', isOptional: true }, // 'weekly' | 'biweekly' | 'monthly' | 'on_demand'
+
+        // v74: Username (was missing from schema but model depends on it)
+        { name: 'username', type: 'string', isOptional: true },
 
       ]
     }),

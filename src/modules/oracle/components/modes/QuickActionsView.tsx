@@ -1,34 +1,82 @@
-
-import React, { useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
+import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import { Q } from '@nozbe/watermelondb';
-import { withObservables } from '@nozbe/watermelondb/react';
-import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { Calendar, Heart, UserPlus, Sparkles, ArrowRight } from 'lucide-react-native';
 import { formatDistanceToNow } from 'date-fns';
 
 import { SmartAction } from '@/modules/oracle/services/types';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 import { useActionExecutor } from '@/modules/oracle/hooks/useActionExecutor';
-
-interface QuickActionsViewProps {
-    entries: JournalEntry[];
-}
+import { useOracleSheet } from '@/modules/oracle/hooks/useOracleSheet';
 
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
-const QuickActionsView = ({ entries }: QuickActionsViewProps) => {
+const QuickActionsView = () => {
     const { colors } = useTheme();
-    const router = useRouter();
     const { executeAction } = useActionExecutor();
+    const { params } = useOracleSheet();
 
-    // Extract and flatten actions from recent entries
+    const [entries, setEntries] = useState<JournalEntry[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Fetch entries - filtered by friend if in friend context
+    useEffect(() => {
+        const fetchEntries = async () => {
+            setIsLoading(true);
+            try {
+                let journalEntries: JournalEntry[];
+
+                if (params.context === 'friend' && params.friendId) {
+                    // Filter by friend: 2-step query via join table
+                    const links = await database
+                        .get<JournalEntryFriend>('journal_entry_friends')
+                        .query(Q.where('friend_id', params.friendId))
+                        .fetch();
+
+                    const entryIds = links.map(link => link.journalEntryId);
+
+                    if (entryIds.length > 0) {
+                        journalEntries = await database
+                            .get<JournalEntry>('journal_entries')
+                            .query(
+                                Q.where('id', Q.oneOf(entryIds)),
+                                Q.sortBy('entry_date', Q.desc),
+                                Q.take(50)
+                            )
+                            .fetch();
+                    } else {
+                        journalEntries = [];
+                    }
+                } else {
+                    // No friend context - fetch all recent entries
+                    journalEntries = await database
+                        .get<JournalEntry>('journal_entries')
+                        .query(
+                            Q.sortBy('entry_date', Q.desc),
+                            Q.take(50)
+                        )
+                        .fetch();
+                }
+
+                setEntries(journalEntries);
+            } catch (error) {
+                console.error('[QuickActionsView] Failed to fetch entries:', error);
+                setEntries([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchEntries();
+    }, [params.context, params.friendId]);
+
+    // Extract and flatten actions from fetched entries
     const allActions = useMemo(() => {
         const actions: { action: SmartAction; entry: JournalEntry }[] = [];
 
@@ -88,7 +136,22 @@ const QuickActionsView = ({ entries }: QuickActionsViewProps) => {
         }
     };
 
+    if (isLoading) {
+        return (
+            <View className="flex-1 items-center justify-center p-8">
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text
+                    className="text-center mt-4 text-sm"
+                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                >
+                    Loading actions...
+                </Text>
+            </View>
+        );
+    }
+
     if (allActions.length === 0) {
+        const friendContext = params.context === 'friend' && params.friendName;
         return (
             <View className="flex-1 items-center justify-center p-8">
                 <Sparkles size={48} color={colors.muted + '80'} />
@@ -96,13 +159,15 @@ const QuickActionsView = ({ entries }: QuickActionsViewProps) => {
                     className="text-center mt-4 text-base font-medium"
                     style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
                 >
-                    No manual actions detected yet.
+                    No actions detected{friendContext ? ` for ${params.friendName}` : ''}.
                 </Text>
                 <Text
                     className="text-center mt-2 text-sm"
                     style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                 >
-                    Journal about your friends to generate quick actions.
+                    {friendContext
+                        ? `Journal about ${params.friendName} to generate quick actions.`
+                        : 'Journal about your friends to generate quick actions.'}
                 </Text>
             </View>
         );
@@ -149,15 +214,4 @@ const QuickActionsView = ({ entries }: QuickActionsViewProps) => {
     );
 };
 
-// Enhance with WatermelonDB Observables
-const enhance = withObservables([], () => ({
-    entries: database.get<JournalEntry>('journal_entries')
-        .query(
-            // Fetch entries that MIGHT have smart actions (optimization: check mostly recent ones?)
-            // For now, fetch last 20 entries to scan for actions
-            Q.sortBy('entry_date', Q.desc),
-            Q.take(50)
-        ),
-}));
-
-export default enhance(QuickActionsView);
+export default QuickActionsView;

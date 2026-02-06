@@ -1618,5 +1618,19 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v73 to v74
+      // Add username column to user_profile (was missing from schema but model depends on it)
+      // This fixes the username nudge logic which was always falling back to Supabase
+      toVersion: 74,
+      steps: [
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'username', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

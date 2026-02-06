@@ -4,14 +4,9 @@ import { NotificationChannel } from '@/modules/notifications';
 import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
+import { isTemporaryUsername } from '@/shared/utils/username-utils';
 
 const ID_PREFIX = 'username-nudge';
-const TEMP_USERNAME_REGEX = /^user_?\d{4,10}$/i;
-
-function isTemporaryUsername(username?: string | null): boolean {
-    if (!username) return true;
-    return TEMP_USERNAME_REGEX.test(username.trim());
-}
 
 async function getScheduledUsernameNudges() {
     const all = await Notifications.getAllScheduledNotificationsAsync();
@@ -22,19 +17,26 @@ async function getScheduledUsernameNudges() {
     );
 }
 
-async function fetchUsernameFromSupabase(): Promise<string> {
+async function fetchUsernameFromSupabase(userId?: string): Promise<string> {
     try {
         const client = getSupabaseClient();
         if (!client) return '';
 
-        const { data: { user } } = await client.auth.getUser();
-        if (!user) return '';
+        // If we have a userId from local profile, use it
+        // Otherwise fall back to auth.getUser()
+        let authUserId = userId;
+
+        if (!authUserId) {
+            const { data: { user } } = await client.auth.getUser();
+            if (!user) return '';
+            authUserId = user.id;
+        }
 
         // Preferred query for current schema (id = auth user id)
         const { data: byId } = await client
             .from('user_profiles')
             .select('username')
-            .eq('id', user.id)
+            .eq('id', authUserId)
             .maybeSingle();
 
         if (byId?.username) return byId.username;
@@ -43,7 +45,7 @@ async function fetchUsernameFromSupabase(): Promise<string> {
         const { data: byUserId } = await client
             .from('user_profiles')
             .select('username')
-            .eq('user_id', user.id)
+            .eq('user_id', authUserId)
             .maybeSingle();
 
         if (byUserId?.username) {
@@ -57,14 +59,59 @@ async function fetchUsernameFromSupabase(): Promise<string> {
     return '';
 }
 
+/**
+ * Get the current user's profile, matching by userId when possible.
+ * Falls back to first profile only if no userId is available from auth.
+ */
+async function getCurrentUserProfile(): Promise<UserProfile | null> {
+    try {
+        const client = getSupabaseClient();
+        let authUserId: string | null = null;
+
+        if (client) {
+            try {
+                const { data: { user } } = await client.auth.getUser();
+                authUserId = user?.id || null;
+            } catch {
+                // Auth not available yet, fall back to first profile
+            }
+        }
+
+        const profiles = await database.get<UserProfile>('user_profile').query().fetch();
+
+        if (profiles.length === 0) return null;
+
+        // If we have an auth user ID, try to match
+        if (authUserId) {
+            const matchingProfile = profiles.find(p => p.userId === authUserId);
+            if (matchingProfile) return matchingProfile;
+        }
+
+        // Fallback: if only one profile exists, use it
+        // (single-account mode or auth not yet restored)
+        if (profiles.length === 1) {
+            return profiles[0];
+        }
+
+        // Multiple profiles and no auth match - don't guess
+        Logger.warn('[UsernameNudge] Multiple profiles found but no auth match, skipping nudge');
+        return null;
+    } catch (e) {
+        Logger.error('[UsernameNudge] Error getting current user profile:', e);
+        return null;
+    }
+}
+
 export const UsernameNudgeChannel: NotificationChannel = {
     schedule: async (): Promise<void> => {
         try {
-            // 1. Check if user needs nudging
-            const profiles = await database.get<UserProfile>('user_profile').query().fetch();
-            const profile = profiles[0];
+            // 1. Get the current user's profile (matched by userId when possible)
+            const profile = await getCurrentUserProfile();
 
-            if (!profile) return;
+            if (!profile) {
+                Logger.debug('[UsernameNudge] No profile found, skipping');
+                return;
+            }
 
             // Check local first, then fallback to Supabase
             // (handles case where username was set but not synced locally yet)
@@ -72,10 +119,23 @@ export const UsernameNudgeChannel: NotificationChannel = {
 
             if (isTemporaryUsername(currentUsername)) {
                 // Local DB might be stale - check Supabase
-                const remoteUsername = await fetchUsernameFromSupabase();
+                const remoteUsername = await fetchUsernameFromSupabase(profile.userId);
                 if (remoteUsername) {
                     currentUsername = remoteUsername;
                     Logger.info('[UsernameNudge] Fetched username from Supabase:', currentUsername);
+
+                    // Try to sync the username back to local profile
+                    try {
+                        await database.write(async () => {
+                            await profile.update(p => {
+                                p.username = remoteUsername;
+                            });
+                        });
+                        Logger.info('[UsernameNudge] Synced username to local profile');
+                    } catch (syncError) {
+                        // Non-fatal, sync will eventually fix it
+                        Logger.warn('[UsernameNudge] Failed to sync username locally:', syncError);
+                    }
                 }
             }
 
@@ -114,8 +174,6 @@ export const UsernameNudgeChannel: NotificationChannel = {
                     type: Notifications.SchedulableTriggerInputTypes.DATE,
                     date: triggerDate,
                 },
-                // Note: Casting as any because expo-notifications types can be finicky with Trigger inputs
-                // but 'date' is valid for Calendar or Date trigger.
             });
 
             Logger.info('[UsernameNudge] Scheduled for ' + triggerDate.toISOString());
@@ -131,6 +189,10 @@ export const UsernameNudgeChannel: NotificationChannel = {
 
         // Backwards compatibility: if platform honors explicit identifier, ensure this is cancelled too.
         await Notifications.cancelScheduledNotificationAsync(ID_PREFIX);
+
+        if (scheduled.length > 0) {
+            Logger.info('[UsernameNudge] Cancelled', scheduled.length, 'scheduled nudge(s)');
+        }
     },
 
     handleTap: async (data: any, router: any) => {
@@ -138,3 +200,11 @@ export const UsernameNudgeChannel: NotificationChannel = {
         router.replace('/dashboard');
     }
 };
+
+/**
+ * Call this when a username is successfully claimed to cancel any pending nudge.
+ * Exported separately for use by username mutation handlers.
+ */
+export async function cancelUsernameNudgeOnClaim(): Promise<void> {
+    await UsernameNudgeChannel.cancel();
+}
