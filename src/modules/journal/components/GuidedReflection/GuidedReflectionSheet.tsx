@@ -26,7 +26,7 @@ import { Button } from '@/shared/ui/Button'
 import { Icon } from '@/shared/ui/Icon'
 import { useTheme } from '@/shared/hooks/useTheme'
 import { useGuidedReflection, GuidedReflectionState } from '../../hooks/useGuidedReflection'
-import { ReflectionContext, GuidedSession } from '@/modules/oracle'
+import { ReflectionContext, GuidedSession, actionExtractionService } from '@/modules/oracle'
 import { TopicSelectionStep } from './TopicSelectionStep'
 import { FreeformGatherStep, FreeformContext } from './FreeformGatherStep'
 import { PromptedReflectionFlow, SavedEntry } from './PromptedReflectionFlow'
@@ -41,6 +41,11 @@ import Animated, {
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from 'lucide-react-native'
+import { InsightReceipt } from '../InsightReceipt'
+import { InsightReceiptExpanded } from '../InsightReceiptExpanded'
+import { journalIntelligenceService, ProcessingResult } from '@/modules/journal/services/journal-intelligence.service'
+import { database } from '@/db'
+import JournalEntry from '@/db/models/JournalEntry'
 
 interface GuidedReflectionSheetProps {
     isOpen: boolean
@@ -89,6 +94,12 @@ export function GuidedReflectionSheet({
     const [isGeneratingFreeform, setIsGeneratingFreeform] = useState(false)
     const inputRef = useRef<TextInput>(null)
 
+    // Receipt State
+    const [showReceipt, setShowReceipt] = useState(false)
+    const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null)
+    const [isProcessing, setIsProcessing] = useState(false)
+    const [showExpandedReceipt, setShowExpandedReceipt] = useState(false)
+
     // Reset state when sheet closes
     useEffect(() => {
         if (!isOpen) {
@@ -100,6 +111,9 @@ export function GuidedReflectionSheet({
             setFreeformDraft(null)
             setIsGeneratingFreeform(false)
             setInputValue('')
+            setShowReceipt(false)
+            setProcessingResult(null)
+            setIsProcessing(false)
             reset()
         }
     }, [isOpen, preSelectedContext, defaultMode])
@@ -188,14 +202,61 @@ export function GuidedReflectionSheet({
         }
     }
 
+    // New Receipt Helper
+    const processAndShowReceipt = async (entryId: string) => {
+        setShowReceipt(true)
+        setIsProcessing(true)
+        setProcessingResult(null)
+
+        try {
+            // Trigger Action Extraction Queue
+            actionExtractionService.queueEntry(entryId)
+
+            const entry = await database.get<JournalEntry>('journal_entries').find(entryId)
+            const result = await journalIntelligenceService.processEntry(entry)
+
+            if (result) {
+                setProcessingResult(result)
+                setIsProcessing(false)
+
+                if (result.actions.length === 0) {
+                    setTimeout(() => {
+                        handleDismissReceipt()
+                    }, 2500)
+                }
+            } else {
+                handleDismissReceipt()
+            }
+        } catch (err) {
+            console.error('Receipt processing failed', err)
+            handleDismissReceipt()
+        }
+    }
+
+    const handleDismissReceipt = () => {
+        setShowReceipt(false)
+        setShowExpandedReceipt(false)
+        onClose()
+    }
+
     const handleConfirmSave = async () => {
         try {
-            const result = await confirmAndSave()
-            onComplete(result.content, result.friendIds)
-            onClose()
+            const { composed, entryId } = await confirmAndSave()
+            onComplete(composed.content, composed.friendIds)
+
+            if (entryId) {
+                processAndShowReceipt(entryId)
+            } else {
+                onClose()
+            }
         } catch (error) {
-            // Error is handled in the hook
+            // Error handling done in hook
         }
+    }
+
+    const handleSavePrompted = (entry: SavedEntry) => {
+        onComplete(entry.content, entry.friendIds)
+        processAndShowReceipt(entry.id)
     }
 
     const handleEscape = () => {
@@ -205,6 +266,12 @@ export function GuidedReflectionSheet({
     }
 
     const handleClose = () => {
+        // If showing receipt, just dismiss
+        if (showReceipt) {
+            handleDismissReceipt()
+            return
+        }
+
         if (flowMode === 'prompted') {
             if (promptedDirty) {
                 Alert.alert(
@@ -266,6 +333,7 @@ export function GuidedReflectionSheet({
 
     // Get title based on current state
     const getTitle = () => {
+        if (showReceipt) return 'Sent to Weave'
         if (!flowMode && !preSelectedContext) return 'Help me write'
         if (flowMode === 'prompted') return 'Prompted reflection'
         if (showTopicSelection) return 'Help me write'
@@ -295,7 +363,7 @@ export function GuidedReflectionSheet({
                     className="flex-row items-center justify-between px-5 py-4"
                     style={{
                         paddingTop: insets.top > 0 ? insets.top : 16,
-                        borderBottomWidth: 1,
+                        borderBottomWidth: !showReceipt ? 1 : 0,
                         borderBottomColor: colors.border,
                         backgroundColor: colors.card
                     }}
@@ -314,148 +382,182 @@ export function GuidedReflectionSheet({
                     </TouchableOpacity>
                 </View>
 
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    style={{ flex: 1 }}
-                >
-                    {flowMode === 'prompted' ? (
-                        <PromptedReflectionFlow
-                            prefilledText={prefilledText}
-                            prefilledFriendIds={prefilledFriendIds}
-                            prefilledWeaveId={prefilledWeaveId}
-                            onSave={(entry: SavedEntry) => {
-                                onComplete(entry.content, entry.friendIds)
-                            }}
-                            onClose={onClose}
-                            onDirtyChange={setPromptedDirty}
+                {/* Receipt Overlay */}
+                {showReceipt ? (
+                    <View className="flex-1 px-5 pt-8 bg-background">
+                        <InsightReceipt
+                            loading={isProcessing}
+                            result={processingResult === void 0 ? null : processingResult}
+                            onDismiss={handleDismissReceipt}
+                            onExpand={() => setShowExpandedReceipt(true)}
                         />
-                    ) : (
-                        <ScrollView
-                            className="flex-1 px-5 py-4"
-                            keyboardShouldPersistTaps="handled"
-                            keyboardDismissMode="interactive"
-                            contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
-                        >
-                            {!flowMode && !preSelectedContext && (
-                                <ModeSelectionStep
-                                    onSelectOracle={() => handleModeSelect('oracle')}
-                                    onSelectPrompted={() => handleModeSelect('prompted')}
+                    </View>
+                ) : (
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        style={{ flex: 1 }}
+                    >
+                        {flowMode === 'prompted' ? (
+                            <PromptedReflectionFlow
+                                prefilledText={prefilledText}
+                                prefilledFriendIds={prefilledFriendIds}
+                                prefilledWeaveId={prefilledWeaveId}
+                                onSave={handleSavePrompted}
+                                onClose={onClose}
+                                onDirtyChange={setPromptedDirty}
+                            />
+                        ) : (
+                            <ScrollView
+                                className="flex-1 px-5 py-4"
+                                keyboardShouldPersistTaps="handled"
+                                keyboardDismissMode="interactive"
+                                contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
+                            >
+                                {!flowMode && !preSelectedContext && (
+                                    <ModeSelectionStep
+                                        onSelectOracle={() => handleModeSelect('oracle')}
+                                        onSelectPrompted={() => handleModeSelect('prompted')}
+                                    />
+                                )}
+
+                                {/* Topic Selection Step */}
+                                {flowMode === 'oracle' && showTopicSelection && (
+                                    <TopicSelectionStep
+                                        onSelect={handleTopicSelect}
+                                        onSkip={handleTopicSkip}
+                                    />
+                                )}
+
+                                {/* Freeform Gather Step */}
+                                {flowMode === 'oracle' && showFreeformGather && !isGeneratingFreeform && (
+                                    <FreeformGatherStep
+                                        onComplete={handleFreeformComplete}
+                                        onBack={handleFreeformBack}
+                                        preSelectedFriend={
+                                            preSelectedContext?.friendIds?.[0] && preSelectedContext?.friendNames?.[0]
+                                                ? { id: preSelectedContext.friendIds[0], name: preSelectedContext.friendNames[0] }
+                                                : undefined
+                                        }
+                                    />
+                                )}
+
+                                {/* Generating Freeform Draft */}
+                                {flowMode === 'oracle' && isGeneratingFreeform && (
+                                    <View className="flex-1 items-center justify-center">
+                                        <OracleThinking colors={colors} />
+                                        <Text
+                                            variant="body"
+                                            className="mt-4 text-center"
+                                            style={{ color: colors['muted-foreground'] }}
+                                        >
+                                            Writing your draft...
+                                        </Text>
+                                    </View>
+                                )}
+
+                                {/* Freeform Draft Ready */}
+                                {flowMode === 'oracle' && freeformDraft && !showFreeformGather && (
+                                    <DraftView
+                                        composedEntry={freeformDraft}
+                                        onEdit={setFreeformDraft}
+                                        onConfirm={handleFreeformConfirm}
+                                        onGoDeeper={() => { }}
+                                        canDeepen={false}
+                                        onEscape={handleEscape}
+                                        colors={colors}
+                                    />
+                                )}
+
+                                {/* Loading State (oracle flow only) */}
+                                {flowMode === 'oracle' && !showTopicSelection && !showFreeformGather && !freeformDraft && !isGeneratingFreeform && state.status === 'loading' && (
+                                    <View className="flex-1 items-center justify-center">
+                                        <OracleThinking colors={colors} />
+                                    </View>
+                                )}
+
+                                {/* Conversation State (oracle flow only) */}
+                                {flowMode === 'oracle' && !showTopicSelection && !showFreeformGather && !freeformDraft && !isGeneratingFreeform && state.status === 'in_progress' && (
+                                    <ConversationView
+                                        state={state}
+                                        inputValue={inputValue}
+                                        onChangeInput={setInputValue}
+                                        onSubmit={handleSubmit}
+                                        onForceCompose={forceComposeEarly}
+                                        onEscape={handleEscape}
+                                        onBack={handleBack}
+                                        inputRef={inputRef}
+                                        colors={colors}
+                                        isDeepening={false}
+                                    />
+                                )}
+
+                                {/* Deepening State (follow-up questions after draft) */}
+                                {flowMode === 'oracle' && !showTopicSelection && !showFreeformGather && !freeformDraft && !isGeneratingFreeform && state.status === 'deepening' && (
+                                    <ConversationView
+                                        state={state}
+                                        inputValue={inputValue}
+                                        onChangeInput={setInputValue}
+                                        onSubmit={handleSubmit}
+                                        onForceCompose={forceComposeEarly}
+                                        onEscape={handleEscape}
+                                        onBack={handleBack}
+                                        inputRef={inputRef}
+                                        colors={colors}
+                                        isDeepening={true}
+                                    />
+                                )}
+
+                                {/* Draft Ready State (oracle flow only) */}
+                                {flowMode === 'oracle' && !showTopicSelection && !showFreeformGather && !freeformDraft && !isGeneratingFreeform && state.status === 'draft_ready' && (
+                                    <DraftView
+                                        composedEntry={state.composedEntry}
+                                        session={state.session}
+                                        onEdit={editDraft}
+                                        onConfirm={handleConfirmSave}
+                                        onSaveAnswers={(formatted) => {
+                                            editDraft(formatted)
+                                            handleConfirmSave()
+                                        }}
+                                        onGoDeeper={goDeeper}
+                                        canDeepen={state.canDeepen}
+                                        onEscape={handleEscape}
+                                        colors={colors}
+                                    />
+                                )}
+
+                                {/* Error State (oracle flow only) */}
+                                {flowMode === 'oracle' && !showTopicSelection && !showFreeformGather && !freeformDraft && !isGeneratingFreeform && state.status === 'error' && (
+                                    <ErrorView
+                                        error={state.error}
+                                        partialAnswers={state.partialAnswers}
+                                        onRetry={() => selectedContext && startSession(selectedContext)}
+                                        onEscape={handleEscape}
+                                        colors={colors}
+                                    />
+                                )}
+                            </ScrollView>
+                        )}
+                    </KeyboardAvoidingView>
+                )}
+
+                {/* Expanded Receipt Modal */}
+                {processingResult && (
+                    <Modal
+                        visible={showExpandedReceipt}
+                        animationType="slide"
+                        presentationStyle="pageSheet"
+                        onRequestClose={() => setShowExpandedReceipt(false)}
+                    >
+                        <View style={{ flex: 1, backgroundColor: colors.background }}>
+                            <View className="pt-4 px-4 flex-1">
+                                <InsightReceiptExpanded
+                                    result={processingResult}
+                                    onClose={() => setShowExpandedReceipt(false)}
                                 />
-                            )}
-
-                            {/* Topic Selection Step */}
-                            {flowMode === 'oracle' && showTopicSelection && (
-                                <TopicSelectionStep
-                                    onSelect={handleTopicSelect}
-                                    onSkip={handleTopicSkip}
-                                />
-                            )}
-
-                            {/* Freeform Gather Step */}
-                            {flowMode === 'oracle' && showFreeformGather && !isGeneratingFreeform && (
-                                <FreeformGatherStep
-                                    onComplete={handleFreeformComplete}
-                                    onBack={handleFreeformBack}
-                                    preSelectedFriend={
-                                        preSelectedContext?.friendIds?.[0] && preSelectedContext?.friendNames?.[0]
-                                            ? { id: preSelectedContext.friendIds[0], name: preSelectedContext.friendNames[0] }
-                                            : undefined
-                                    }
-                                />
-                            )}
-
-                            {/* Generating Freeform Draft */}
-                            {flowMode === 'oracle' && isGeneratingFreeform && (
-                                <View className="flex-1 items-center justify-center">
-                                    <OracleThinking colors={colors} />
-                                    <Text
-                                        variant="body"
-                                        className="mt-4 text-center"
-                                        style={{ color: colors['muted-foreground'] }}
-                                    >
-                                        Writing your draft...
-                                    </Text>
-                                </View>
-                            )}
-
-                            {/* Freeform Draft Ready */}
-                            {flowMode === 'oracle' && freeformDraft && !showFreeformGather && (
-                                <DraftView
-                                    composedEntry={freeformDraft}
-                                    onEdit={setFreeformDraft}
-                                    onConfirm={handleFreeformConfirm}
-                                    onGoDeeper={() => { }}
-                                    canDeepen={false}
-                                    onEscape={handleEscape}
-                                    colors={colors}
-                                />
-                            )}
-
-                            {/* Loading State (oracle flow only) */}
-                            {flowMode === 'oracle' && !showTopicSelection && !showFreeformGather && !freeformDraft && !isGeneratingFreeform && state.status === 'loading' && (
-                                <View className="flex-1 items-center justify-center">
-                                    <OracleThinking colors={colors} />
-                                </View>
-                            )}
-
-                            {/* Conversation State (oracle flow only) */}
-                            {flowMode === 'oracle' && !showTopicSelection && !showFreeformGather && !freeformDraft && !isGeneratingFreeform && state.status === 'in_progress' && (
-                                <ConversationView
-                                    state={state}
-                                    inputValue={inputValue}
-                                    onChangeInput={setInputValue}
-                                    onSubmit={handleSubmit}
-                                    onForceCompose={forceComposeEarly}
-                                    onEscape={handleEscape}
-                                    onBack={handleBack}
-                                    inputRef={inputRef}
-                                    colors={colors}
-                                    isDeepening={false}
-                                />
-                            )}
-
-                            {/* Deepening State (follow-up questions after draft) */}
-                            {flowMode === 'oracle' && !showTopicSelection && !showFreeformGather && !freeformDraft && !isGeneratingFreeform && state.status === 'deepening' && (
-                                <ConversationView
-                                    state={state}
-                                    inputValue={inputValue}
-                                    onChangeInput={setInputValue}
-                                    onSubmit={handleSubmit}
-                                    onForceCompose={forceComposeEarly}
-                                    onEscape={handleEscape}
-                                    onBack={handleBack}
-                                    inputRef={inputRef}
-                                    colors={colors}
-                                    isDeepening={true}
-                                />
-                            )}
-
-                            {/* Draft Ready State (oracle flow only) */}
-                            {flowMode === 'oracle' && !showTopicSelection && !showFreeformGather && !freeformDraft && !isGeneratingFreeform && state.status === 'draft_ready' && (
-                                <DraftView
-                                    composedEntry={state.composedEntry}
-                                    onEdit={editDraft}
-                                    onConfirm={handleConfirmSave}
-                                    onGoDeeper={goDeeper}
-                                    canDeepen={state.canDeepen}
-                                    onEscape={handleEscape}
-                                    colors={colors}
-                                />
-                            )}
-
-                            {/* Error State (oracle flow only) */}
-                            {flowMode === 'oracle' && !showTopicSelection && !showFreeformGather && !freeformDraft && !isGeneratingFreeform && state.status === 'error' && (
-                                <ErrorView
-                                    error={state.error}
-                                    partialAnswers={state.partialAnswers}
-                                    onRetry={() => selectedContext && startSession(selectedContext)}
-                                    onEscape={handleEscape}
-                                    colors={colors}
-                                />
-                            )}
-                        </ScrollView>
-                    )}
-                </KeyboardAvoidingView>
+                            </View>
+                        </View>
+                    </Modal>
+                )}
             </View>
         </Modal>
     )
@@ -611,20 +713,30 @@ function ConversationView({
     const turnCount = isDeepening
         ? (state.session.deepeningTurns?.length || 0)
         : state.session.turns.length
-    const MAX_QUESTIONS = 3
 
     return (
         <View className="flex-1 w-full">
-            {/* Previous turns (scrollable) */}
+            {/* Previous turns */}
             {turnCount > 0 && (
-                <View className="mb-6 opacity-60">
+                <View className="mb-6">
                     {(isDeepening ? state.session.deepeningTurns || [] : state.session.turns).map((turn, i) => (
-                        <View key={i} className="mb-4 pl-4 border-l-2" style={{ borderColor: colors.border }}>
-                            <Text variant="caption" className="mb-1" style={{ color: colors['muted-foreground'] }}>
+                        <View
+                            key={i}
+                            className="mb-4 pl-4"
+                            style={{ borderLeftWidth: 2, borderLeftColor: colors.primary + '30' }}
+                        >
+                            <Text
+                                variant="caption"
+                                className="mb-1.5"
+                                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                            >
                                 {turn.oracleQuestion}
                             </Text>
-                            <Text variant="body" style={{ color: colors.foreground }}>
-                                "{turn.userAnswer}"
+                            <Text
+                                variant="body"
+                                style={{ color: colors.foreground, fontFamily: 'Inter_400Regular', lineHeight: 22 }}
+                            >
+                                {turn.userAnswer}
                             </Text>
                         </View>
                     ))}
@@ -638,13 +750,17 @@ function ConversationView({
             >
                 <View className="flex-row items-start">
                     <View
-                        className="w-8 h-8 rounded-full items-center justify-center mr-3 mt-1"
-                        style={{ backgroundColor: colors.primary + '20' }}
+                        className="w-8 h-8 rounded-full items-center justify-center mr-3 mt-0.5"
+                        style={{ backgroundColor: colors.primary + '15' }}
                     >
-                        <Icon name="Sparkles" size={16} color={colors.primary} />
+                        <Icon name="Sparkles" size={14} color={colors.primary} />
                     </View>
                     <View className="flex-1">
-                        <Text variant="h4" style={{ color: colors.foreground, lineHeight: 28 }}>
+                        <Text
+                            variant="body"
+                            weight="medium"
+                            style={{ color: colors.foreground, lineHeight: 26, fontSize: 17, fontFamily: 'Lora_500Medium' }}
+                        >
                             {state.currentQuestion}
                         </Text>
                     </View>
@@ -654,8 +770,8 @@ function ConversationView({
             {/* Input area */}
             <View className="flex-1" />
             <View
-                className="rounded-xl p-4 mb-4"
-                style={{ backgroundColor: colors.muted }}
+                className="rounded-2xl p-4 mb-4"
+                style={{ backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border }}
             >
                 <TextInput
                     ref={inputRef}
@@ -664,7 +780,7 @@ function ConversationView({
                     placeholder="Type your answer..."
                     placeholderTextColor={colors['muted-foreground']}
                     multiline
-                    className="min-h-[120px] text-base leading-6"
+                    className="min-h-[100px] text-base leading-6"
                     style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}
                     returnKeyType="done"
                     blurOnSubmit={false}
@@ -677,21 +793,21 @@ function ConversationView({
                 {turnCount === 0 ? (
                     <Pressable
                         onPress={onBack}
-                        className="py-3 px-4 rounded-full"
+                        className="py-2.5 px-4 rounded-full"
                         style={{ backgroundColor: colors.muted }}
                     >
                         <Text variant="caption" style={{ color: colors.foreground, fontWeight: '600' }}>
-                            ← Back
+                            Back
                         </Text>
                     </Pressable>
                 ) : (
                     <Pressable
                         onPress={onForceCompose}
-                        className="py-3 px-4 rounded-full"
+                        className="py-2.5 px-4 rounded-full"
                         style={{ backgroundColor: colors.muted }}
                     >
                         <Text variant="caption" style={{ color: colors.foreground, fontWeight: '600' }}>
-                            That's enough
+                            {turnCount >= 2 ? "I'm done, compose this" : "That's enough"}
                         </Text>
                     </Pressable>
                 )}
@@ -704,11 +820,25 @@ function ConversationView({
                 />
             </View>
 
-            {/* Turn indicator */}
-            <View className="mt-4 items-center">
-                <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
-                    {isDeepening ? 'Deepening' : 'Question'} {turnCount + 1} of {MAX_QUESTIONS}
-                </Text>
+            {/* Subtle turn indicator - no rigid "X of Y" */}
+            <View className="mt-3 items-center">
+                <View className="flex-row items-center gap-1.5">
+                    {Array.from({ length: Math.min(turnCount + 1, 5) }).map((_, i) => (
+                        <View
+                            key={i}
+                            className="rounded-full"
+                            style={{
+                                width: i <= turnCount ? 6 : 4,
+                                height: i <= turnCount ? 6 : 4,
+                                backgroundColor: i < turnCount
+                                    ? colors.primary
+                                    : i === turnCount
+                                        ? colors.primary + '50'
+                                        : colors.border,
+                            }}
+                        />
+                    ))}
+                </View>
             </View>
         </View>
     )
@@ -722,22 +852,23 @@ interface DraftViewProps {
     session?: GuidedSession
     onEdit: (content: string) => void
     onConfirm: () => void
+    onSaveAnswers?: (formatted: string) => void
     onGoDeeper: () => void
     canDeepen: boolean
     onEscape: () => void
     colors: any
 }
 
-function DraftView({ composedEntry, session, onEdit, onConfirm, onGoDeeper, canDeepen, onEscape, colors }: DraftViewProps) {
+function DraftView({ composedEntry, session, onEdit, onConfirm, onSaveAnswers, onGoDeeper, canDeepen, onEscape, colors }: DraftViewProps) {
     const [isEditing, setIsEditing] = useState(false)
     const [viewMode, setViewMode] = useState<'refined' | 'original'>('refined')
     const [editedContent, setEditedContent] = useState(composedEntry)
 
-    // Build original transcript
+    // Build original transcript as readable journal-style Q&A
     const originalTranscript = React.useMemo(() => {
         if (!session) return ''
         const allTurns = [...session.turns, ...(session.deepeningTurns || [])]
-        return allTurns.map(t => `Q: ${t.oracleQuestion}\n\nA: ${t.userAnswer}`).join('\n\n---\n\n')
+        return allTurns.map(t => `${t.oracleQuestion}\n${t.userAnswer}`).join('\n\n')
     }, [session])
 
     // Update edited content when switching modes
@@ -754,34 +885,56 @@ function DraftView({ composedEntry, session, onEdit, onConfirm, onGoDeeper, canD
         setIsEditing(false)
     }
 
+    const handleSaveAnswers = () => {
+        if (!session || !onSaveAnswers) return
+        // Format as a readable journal entry from the raw Q&A
+        const friendLabel = session.context.friendNames.length > 0
+            ? ` about ${session.context.friendNames.join(' & ')}`
+            : ''
+        const header = `Reflecting${friendLabel}\n\n`
+        const body = session.turns.map(t =>
+            `${t.oracleQuestion}\n${t.userAnswer}`
+        ).join('\n\n')
+        const deepeningBody = session.deepeningTurns?.length
+            ? '\n\n' + session.deepeningTurns.map(t =>
+                `${t.oracleQuestion}\n${t.userAnswer}`
+            ).join('\n\n')
+            : ''
+        onSaveAnswers(header + body + deepeningBody)
+    }
+
     return (
         <View className="flex-1 w-full">
             <Animated.View entering={FadeIn.duration(400)} className="flex-1">
                 {/* Header */}
-                <View className="flex-row items-center justify-between mb-4">
+                <View className="flex-row items-center justify-between mb-5">
                     <View className="flex-row items-center">
                         <View
-                            className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                            style={{ backgroundColor: colors.primary + '15' }}
+                            className="w-9 h-9 rounded-full items-center justify-center mr-3"
+                            style={{ backgroundColor: colors.primary + '12' }}
                         >
-                            <Icon name="Sparkles" size={20} color={colors.primary} />
+                            <Icon name="Sparkles" size={18} color={colors.primary} />
                         </View>
                         <View>
-                            <Text variant="h4" style={{ color: colors.foreground }}>
-                                Review Entry
+                            <Text
+                                variant="body"
+                                weight="semibold"
+                                style={{ color: colors.foreground, fontSize: 16 }}
+                            >
+                                Review your entry
                             </Text>
                             <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
-                                {viewMode === 'refined' ? 'AI Synthesized' : 'Original Transcript'}
+                                {viewMode === 'refined' ? 'Woven by Oracle' : 'Your original words'}
                             </Text>
                         </View>
                     </View>
 
                     {/* Toggle - Only show if session/transcript exists */}
                     {session && (
-                        <View className="flex-row bg-muted rounded-lg p-1" style={{ backgroundColor: colors.muted }}>
+                        <View className="flex-row rounded-lg p-0.5" style={{ backgroundColor: colors.muted }}>
                             <Pressable
                                 onPress={() => setViewMode('refined')}
-                                className={`px-3 py-1.5 rounded-md ${viewMode === 'refined' ? 'bg-background shadow-sm' : ''}`}
+                                className="px-3 py-1.5 rounded-md"
                                 style={viewMode === 'refined' ? { backgroundColor: colors.card } : {}}
                             >
                                 <Text
@@ -796,7 +949,7 @@ function DraftView({ composedEntry, session, onEdit, onConfirm, onGoDeeper, canD
                             </Pressable>
                             <Pressable
                                 onPress={() => setViewMode('original')}
-                                className={`px-3 py-1.5 rounded-md ${viewMode === 'original' ? 'bg-background shadow-sm' : ''}`}
+                                className="px-3 py-1.5 rounded-md"
                                 style={viewMode === 'original' ? { backgroundColor: colors.card } : {}}
                             >
                                 <Text
@@ -815,7 +968,7 @@ function DraftView({ composedEntry, session, onEdit, onConfirm, onGoDeeper, canD
 
                 {/* Composed entry */}
                 <ScrollView
-                    className="flex-1 rounded-2xl p-5 mb-6"
+                    className="flex-1 rounded-2xl p-5 mb-5"
                     style={{ backgroundColor: colors.muted }}
                     showsVerticalScrollIndicator={false}
                 >
@@ -837,35 +990,45 @@ function DraftView({ composedEntry, session, onEdit, onConfirm, onGoDeeper, canD
                 </ScrollView>
 
                 {/* Actions */}
-                <View className="flex-row items-center justify-between mt-auto">
-                    <Pressable
-                        onPress={onEscape}
-                        className="py-3 px-4"
-                    >
-                        <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
-                            Start over
-                        </Text>
-                    </Pressable>
-
-                    <View className="flex-row gap-2">
+                <View className="gap-3 mt-auto">
+                    {/* Primary row */}
+                    <View className="flex-row items-center gap-2 justify-end">
                         {isEditing ? (
-                            <Button variant="outline" onPress={handleSaveEdit} label="Done" />
+                            <Button variant="outline" onPress={handleSaveEdit} label="Done editing" />
                         ) : (
                             <Button variant="outline" onPress={() => setIsEditing(true)} label="Edit" />
                         )}
                         {canDeepen && !isEditing && viewMode === 'refined' && (
-                            <Button variant="outline" onPress={onGoDeeper} label="Go Deeper" />
+                            <Button variant="outline" onPress={onGoDeeper} label="Go deeper" />
                         )}
                         <Button variant="primary" onPress={() => {
-                            // Ensure we save currently visible content
                             if (isEditing) {
                                 onEdit(editedContent)
                             } else if (viewMode === 'original' && composedEntry !== editedContent) {
-                                // If listening to original, we must update the main composed entry to match it so it saves correctly
                                 onEdit(editedContent)
                             }
                             onConfirm()
-                        }} label="Save Entry" />
+                        }} label="Save entry" />
+                    </View>
+
+                    {/* Secondary row: save answers + start over */}
+                    <View className="flex-row items-center justify-between">
+                        <Pressable onPress={onEscape} className="py-2 px-1">
+                            <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                                Start over
+                            </Text>
+                        </Pressable>
+
+                        {session && onSaveAnswers && viewMode === 'refined' && !isEditing && (
+                            <Pressable onPress={handleSaveAnswers} className="py-2 px-1">
+                                <Text
+                                    variant="caption"
+                                    style={{ color: colors.primary, fontWeight: '500' }}
+                                >
+                                    Save my answers instead
+                                </Text>
+                            </Pressable>
+                        )}
                     </View>
                 </View>
             </Animated.View>

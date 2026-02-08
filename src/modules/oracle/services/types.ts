@@ -14,6 +14,11 @@ export type OracleActionType =
     | 'view_insights'
     | 'start_deepening'
     | 'share_summary'
+    | 'mimic_plan'
+    | 'schedule_event'
+    | 'update_profile'
+    | 'reach_out'
+    | 'create_intention'
 
 export interface OracleAction {
     type: OracleActionType
@@ -47,16 +52,22 @@ export interface OracleStructuredResponse {
 
 /** Action labels for UI display */
 export const ACTION_LABELS: Record<OracleActionType, { label: string; icon: string }> = {
-    log_weave: { label: 'Log this weave', icon: 'calendar-plus' },
-    add_life_event: { label: 'Add life event', icon: 'gift' },
-    add_memory: { label: 'Save friend note', icon: 'book-open' },
-    create_reflection: { label: 'Save as reflection', icon: 'book-open' },
-    plan_weave: { label: 'Plan a meetup', icon: 'calendar' },
-    set_reminder: { label: 'Set reminder', icon: 'bell' },
-    view_friend: { label: 'View profile', icon: 'user' },
-    view_insights: { label: 'View insights', icon: 'sparkles' },
-    start_deepening: { label: 'Go deeper', icon: 'arrow-down-circle' },
-    share_summary: { label: 'Share summary', icon: 'share' },
+    log_weave: { label: 'Log this weave', icon: 'CalendarPlus' },
+    add_life_event: { label: 'Add life event', icon: 'Gift' },
+    add_memory: { label: 'Save friend note', icon: 'BookOpen' },
+    create_reflection: { label: 'Save as reflection', icon: 'BookOpen' },
+    plan_weave: { label: 'Plan a meetup', icon: 'Calendar' },
+    set_reminder: { label: 'Set reminder', icon: 'Bell' },
+    view_friend: { label: 'View profile', icon: 'User' },
+    view_insights: { label: 'View insights', icon: 'Sparkles' },
+    start_deepening: { label: 'Go deeper', icon: 'ArrowDownCircle' },
+    share_summary: { label: 'Share summary', icon: 'Share' },
+    // SmartAction mappings
+    mimic_plan: { label: 'Plan this again', icon: 'Calendar' },
+    schedule_event: { label: 'Schedule meetup', icon: 'CalendarPlus' },
+    update_profile: { label: 'Update profile', icon: 'UserCog' },
+    reach_out: { label: 'Reach out', icon: 'MessageCircle' },
+    create_intention: { label: 'Set intention', icon: 'Target' },
 }
 
 // ============================================================================

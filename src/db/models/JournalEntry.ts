@@ -36,6 +36,23 @@ export default class JournalEntry extends Model {
   @text('sync_status') customSyncStatus?: string;
   @field('server_updated_at') serverUpdatedAt?: number;
 
+  // Insight Receipt Tracking (v75)
+  @field('receipt_shown_at') receiptShownAt?: number;
+  @text('receipt_actions_taken_json') receiptActionsTakenRaw?: string;
+
+  get receiptActionsTaken(): string[] {
+    if (!this.receiptActionsTakenRaw) return [];
+    try {
+      return JSON.parse(this.receiptActionsTakenRaw);
+    } catch {
+      return [];
+    }
+  }
+
+  set receiptActionsTaken(actionIds: string[]) {
+    this.receiptActionsTakenRaw = JSON.stringify(actionIds);
+  }
+
   async prepareDestroyWithChildren() {
     const friends = await this.journalEntryFriends.fetch();
     const friendsToDelete = friends.map((friend: JournalEntryFriend) => friend.prepareDestroyPermanently());

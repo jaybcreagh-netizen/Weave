@@ -771,8 +771,13 @@ class OracleService {
     }
 
     /**
-     * Continue guided reflection with user's answer
-     * Hard limit: After 3 answers, always compose (no more questions)
+     * Continue guided reflection with user's answer.
+     *
+     * Uses adaptive question logic based on answer depth:
+     * - Short answers (<30 chars): always ask another question (user needs prompting)
+     * - Medium answers (30-150 chars): ask another if under 3 turns, offer compose if 3+
+     * - Rich answers (>150 chars): offer compose after 2+ turns
+     * - Hard ceiling: 5 turns maximum, then always compose
      */
     async continueReflection(session: GuidedSession, answer: string): Promise<GuidedSession> {
         if (session.status !== 'in_progress' || !session.pendingQuestion) {
@@ -787,11 +792,23 @@ class OracleService {
         session.turns.push(turn)
 
         const turnCount = session.turns.length
-        const MAX_QUESTIONS = 3
+        const answerLength = answer.trim().length
+        const MAX_QUESTIONS = 5
 
-        // HARD LIMIT: After 3 answers, always compose
-        if (turnCount >= MAX_QUESTIONS) {
-            logger.info('OracleService', 'Hard limit reached, composing entry', { turnCount })
+        // Adaptive composition decision
+        const shouldCompose =
+            turnCount >= MAX_QUESTIONS ||                          // Hard ceiling
+            (turnCount >= 2 && answerLength > 150) ||             // Rich answer after warmup
+            (turnCount >= 3 && answerLength > 30)                 // Moderate answers, enough context
+
+        if (shouldCompose) {
+            logger.info('OracleService', 'Adaptive limit reached, composing entry', {
+                turnCount,
+                answerLength,
+                reason: turnCount >= MAX_QUESTIONS ? 'hard_ceiling'
+                    : answerLength > 150 ? 'rich_answer'
+                    : 'sufficient_context'
+            })
             session.composedDraft = await this.composeEntry(session)
             session.pendingQuestion = undefined
             session.status = 'draft_ready'
@@ -799,7 +816,7 @@ class OracleService {
             return session
         }
 
-        // Generate next question or transition to composition
+        // Generate next question
         const promptDef = getPrompt('oracle_guided_question')
         if (!promptDef) throw new Error('Guided question prompt not found')
 
@@ -816,8 +833,8 @@ class OracleService {
                 ? session.context.activeThreads.map(t => `- ${t.topic} (${t.sentiment})`).join('\n')
                 : 'No active threads',
             conversationHistory,
-            turnCount: turnCount + 1, // Next turn number
-            mustCompose: turnCount + 1 >= MAX_QUESTIONS // Signal to LLM if next is final
+            turnCount: turnCount + 1,
+            mustCompose: turnCount + 1 >= MAX_QUESTIONS
         })
 
         // Using complete() because supabase-proxy doesn't support native structured output
@@ -828,8 +845,6 @@ class OracleService {
 
         const question = this.extractGuidedQuestion(response.text)
 
-        // NEVER compose here - the hard limit above handles composition after 3 answers
-        // Always ask the next question (LLM's or fallback)
         session.pendingQuestion = (question && question.length > 3)
             ? question
             : 'What else stood out to you?'

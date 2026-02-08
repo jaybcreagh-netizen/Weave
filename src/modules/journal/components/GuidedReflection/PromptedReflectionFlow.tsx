@@ -379,8 +379,9 @@ export function PromptedReflectionFlow({
         })
       }
 
-      resetState()
-      onClose()
+      // Don't close immediately - let parent handle the transition (e.g. to receipt)
+      // resetState() 
+      // onClose()
     } catch (error) {
       console.error('[PromptedReflection] Error saving:', error)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)

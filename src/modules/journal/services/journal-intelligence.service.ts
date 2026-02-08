@@ -14,25 +14,46 @@ import JournalEntryFriend from '@/db/models/JournalEntryFriend'
 import { Q } from '@nozbe/watermelondb'
 import { extractSignals, SignalExtractionResult } from './signal-extractor'
 import { extractThreads, ExtractedThread } from './thread-extractor'
-import { insightOrchestratorService } from '@/modules/intelligence/services/InsightOrchestratorService'
+import { insightOrchestratorService } from '@/modules/intelligence'
 import { memoryBridgeService } from './memory-bridge.service'
 import Logger from '@/shared/utils/Logger'
 import { writeScheduler } from '@/shared/services/write-scheduler'
+
+import { SmartAction, actionExtractionService } from '@/modules/oracle'
+
+export interface ProcessingResult {
+    signals: SignalExtractionResult | null;
+    threads: ExtractedThread[];
+    actions: SmartAction[];
+    memoryCount: number;
+}
 
 class JournalIntelligenceService {
 
     /**
      * Process a new journal entry to extract signals
-     * This should be called asynchronously (fire-and-forget) after saving an entry
+     * Returns a result object that can be used for the InsightReceipt
      */
-    async processEntry(entry: JournalEntry, aiEnabled?: boolean): Promise<void> {
+    async processEntry(entry: JournalEntry, aiEnabled?: boolean): Promise<ProcessingResult | void> {
         Logger.info('JournalIntelligence', `Processing entry ${entry.id} for signals`)
 
         try {
             const resolvedAiEnabled = await this.resolveAiEnabled(aiEnabled)
+            const resultThreads: ExtractedThread[] = []
+            let resultMemoryCount = 0
+            let resultActions: SmartAction[] = []
 
             // 1. Extract signals
             const signals = await extractSignals(entry.content, resolvedAiEnabled)
+
+            // 1b. Save LLM-generated title to entry if missing
+            if (signals.title && (!entry.title || entry.title.trim().length === 0)) {
+                await database.write(async () => {
+                    await entry.update(rec => {
+                        rec.title = signals.title!;
+                    });
+                });
+            }
 
             // 2. Save signals to database
             await this.saveSignals(entry, signals)
@@ -57,6 +78,7 @@ class JournalIntelligenceService {
                     try {
                         const extractedThreads = await extractThreads(entry.content, friend.id, friend.name, entry.id, resolvedAiEnabled)
                         extractedThreadsByFriend[friend.id] = extractedThreads
+                        resultThreads.push(...extractedThreads)
                     } catch (threadError) {
                         extractedThreadsByFriend[friend.id] = []
                         Logger.warn('JournalIntelligence', 'Thread extraction failed for friend', {
@@ -67,14 +89,33 @@ class JournalIntelligenceService {
                 }
 
                 // 5. Bridge existing extraction output into friend memory candidates
-                await memoryBridgeService.ingestSignalsAndThreads(entry, friends, signals, extractedThreadsByFriend)
+                resultMemoryCount = await memoryBridgeService.ingestSignalsAndThreads(entry, friends, signals, extractedThreadsByFriend)
             }
 
-            // 6. Trigger style analysis (fire-and-forget, runs periodically)
+            // 6. Extract Smart Actions (NEW JUX-A02)
+            try {
+                resultActions = await actionExtractionService.extractActions(entry.id)
+            } catch (actionError) {
+                Logger.warn('JournalIntelligence', 'Action extraction failed', actionError)
+            }
+
+            // 7. Trigger style analysis (fire-and-forget, runs periodically)
             this.maybeAnalyzeStyle()
+
+            // Return the ProcessingResult
+            return {
+                signals,
+                threads: resultThreads,
+                actions: resultActions,
+                memoryCount: resultMemoryCount
+            }
 
         } catch (error) {
             Logger.error('JournalIntelligence', 'Failed to process entry', error)
+            // Re-throw or return empty? Design says callers might await it.
+            // If we throw, we might break the calling UI if not careful, but returning void implies failure/fire-and-forget.
+            // Let's rely on the fact that existing callers don't await, so they won't catch.
+            // New callers should wrap in try/catch.
         }
     }
 
@@ -190,10 +231,13 @@ class JournalIntelligenceService {
                     // We treat emergent themes as transient, core themes as sticky
                     // This logic assumes detectedThemesRaw is an array of strings
 
-                    let currentThemes: string[] = []
-                    try {
-                        currentThemes = JSON.parse(rec.detectedThemesRaw || '[]')
-                    } catch { }
+                    const currentThemes: string[] = (() => {
+                        try {
+                            return JSON.parse(rec.detectedThemesRaw || '[]')
+                        } catch {
+                            return []
+                        }
+                    })()
 
                     // Add new themes that aren't already present
                     const newThemes = [...signals.coreThemes, ...signals.emergentThemes]

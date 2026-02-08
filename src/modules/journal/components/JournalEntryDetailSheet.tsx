@@ -1,34 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, TouchableOpacity, ScrollView, Alert, InteractionManager } from 'react-native';
+import { Text } from '@/shared/ui/Text';
+import { Icon } from '@/shared/ui/Icon';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useRouter } from 'expo-router';
-import {
-    Calendar,
-    Sparkles,
-    Edit3,
-    ExternalLink,
-    MessageCircle,
-    Zap,
-    Gift, // For Life Event
-    Copy, // For Mimic
-    Trash2,
-    X,
-    Loader2, // Import Loader2 for spinner
-} from 'lucide-react-native';
-import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import FriendModel from '@/db/models/Friend';
 import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import Interaction from '@/db/models/Interaction';
-import InteractionFriend from '@/db/models/InteractionFriend';
 import JournalSignals from '@/db/models/JournalSignals';
 import { Q } from '@nozbe/watermelondb';
 import { STORY_CHIPS } from '@/modules/reflection';
 import { logger } from '@/shared/services/logger.service';
+import { useUIStore } from '@/shared/stores/uiStore';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeIn } from 'react-native-reanimated';
+
+/**
+ * Wait for modal/sheet close animations to complete before opening another modal.
+ * Matches the pattern used by Oracle's useActionExecutor.
+ */
+const waitForSheetClose = (): Promise<void> =>
+    new Promise(resolve => {
+        InteractionManager.runAfterInteractions(() => {
+            setTimeout(resolve, 150);
+        });
+    });
+
+const SENTIMENT_CONFIG: Record<string, { icon: string; label: string; colorKey: 'success' | 'warning' | 'destructive' | 'muted-foreground' }> = {
+    positive: { icon: 'Sun', label: 'Warm & positive', colorKey: 'success' },
+    grateful: { icon: 'Heart', label: 'Grateful', colorKey: 'success' },
+    concerned: { icon: 'CloudSun', label: 'Mixed feelings', colorKey: 'warning' },
+    tense: { icon: 'CloudRain', label: 'Difficult', colorKey: 'destructive' },
+    neutral: { icon: 'Cloud', label: 'Neutral', colorKey: 'muted-foreground' },
+};
 
 interface JournalEntryDetailSheetProps {
     isOpen: boolean;
@@ -80,7 +86,6 @@ export function JournalEntryDetailSheet({
         if (!entry) return;
 
         try {
-            // Load linked friends
             const links = await database.get<JournalEntryFriend>('journal_entry_friends')
                 .query(Q.where('journal_entry_id', entry.id))
                 .fetch();
@@ -90,7 +95,6 @@ export function JournalEntryDetailSheet({
             );
             setFriends(friendModels);
 
-            // Load linked weave
             if (entry.linkedWeaveId) {
                 const interaction = await database.get<Interaction>('interactions').find(entry.linkedWeaveId);
                 setLinkedWeaveInfo({
@@ -101,23 +105,19 @@ export function JournalEntryDetailSheet({
                 });
             }
 
-            // Load signals (for Vibe Check)
             const signalRecords = await database.get<JournalSignals>('journal_signals')
                 .query(Q.where('journal_entry_id', entry.id))
                 .fetch();
-
             if (signalRecords.length > 0) {
                 setSignals(signalRecords[0]);
             }
 
-            // Load Memory Threads (Related Entries)
             if (friendModels.length > 0) {
                 const friendIds = friendModels.map(f => f.id);
-                // Find entries linked to these friends, excluding current
                 const relatedLinks = await database.get<JournalEntryFriend>('journal_entry_friends')
                     .query(
                         Q.where('friend_id', Q.oneOf(friendIds)),
-                        Q.take(50) // Fetch potential candidates
+                        Q.take(50)
                     )
                     .fetch();
 
@@ -139,7 +139,6 @@ export function JournalEntryDetailSheet({
             } else {
                 setRelatedEntries([]);
             }
-
         } catch (error) {
             logger.error('JournalDetail', 'Error loading entry data', error);
         }
@@ -153,17 +152,12 @@ export function JournalEntryDetailSheet({
             setLinkedWeaveInfo(null);
             setSignals(null);
             setRelatedEntries([]);
-            setFriends([]);
-            setLinkedWeaveInfo(null);
-            setSignals(null);
-            setRelatedEntries([]);
         }
     }, [entry, isOpen]);
 
     const getNextSameWeekday = (date: Date): string => {
         const result = new Date();
         result.setDate(result.getDate() + ((date.getDay() + 7 - result.getDay()) % 7));
-        // If it's today, add 7 days
         if (result.toDateString() === new Date().toDateString()) {
             result.setDate(result.getDate() + 7);
         }
@@ -173,17 +167,13 @@ export function JournalEntryDetailSheet({
     const handleMimic = () => {
         if (friends.length === 0) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
         const suggestedDate = entry ? getNextSameWeekday(new Date(entry.entryDate)) : undefined;
-        // Default to 'hangout' if no linked category found
         const category = linkedWeaveInfo?.category || 'hangout';
-
         onMimicWeave(friends.map(f => f.id), { date: suggestedDate, category });
     };
 
     const handleLifeEvent = () => {
         if (friends.length === 0) return;
-
         if (friends.length === 1) {
             onCreateLifeEvent(friends[0].id);
         } else {
@@ -251,13 +241,11 @@ export function JournalEntryDetailSheet({
                     onPress: async () => {
                         try {
                             await database.write(async () => {
-                                // Use the cascading delete method to remove entry and friend links
                                 const deleteOp = await entry.prepareDestroyWithChildren();
                                 await database.batch(deleteOp);
                             });
-
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                            onDelete?.(); // Callback for parent to clear selection
+                            onDelete?.();
                         } catch (error) {
                             logger.error('JournalDetail', 'Error deleting journal entry:', error);
                             Alert.alert('Error', 'Failed to delete entry. Please try again.');
@@ -268,120 +256,235 @@ export function JournalEntryDetailSheet({
         );
     };
 
-
     if (!entry) return null;
 
+    const sentimentKey = signals?.sentimentLabel || 'neutral';
+    const sentiment = SENTIMENT_CONFIG[sentimentKey] || SENTIMENT_CONFIG.neutral;
+    const sentimentColor = colors[sentiment.colorKey];
+    const hasSentiment = signals && sentimentKey !== 'neutral';
+
+    const friendLabel = friends.length > 0
+        ? friends.map(f => f.name.split(' ')[0]).join(' & ')
+        : null;
+
+    // Build smart action items or default actions
+    const actionItems: { icon: string; label: string; onPress: () => void }[] = [];
+
+    if (entry.smartActions && entry.smartActions.length > 0) {
+        for (const action of entry.smartActions as any[]) {
+            const iconMap: Record<string, string> = {
+                mimic_plan: 'Repeat',
+                schedule_event: 'CalendarPlus',
+                create_intention: 'Target',
+                reach_out: 'MessageCircle',
+                update_profile: 'UserPen',
+                add_memory: 'BookmarkPlus',
+            };
+
+            // Guard: friendId from LLM may be a name, not a DB ID
+            const rawFriendId = action.data?.friendId;
+            const isValidId = rawFriendId && (
+                /^[a-zA-Z0-9_-]{16}$/.test(rawFriendId) || /^[0-9a-fA-F-]{36}$/.test(rawFriendId)
+            );
+            const resolvedFriendId = isValidId ? rawFriendId : friends[0]?.id;
+
+            const buildHandler = (type: string): () => void => {
+                switch (type) {
+                    case 'mimic_plan':
+                    case 'schedule_event':
+                        return () => {
+                            if (resolvedFriendId) {
+                                onClose();
+                                waitForSheetClose().then(() => {
+                                    useUIStore.getState().openPlanWizard({
+                                        friendId: resolvedFriendId,
+                                        prefillData: {
+                                            title: action.label,
+                                            date: action.data?.date ? new Date(action.data.date) : undefined,
+                                            category: action.data?.activity || undefined,
+                                        },
+                                    });
+                                });
+                            } else if (friends.length > 0) {
+                                handleMimic();
+                            } else {
+                                Alert.alert('No friend tagged', 'Tag a friend in this entry to plan a weave with them.');
+                            }
+                        };
+                    case 'create_intention':
+                        return () => {
+                            if (resolvedFriendId) {
+                                onClose();
+                                waitForSheetClose().then(() => {
+                                    useUIStore.getState().openIntentionForm({
+                                        friendId: resolvedFriendId,
+                                        initialText: action.label,
+                                    });
+                                });
+                            }
+                        };
+                    case 'add_memory':
+                    case 'update_profile':
+                        return () => {
+                            if (resolvedFriendId) {
+                                onClose();
+                                waitForSheetClose().then(() => {
+                                    router.push({
+                                        pathname: '/friend-profile',
+                                        params: {
+                                            friendId: resolvedFriendId,
+                                            action: 'add_memory',
+                                            memorySource: 'journal',
+                                            memoryNotes: action.data?.note || '',
+                                        }
+                                    });
+                                });
+                            }
+                        };
+                    case 'reach_out':
+                        return handleReachOut;
+                    default:
+                        return () => {};
+                }
+            };
+
+            actionItems.push({
+                icon: iconMap[action.type] || 'Sparkles',
+                label: action.label,
+                onPress: buildHandler(action.type),
+            });
+        }
+    } else {
+        actionItems.push({ icon: 'Sparkles', label: 'Ask Oracle', onPress: handleAskOracle });
+        if (friends.length > 0 || linkedWeaveInfo) {
+            actionItems.push({ icon: 'Repeat', label: 'Do again', onPress: handleMimic });
+        }
+        if (friends.length > 0) {
+            actionItems.push({ icon: 'MessageCircle', label: 'Reach out', onPress: handleReachOut });
+        }
+    }
+
     return (
-        <>
-            <StandardBottomSheet
-                visible={isOpen}
-                onClose={onClose}
-                height="auto"
-                title=""
-                showCloseButton={false}
-            >
-                <View className="flex-1">
-                    {/* Custom Header */}
-                    <View className="px-5 py-3 flex-row justify-end items-center gap-2 border-b border-transparent mb-2">
-                        <TouchableOpacity
-                            onPress={handleDelete}
-                            className="p-2 rounded-full"
-                            style={{ backgroundColor: colors.destructive + '15' }}
-                        >
-                            <Trash2 size={20} color={colors.destructive} />
-                        </TouchableOpacity>
+        <StandardBottomSheet
+            visible={isOpen}
+            onClose={onClose}
+            height="auto"
+            title=""
+            showCloseButton={false}
+        >
+            <View className="flex-1">
+                {/* Header actions */}
+                <View className="px-5 pt-2 pb-1 flex-row justify-end items-center gap-1.5">
+                    <TouchableOpacity
+                        onPress={handleDelete}
+                        className="p-2 rounded-full"
+                        style={{ backgroundColor: colors.destructive + '10' }}
+                    >
+                        <Icon name="Trash2" size={18} color={colors.destructive} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            onEdit(entry);
+                        }}
+                        className="p-2 rounded-full"
+                        style={{ backgroundColor: colors.muted }}
+                    >
+                        <Icon name="Pencil" size={18} color={colors.foreground} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={onClose}
+                        className="p-2 rounded-full"
+                        style={{ backgroundColor: colors.muted }}
+                    >
+                        <Icon name="X" size={18} color={colors.foreground} />
+                    </TouchableOpacity>
+                </View>
 
-                        <TouchableOpacity
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                onEdit(entry);
-                            }}
-                            className="p-2 rounded-full"
-                            style={{ backgroundColor: colors.muted + '20' }}
-                        >
-                            <Edit3 size={20} color={colors.foreground} />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={onClose}
-                            className="p-2 rounded-full"
-                            style={{ backgroundColor: colors.muted + '20' }}
-                        >
-                            <X size={20} color={colors.foreground} />
-                        </TouchableOpacity>
-                    </View>
-
-                    <View className="px-5 pb-2">
-                        {/* Header Metadata: Date & Activity */}
-                        <View className="flex-row items-center gap-2 mb-2">
+                <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                    {/* Date & friend context */}
+                    <View className="px-6 pt-2">
+                        <View className="flex-row items-center gap-1.5 mb-3">
                             <Text
-                                className="text-xs font-semibold uppercase tracking-wider"
-                                style={{ color: colors.foreground, opacity: 0.6, fontFamily: 'Inter_600SemiBold' }}
+                                variant="caption"
+                                weight="semibold"
+                                style={{ color: colors['muted-foreground'], fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase' }}
                             >
                                 {new Date(entry.entryDate).toLocaleDateString(undefined, {
-                                    month: 'short',
                                     day: 'numeric',
+                                    month: 'short',
                                     year: 'numeric'
-                                })}
+                                }).toUpperCase()}
                             </Text>
-                            {linkedWeaveInfo?.category && (
+                            {friendLabel && (
                                 <>
-                                    <View className="w-1 h-1 rounded-full" style={{ backgroundColor: colors.foreground, opacity: 0.4 }} />
+                                    <View className="w-0.5 h-0.5 rounded-full" style={{ backgroundColor: colors['muted-foreground'] }} />
                                     <Text
-                                        className="text-xs font-semibold uppercase tracking-wider"
-                                        style={{ color: colors.foreground, opacity: 0.6, fontFamily: 'Inter_600SemiBold' }}
+                                        variant="caption"
+                                        style={{ color: colors['muted-foreground'], fontSize: 11 }}
                                     >
-                                        {linkedWeaveInfo.category}
+                                        with {friendLabel}
+                                    </Text>
+                                </>
+                            )}
+                            {hasSentiment && (
+                                <>
+                                    <View className="w-0.5 h-0.5 rounded-full" style={{ backgroundColor: colors['muted-foreground'] }} />
+                                    <Icon name={sentiment.icon as any} size={11} color={sentimentColor} />
+                                    <Text
+                                        variant="caption"
+                                        style={{ color: sentimentColor, fontSize: 11 }}
+                                    >
+                                        {sentiment.label}
                                     </Text>
                                 </>
                             )}
                         </View>
 
+                        {/* Title */}
                         {entry.title ? (
                             <Text
-                                className="text-2xl font-bold"
-                                style={{ color: colors.foreground, fontFamily: typography.fonts.serifBold }}
+                                variant="h2"
+                                style={{ color: colors.foreground, fontFamily: typography.fonts.serifBold, fontSize: 24, lineHeight: 30, marginBottom: 16 }}
                             >
                                 {entry.title}
                             </Text>
                         ) : (
                             <Text
-                                className="text-2xl font-bold italic"
-                                style={{ color: colors.foreground, fontFamily: typography.fonts.serifBold, opacity: 0.6 }}
+                                variant="h2"
+                                style={{ color: colors['muted-foreground'], fontFamily: typography.fonts.serifBold, fontSize: 24, lineHeight: 30, marginBottom: 16, fontStyle: 'italic' }}
                             >
                                 Untitled Entry
                             </Text>
                         )}
                     </View>
 
-                    <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 40 }}>
-
-                        {/* Main Content */}
+                    {/* Content — the hero */}
+                    <View className="px-6 mb-6">
                         <Text
-                            className="text-base leading-relaxed mb-8 mt-2"
-                            style={{ color: colors.foreground, fontFamily: 'Inter_400Regular', lineHeight: 28 }}
+                            variant="body"
+                            style={{ color: colors.foreground, fontSize: 16, lineHeight: 28 }}
                         >
                             {entry.content}
                         </Text>
+                    </View>
 
-                        {/* Story Chips */}
-                        {entry.storyChips.length > 0 && (
-                            <View className="flex-row flex-wrap gap-2 mb-8">
+                    {/* Story chips (if any) */}
+                    {entry.storyChips.length > 0 && (
+                        <View className="px-6 mb-6">
+                            <View className="flex-row flex-wrap gap-1.5">
                                 {entry.storyChips.map(chip => {
                                     const chipDef = STORY_CHIPS.find(c => c.id === chip.chipId);
                                     if (!chipDef) return null;
                                     return (
                                         <View
                                             key={chip.chipId}
-                                            className="px-2.5 py-1 rounded-md border"
-                                            style={{
-                                                borderColor: colors.border,
-                                                backgroundColor: 'transparent'
-                                            }}
+                                            className="px-2.5 py-1 rounded-full"
+                                            style={{ backgroundColor: colors.muted }}
                                         >
                                             <Text
-                                                className="text-xs"
-                                                style={{ color: colors.muted, fontFamily: 'Inter_400Regular' }}
+                                                variant="caption"
+                                                style={{ color: colors['muted-foreground'], fontSize: 11 }}
                                             >
                                                 {chipDef.plainText}
                                             </Text>
@@ -389,207 +492,123 @@ export function JournalEntryDetailSheet({
                                     );
                                 })}
                             </View>
-                        )}
+                        </View>
+                    )}
 
-                        {/* Intelligence: Vibe Check */}
-                        {signals && (
-                            <View className="mb-8 p-4 rounded-xl border" style={{ borderColor: colors.border, backgroundColor: colors.card }}>
-                                <View className="flex-row items-center gap-2 mb-2">
-                                    <Sparkles size={16} color={colors.primary} />
-                                    <Text className="text-sm font-semibold" style={{ color: colors.foreground }}>
-                                        Vibe Check
-                                    </Text>
-                                </View>
-                                <View className="flex-row items-baseline gap-2">
-                                    <Text className="text-2xl">{signals.sentimentLabel === 'positive' || signals.sentimentLabel === 'grateful' ? '☀️' : signals.sentimentLabel === 'tense' || signals.sentimentLabel === 'concerned' ? '🌧️' : '☁️'}</Text>
-                                    <Text className="text-sm" style={{ color: colors.muted }}>
-                                        This entry feels <Text style={{ color: colors.foreground, fontWeight: '600' }}>{signals.sentimentLabel?.toLowerCase() || 'neutral'}</Text>.
-                                    </Text>
-                                </View>
-                            </View>
-                        )}
-
-                        {/* Actions Grid */}
-                        <View className="pb-8">
-                            <Text className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: colors.muted }}>
-                                Actions
-                            </Text>
-
-                            {/* Actions Logic: Smart Actions vs Defaults */}
-                            {entry && entry.smartActions && entry.smartActions.length > 0 ? (
-                                <View className="flex-row flex-wrap justify-between gap-y-3">
-                                    {entry.smartActions.map((action: any, index: number) => {
-                                        let icon = <Sparkles size={24} color={colors.primary} opacity={0.8} />;
-                                        let onPress = () => { };
-
-                                        // Map action types to handlers
-                                        switch (action.type) {
-                                            case 'mimic_plan':
-                                                icon = <Copy size={24} color={colors.primary} opacity={0.8} />;
-                                                onPress = () => handleMimic(); // TODO: Pass specific data
-                                                break;
-                                            case 'schedule_event':
-                                                icon = <Calendar size={24} color={colors.primary} opacity={0.8} />;
-                                                onPress = () => handleMimic(); // Reuse mimic for now
-                                                break;
-                                            case 'create_intention':
-                                                icon = <Zap size={24} color={colors.primary} opacity={0.8} />;
-                                                onPress = () => { /* Intention creation modal */ };
-                                                break;
-                                            case 'reach_out':
-                                                icon = <MessageCircle size={24} color={colors.primary} opacity={0.8} />;
-                                                onPress = () => handleReachOut();
-                                                break;
-                                            case 'update_profile': // Phase 3
-                                            case 'add_memory':
-                                                icon = <Edit3 size={24} color={colors.primary} opacity={0.8} />;
-                                                onPress = () => handleUpdateProfile();
-                                                break;
-                                        }
-
-                                        return (
-                                            <TouchableOpacity
-                                                key={`smart-action-${index}`}
-                                                onPress={() => {
-                                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                                    onPress();
-                                                }}
-                                                className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
-                                                style={{
-                                                    backgroundColor: colors.primary + '15', // Highlighted bg
-                                                    borderColor: colors.primary + '40'
-                                                }}
-                                            >
-                                                <View className="absolute top-2 right-2">
-                                                    <Sparkles size={12} color={colors.primary} opacity={0.6} />
-                                                </View>
-                                                {icon}
-                                                <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
-                                                    {action.label}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-                            ) : (
-                                /* Default Generic Actions */
-                                <View className="flex-row flex-wrap justify-between gap-y-3">
-                                    {/* Ask The Oracle */}
-                                    <TouchableOpacity
-                                        onPress={handleAskOracle}
-                                        className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
-                                        style={{
-                                            backgroundColor: colors.primary + '15', // Slightly darker to stand out? Or same? Let's use same for consistency, or maybe slightly different to highlight AI?
-                                            borderColor: colors.primary + '30'
-                                        }}
+                    {/* Linked weave — subtle reference */}
+                    {linkedWeaveInfo && (
+                        <View className="px-6 mb-6">
+                            <View
+                                className="flex-row items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
+                                style={{ backgroundColor: colors.muted }}
+                            >
+                                <Icon name="Link" size={13} color={colors['muted-foreground']} />
+                                <Text
+                                    variant="caption"
+                                    style={{ color: colors['muted-foreground'], fontSize: 12, flex: 1 }}
+                                    numberOfLines={1}
+                                >
+                                    {linkedWeaveInfo.title}
+                                </Text>
+                                {linkedWeaveInfo.category && (
+                                    <Text
+                                        variant="caption"
+                                        style={{ color: colors['muted-foreground'], fontSize: 11, textTransform: 'capitalize' }}
                                     >
-                                        <Sparkles size={24} color={colors.primary} opacity={0.8} />
-                                        <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
-                                            Ask The Oracle
+                                        {linkedWeaveInfo.category.replace(/-/g, ' ')}
+                                    </Text>
+                                )}
+                            </View>
+                        </View>
+                    )}
+
+                    {/* Actions — compact horizontal pills */}
+                    {actionItems.length > 0 && (
+                        <View className="px-6 mb-6">
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ gap: 8 }}
+                            >
+                                {actionItems.map((item, idx) => (
+                                    <TouchableOpacity
+                                        key={idx}
+                                        onPress={() => {
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                            item.onPress();
+                                        }}
+                                        className="flex-row items-center gap-1.5 px-3.5 py-2 rounded-full"
+                                        style={{
+                                            backgroundColor: colors.card,
+                                            borderWidth: 1,
+                                            borderColor: colors.border,
+                                        }}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Icon name={item.icon as any} size={14} color={colors.primary} />
+                                        <Text
+                                            variant="caption"
+                                            weight="medium"
+                                            style={{ color: colors.foreground, fontSize: 13 }}
+                                        >
+                                            {item.label}
                                         </Text>
                                     </TouchableOpacity>
-
-                                    {/* Mimic Plan */}
-                                    {(friends.length > 0 || linkedWeaveInfo) && (
-                                        <TouchableOpacity
-                                            onPress={handleMimic}
-                                            className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
-                                            style={{
-                                                backgroundColor: colors.primary + '10',
-                                                borderColor: colors.primary + '30'
-                                            }}
-                                        >
-                                            <Copy size={24} color={colors.primary} opacity={0.8} />
-                                            <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
-                                                Mimic Plan
-                                            </Text>
-                                        </TouchableOpacity>
-                                    )}
-
-                                    {/* Life Event */}
-                                    {friends.length > 0 && (
-                                        <TouchableOpacity
-                                            onPress={handleLifeEvent}
-                                            className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
-                                            style={{
-                                                backgroundColor: colors.primary + '10',
-                                                borderColor: colors.primary + '30'
-                                            }}
-                                        >
-                                            <Gift size={24} color={colors.primary} opacity={0.8} />
-                                            <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
-                                                Add Milestone
-                                            </Text>
-                                        </TouchableOpacity>
-                                    )}
-
-                                    {/* Reach Out (formerly Nudge) */}
-                                    {friends.length > 0 && (
-                                        <TouchableOpacity
-                                            onPress={handleReachOut}
-                                            className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
-                                            style={{
-                                                backgroundColor: colors.primary + '10',
-                                                borderColor: colors.primary + '30'
-                                            }}
-                                        >
-                                            <MessageCircle size={24} color={colors.primary} opacity={0.8} />
-                                            <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
-                                                Reach Out
-                                            </Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            )}
+                                ))}
+                            </ScrollView>
                         </View>
-                        {/* Removed stray View closing tag here */}
+                    )}
 
-                        {/* Related Memories (Moved to bottom & simplified) */}
-                        {relatedEntries.length > 0 && (
-                            <View className="mb-8 pt-4 border-t" style={{ borderColor: colors.border }}>
-                                <Text className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: colors.foreground, opacity: 0.8 }}>
-                                    Related Memories
+                    {/* Related memories — warm thread */}
+                    {relatedEntries.length > 0 && (
+                        <View className="px-6 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+                            <View className="flex-row items-center gap-1.5 mb-3">
+                                <Icon name="BookOpen" size={11} color={colors['muted-foreground']} />
+                                <Text
+                                    variant="caption"
+                                    weight="semibold"
+                                    style={{ color: colors['muted-foreground'], fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase' }}
+                                >
+                                    Related memories
                                 </Text>
-                                <View className="gap-2">
-                                    {relatedEntries.map((related) => (
-                                        <View
-                                            key={related.id}
-                                            className="p-3 rounded-xl border flex-row items-center justify-between"
-                                            style={{
-                                                backgroundColor: colors.card,
-                                                borderColor: colors.border,
-                                            }}
-                                        >
-                                            <View className="flex-1 mr-3">
-                                                <Text
-                                                    className="text-sm font-semibold mb-0.5"
-                                                    numberOfLines={1}
-                                                    style={{ color: colors.foreground }}
-                                                >
-                                                    {related.title || 'Untitled Memory'}
-                                                </Text>
-                                                <Text
-                                                    className="text-xs"
-                                                    numberOfLines={1}
-                                                    style={{ color: colors.foreground }}
-                                                >
-                                                    {related.content.replace(/\n/g, ' ')}
-                                                </Text>
-                                            </View>
+                            </View>
+                            <View className="gap-2">
+                                {relatedEntries.map((related) => (
+                                    <View
+                                        key={related.id}
+                                        className="py-2.5 flex-row items-start justify-between"
+                                        style={{ borderBottomWidth: 1, borderBottomColor: colors.border + '60' }}
+                                    >
+                                        <View className="flex-1 mr-3">
                                             <Text
-                                                className="text-xs font-medium"
-                                                style={{ color: colors.foreground, opacity: 0.6 }}
+                                                variant="body"
+                                                weight="medium"
+                                                style={{ color: colors.foreground, fontSize: 14, marginBottom: 2 }}
+                                                numberOfLines={1}
                                             >
-                                                {new Date(related.entryDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                {related.title || 'Untitled'}
+                                            </Text>
+                                            <Text
+                                                variant="caption"
+                                                style={{ color: colors['muted-foreground'], fontSize: 12 }}
+                                                numberOfLines={1}
+                                            >
+                                                {related.content.replace(/\n/g, ' ')}
                                             </Text>
                                         </View>
-                                    ))}
-                                </View>
+                                        <Text
+                                            variant="caption"
+                                            style={{ color: colors['muted-foreground'], fontSize: 11, marginTop: 2 }}
+                                        >
+                                            {new Date(related.entryDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                        </Text>
+                                    </View>
+                                ))}
                             </View>
-                        )}
-                    </ScrollView>
-                </View>
-            </StandardBottomSheet >
-        </>
+                        </View>
+                    )}
+                </ScrollView>
+            </View>
+        </StandardBottomSheet>
     );
 }

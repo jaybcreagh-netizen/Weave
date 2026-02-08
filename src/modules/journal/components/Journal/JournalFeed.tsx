@@ -5,13 +5,15 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
-import { BookOpen, Edit3, Clock, CheckCircle2, Circle, Trash2, X } from 'lucide-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { BookOpen, Trash2, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { logger } from '@/shared/services/logger.service';
 import { PerfLogger } from '@/shared/utils/performance-logger';
 import { SkeletonJournalFeed } from './SkeletonJournalFeed';
-import { useJournalFeed, type JournalFeedItem } from '../../hooks/useJournalFeed';
+import { useEnrichedFeed, FeedItem, EnrichedFeedItem } from '../../hooks/useEnrichedFeed';
+import { EnrichedEntryCard } from './EnrichedEntryCard';
+import { ArcSummary } from './ArcSummary';
+import { DateSectionHeader } from './DateSectionHeader';
 
 interface JournalFeedProps {
     onEntryPress: (entry: JournalEntry | WeeklyReflection) => void;
@@ -21,12 +23,12 @@ interface JournalFeedProps {
 export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps) {
     const { colors } = useTheme();
 
-    // Use React Query for cached data
-    const { data, isLoading, isFetching, refetch, loadMore, invalidate } = useJournalFeed();
-    const entries = data?.items ?? [];
-    const hasMoreEntries = data?.hasMore ?? false;
-    const isWeeklyReflection = (entry: JournalFeedItem): entry is WeeklyReflection => 'weekStartDate' in entry;
-    const journalOffset = data?.journalOffset ?? entries.filter(entry => !isWeeklyReflection(entry)).length;
+    // Use Enriched Feed Hook
+    const { items, isLoading, refetch, loadMore, hasMore, invalidate } = useEnrichedFeed();
+    const entries = items; // Items are now EnrichedFeedItem[]
+
+    // Calculate offset for loadMore based on raw item count
+    const journalOffset = entries.filter(item => item.type === 'entry' && !('weekStartDate' in item.entry)).length;
 
     // Local UI state
     const [loadingMore, setLoadingMore] = useState(false);
@@ -37,7 +39,7 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
     PerfLogger.log('JournalFeed', `Render - cached entries: ${entries.length}, isLoading: ${isLoading}`);
 
     const handleLoadMore = async () => {
-        if (loadingMore || !hasMoreEntries) return;
+        if (loadingMore || !hasMore) return;
         setLoadingMore(true);
         try {
             await loadMore(journalOffset);
@@ -72,7 +74,7 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
     const selectAll = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const journalEntryIds = entries
-            .filter(e => !isWeeklyReflection(e))
+            .filter(e => e.type === 'entry' && !('weekStartDate' in e.entry))
             .map(e => e.id);
         setSelectedIds(new Set(journalEntryIds));
     };
@@ -80,9 +82,9 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
     const handleDeleteSelected = () => {
         if (selectedIds.size === 0) return;
 
-        const entriesToDelete = entries.filter(
-            e => selectedIds.has(e.id) && !isWeeklyReflection(e)
-        ) as JournalEntry[];
+        const entriesToDelete = entries
+            .filter((e): e is EnrichedFeedItem => e.type === 'entry' && selectedIds.has(e.id) && !('weekStartDate' in e.entry))
+            .map(e => e.entry as JournalEntry);
 
         if (entriesToDelete.length === 0) {
             Alert.alert('Cannot Delete', 'Weekly reflections cannot be deleted from here.');
@@ -125,22 +127,34 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
         );
     };
 
-    const formatDate = (date: Date) => {
-        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    };
 
-    const renderEntryCard = useCallback((entry: JournalFeedItem, index: number) => {
-        const isReflection = isWeeklyReflection(entry);
-        const date = isReflection
-            ? new Date(entry.weekStartDate)
-            : new Date((entry as JournalEntry).entryDate);
-        const isSelected = selectedIds.has(entry.id);
+    // ... (inside component)
+
+    const renderEntryCard = useCallback((item: FeedItem, index: number) => {
+        if (item.type === 'date_section') {
+            return <DateSectionHeader label={item.label} />;
+        }
+
+        if (item.type === 'arc_summary') {
+            return (
+                <ArcSummary
+                    type={item.summaryType}
+                    title={item.title}
+                    description={item.description}
+                    index={index}
+                />
+            );
+        }
+
+        const entry = item.entry;
+        const isReflection = 'weekStartDate' in entry;
+        const isSelected = selectedIds.has(item.id);
         const canSelect = !isReflection;
 
         const handlePress = () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             if (isSelectMode && canSelect) {
-                toggleSelection(entry.id);
+                toggleSelection(item.id);
             } else {
                 onEntryPress(entry);
             }
@@ -150,97 +164,23 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
             if (!isSelectMode && canSelect) {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 setIsSelectMode(true);
-                setSelectedIds(new Set([entry.id]));
+                setSelectedIds(new Set([item.id]));
             }
         };
 
-        // Only animate the first few items
-        const shouldAnimate = index < 8;
-
-        const Content = (
-            <TouchableOpacity
+        return (
+            <EnrichedEntryCard
+                entry={entry}
+                signals={item.signals}
+                threads={item.threads}
+                friendNames={item.friendNames}
+                isSelected={isSelected}
+                isSelectMode={isSelectMode}
                 onPress={handlePress}
                 onLongPress={handleLongPress}
-                className="mb-3 p-4 rounded-2xl"
-                style={{
-                    backgroundColor: colors.card,
-                    borderWidth: isSelected ? 2 : 1,
-                    borderColor: isSelected ? colors.primary : colors.border,
-                }}
-                activeOpacity={0.7}
-            >
-                <View className="flex-row items-center gap-2 mb-2">
-                    {isSelectMode && (
-                        <View className="mr-1">
-                            {canSelect ? (
-                                isSelected ? (
-                                    <CheckCircle2 size={20} color={colors.primary} />
-                                ) : (
-                                    <Circle size={20} color={colors['muted-foreground']} />
-                                )
-                            ) : (
-                                <View style={{ width: 20 }} />
-                            )}
-                        </View>
-                    )}
-
-                    {isReflection ? (
-                        <Clock size={14} color={colors.primary} />
-                    ) : (
-                        <Edit3 size={14} color={colors.primary} />
-                    )}
-                    <Text
-                        className="text-xs flex-1"
-                        style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                    >
-                        {formatDate(date)}
-                    </Text>
-                    {isReflection && (
-                        <View
-                            className="px-2 py-0.5 rounded-full"
-                            style={{ backgroundColor: colors.muted }}
-                        >
-                            <Text
-                                className="text-xs"
-                                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                            >
-                                Weekly
-                            </Text>
-                        </View>
-                    )}
-                </View>
-
-                <Text
-                    className="text-base mb-1"
-                    style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
-                >
-                    {isReflection ? 'Weekly Reflection' : (entry as JournalEntry).title || 'Journal Entry'}
-                </Text>
-
-                <Text
-                    className="text-sm"
-                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                    numberOfLines={2}
-                >
-                    {isReflection
-                        ? (entry as WeeklyReflection).gratitudeText
-                        : (entry as JournalEntry).content}
-                </Text>
-            </TouchableOpacity>
+                index={index}
+            />
         );
-
-        if (shouldAnimate) {
-            return (
-                <Animated.View
-                    key={entry.id}
-                    entering={FadeInDown.delay(index * 30).duration(300)}
-                >
-                    {Content}
-                </Animated.View>
-            );
-        }
-
-        return <View key={entry.id}>{Content}</View>;
     }, [isSelectMode, selectedIds, colors, onEntryPress]);
 
     // Show skeleton only on initial load with no cached data
@@ -268,7 +208,7 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
         );
     }
 
-    const selectableCount = entries.filter(e => !isWeeklyReflection(e)).length;
+    const selectableCount = entries.filter(e => e.type === 'entry' && !('weekStartDate' in e.entry)).length;
 
     return (
         <View className="flex-1">
@@ -359,11 +299,12 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
                 renderItem={({ item, index }) => renderEntryCard(item, index)}
                 contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
                 showsVerticalScrollIndicator={false}
+                estimatedItemSize={150}
                 refreshControl={
-                    <RefreshControl refreshing={isFetching} onRefresh={handleRefresh} tintColor={colors.primary} />
+                    <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={colors.primary} />
                 }
                 ListFooterComponent={
-                    hasMoreEntries ? (
+                    hasMore ? (
                         <View className="py-4">
                             <TouchableOpacity
                                 onPress={handleLoadMore}

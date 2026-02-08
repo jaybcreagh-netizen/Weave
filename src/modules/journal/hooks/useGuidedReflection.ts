@@ -14,9 +14,9 @@ import JournalEntryFriend from '@/db/models/JournalEntryFriend'
 import Interaction from '@/db/models/Interaction'
 import { startOfDay, format } from 'date-fns'
 import { Q } from '@nozbe/watermelondb'
-import { extractThemesArray } from '@/modules/reflection/utils/text-analysis'
+import { extractThemesArray } from '@/modules/reflection'
 import type { StructuredReflection, OracleReflectionMetadata } from '@/shared/types/common'
-import { journalIntelligenceService } from '@/modules/journal/services/journal-intelligence.service'
+import { journalIntelligenceService } from '../services/journal-intelligence.service'
 
 export type GuidedReflectionState =
     | { status: 'idle' }
@@ -34,7 +34,7 @@ export interface UseGuidedReflectionReturn {
     forceComposeEarly: () => Promise<void>  // "That's enough" button
     goDeeper: () => Promise<void>           // "Go Deeper" button
     editDraft: (newContent: string) => void
-    confirmAndSave: () => Promise<ComposedEntry>
+    confirmAndSave: () => Promise<{ composed: ComposedEntry, entryId: string }>
     escapeToFreeform: () => void
     reset: () => void
 }
@@ -196,7 +196,7 @@ export function useGuidedReflection(): UseGuidedReflectionReturn {
         })
     }, [state])
 
-    const confirmAndSave = useCallback(async (): Promise<ComposedEntry> => {
+    const confirmAndSave = useCallback(async (): Promise<{ composed: ComposedEntry, entryId: string }> => {
         if (state.status !== 'draft_ready') {
             throw new Error('Not ready to save')
         }
@@ -236,7 +236,7 @@ export function useGuidedReflection(): UseGuidedReflectionReturn {
                     })
 
                     setState({ status: 'complete', result })
-                    return result
+                    return { composed: result, entryId: existingEntries[0].id }
                 }
             }
 
@@ -373,7 +373,7 @@ export function useGuidedReflection(): UseGuidedReflectionReturn {
             result
         })
 
-        return result
+        return { composed: result, entryId: targetId! }
     }, [state])
 
     const escapeToFreeform = useCallback(() => {

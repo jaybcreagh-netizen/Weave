@@ -6,7 +6,7 @@ import FriendMemory, { FriendMemoryType } from '@/db/models/FriendMemory'
 import FriendMemoryCandidate, { FriendMemoryCandidateSource } from '@/db/models/FriendMemoryCandidate'
 import { SignalExtractionResult } from './signal-extractor'
 import { ExtractedThread } from './thread-extractor'
-import { SmartAction } from '@/modules/oracle/services/types'
+import { SmartAction } from '@/modules/oracle'
 import { logger } from '@/shared/services/logger.service'
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service'
 

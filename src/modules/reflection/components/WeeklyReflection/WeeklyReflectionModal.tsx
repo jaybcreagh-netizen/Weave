@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, Keyboard } from 'react-native';
+import { View, TouchableOpacity, Keyboard, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WeaveLoading } from '@/shared/components/WeaveLoading';
 import { ChevronLeft } from 'lucide-react-native';
@@ -143,6 +143,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       setCurrentStep('prompt');
       setReflectionData({ text: '', chipIds: [] });
       setSelectedEvents([]);
+      setIsSaving(false);
     }
   }, [isOpen]);
 
@@ -243,11 +244,15 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   // SAVE & CLOSE
   // ============================================================================
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const saveAndClose = async (events?: ScannedEvent[]) => {
     if (!summary || !prompt) return;
 
+    Keyboard.dismiss();
+    setIsSaving(true);
+
     try {
-      Keyboard.dismiss();
       const eventsToLog = events || selectedEvents;
 
       // Batch log selected calendar events if any
@@ -287,17 +292,23 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Show celebratory toast
       const { useUIStore } = await import('@/shared/stores/uiStore');
-      useUIStore.getState().showToast('Weekly reflection complete! ✨', '');
+      useUIStore.getState().showToast('Weekly reflection saved', '');
 
       onClose();
 
     } catch (error) {
       logger.error('WeeklyReflection', 'Error saving reflection:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      // Still close even if save fails
-      onClose();
+      setIsSaving(false);
+      Alert.alert(
+        'Couldn\'t save',
+        'Your reflection couldn\'t be saved. Would you like to try again?',
+        [
+          { text: 'Discard', style: 'destructive', onPress: onClose },
+          { text: 'Retry', onPress: () => saveAndClose(events) },
+        ],
+      );
     }
   };
 
@@ -390,9 +401,10 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
               <View className="flex-1">
                 <ReflectionPromptStep
                   prompt={prompt}
-                  promptEngineInput={buildPromptEngineInput(summary)} // Pass input for context
-                  insights={activeInsights} // Pass insights
+                  promptEngineInput={buildPromptEngineInput(summary)}
+                  insights={activeInsights}
                   observations={observations}
+                  narrative={weeklyNarrative}
                   onNext={handlePromptNext}
                 />
               </View>

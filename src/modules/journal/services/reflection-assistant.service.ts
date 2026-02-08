@@ -10,13 +10,19 @@ export interface ReflectionAssistantOptions {
     signal?: AbortSignal;
 }
 
+export interface WeekContext {
+    observations?: string[];
+    narrative?: string;
+}
+
 export const ReflectionAssistant = {
     /**
-     * Generate a draft reflection based on the week's stats.
+     * Generate a draft reflection based on the week's stats and Oracle context.
      */
     async generateDraft(
         input: PromptEngineInput,
         promptQuestion: string,
+        weekContext: WeekContext = {},
         options: ReflectionAssistantOptions = {}
     ): Promise<string> {
         if (!llmService.isAvailable()) {
@@ -28,18 +34,19 @@ export const ReflectionAssistant = {
         try {
             const promptDef = getPrompt(PROMPT_ID);
             if (!promptDef) {
-                // Fallback if prompt not flagged in registry yet
-                // In production this should be in registry
                 return this.generateFallbackDraft(input);
             }
 
-            // Format input for the prompt
             const context = {
                 totalWeaves: input.totalWeaves,
                 friendsContacted: input.friendsContacted,
                 topFriend: input.topFriend ? `${input.topFriend.name} (${input.topFriend.weaveCount} times)` : 'None',
                 reconnected: input.reconnectedFriend ? input.reconnectedFriend.name : 'None',
                 promptQuestion: promptQuestion,
+                observations: weekContext.observations?.length
+                    ? weekContext.observations.join('\n- ')
+                    : '',
+                narrative: weekContext.narrative || '',
             };
 
             const userPrompt = interpolatePrompt(promptDef.userPromptTemplate, context);
@@ -57,7 +64,7 @@ export const ReflectionAssistant = {
                 }
             );
 
-            return response.text.trim().replace(/^["']|["']$/g, ''); // Remove quotes if any
+            return response.text.trim().replace(/^["']|["']$/g, '');
         } catch (error) {
             logger.error('ReflectionAssistant', 'Error generating draft:', error);
             throw error;

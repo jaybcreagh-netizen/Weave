@@ -1,15 +1,12 @@
 /**
  * JournalWidget
- * 
+ *
  * Dynamic dashboard widget that shows contextual journal prompts.
- * Integrates with the journal module's context engine and prompts.
- * 
+ *
  * States (priority order):
  * 1. Weekly Reflection Ready - Sunday/Monday if not yet completed
- * 2. Post-Weave Prompt - Meaningful weave logged in last 48h
- * 3. Memory Moment - Anniversary/throwback surfaced
- * 4. Journaling Nudge - 3+ days since last journal entry
- * 5. Default - General journaling prompt
+ * 2. Journaling Nudge - 3+ days since last journal entry
+ * 3. Default - General journaling prompt
  */
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
@@ -33,7 +30,6 @@ import { differenceInDays } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useAppSleeping } from '@/shared/hooks/useAppState';
 import { UIEventBus } from '@/shared/services/ui-event-bus';
-import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import * as Sentry from '@sentry/react-native';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { database } from '@/db';
@@ -44,19 +40,7 @@ import WeeklyReflection from '@/db/models/WeeklyReflection';
 import Interaction from '@/db/models/Interaction';
 import { SPRINGS } from '@/shared/constants/animation';
 import { WidgetHeader } from '@/shared/ui/WidgetHeader';
-// FIX: Direct imports to avoid circular dependencies in barrel files
-import {
-    getRecentMeaningfulWeaves,
-    getMemories,
-    type Memory,
-    type MeaningfulWeave
-} from '@/modules/journal/services/journal-context-engine';
-import { generateJournalPrompts, type JournalPrompt } from '@/modules/journal/services/journal-prompts';
-// Static import to avoid dynamic import issues in production builds
 import { hasCompletedReflectionForCurrentWeek } from '@/modules/reflection/services/weekly-reflection.service';
-// Insight integration
-import { insightOrchestratorService } from '@/modules/intelligence';
-import type RelationshipInsight from '@/db/models/RelationshipInsight';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'journal',
@@ -73,10 +57,8 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
 type WidgetState =
     | { type: 'weekly-reflection' }
     | { type: 'weekly-reflection-completed' }
-    | { type: 'post-weave'; weave: MeaningfulWeave; prompt: JournalPrompt }
-    | { type: 'memory'; memory: Memory }
     | { type: 'nudge'; daysSinceLastEntry: number }
-    | { type: 'default'; prompt: JournalPrompt };
+    | { type: 'default'; prompt: string };
 
 interface StatItem {
     icon: LucideIcon;
@@ -255,32 +237,19 @@ export function JournalWidget() {
     const [isWidgetStateLoading, setIsWidgetStateLoading] = useState(true);
     const [statValues, setStatValues] = useState<number[]>([]);
     const [statIndex, setStatIndex] = useState(0);
-    const [activeInsights, setActiveInsights] = useState<RelationshipInsight[]>([]);
-    const [selectedInsight, setSelectedInsight] = useState<RelationshipInsight | null>(null);
 
-    // Get the current stat config
-    // Default to first stat if empty
     const currentStat = STATS[statIndex % STATS.length];
     const currentStatValue = statValues.length > 0 ? statValues[statIndex % statValues.length] : null;
     const StatIcon = currentStat.icon;
 
-    // ... (getRandomGeneralPrompt and determineState remain the same) ...
     const getRandomGeneralPrompt = useCallback((): WidgetState => {
         const randomPrompt = GENERAL_PROMPTS[Math.floor(Math.random() * GENERAL_PROMPTS.length)];
-        return {
-            type: 'default',
-            prompt: {
-                id: 'general',
-                question: randomPrompt,
-                context: 'General prompt',
-                type: 'general',
-            }
-        };
+        return { type: 'default', prompt: randomPrompt };
     }, []);
 
     // Determine widget state based on priority
     const determineState = useCallback(async (): Promise<WidgetState> => {
-        // 1. Check Weekly Reflection (Sunday or Monday, not yet completed for target week)
+        // 1. Check Weekly Reflection (Sunday or Monday, not yet completed)
         const today = new Date();
         const dayOfWeek = today.getDay();
         const isSundayOrMonday = dayOfWeek === 0 || dayOfWeek === 1;
@@ -296,35 +265,7 @@ export function JournalWidget() {
             }
         }
 
-        // 2. Check for meaningful weave in last 48h
-        try {
-            if (typeof getRecentMeaningfulWeaves === 'function') {
-                const meaningfulWeaves = await getRecentMeaningfulWeaves(1, 48);
-                if (meaningfulWeaves && meaningfulWeaves.length > 0) {
-                    const weave = meaningfulWeaves[0];
-                    const prompts = generateJournalPrompts({ type: 'weave', weave });
-                    if (prompts && prompts.length > 0) {
-                        return { type: 'post-weave', weave, prompt: prompts[0] };
-                    }
-                }
-            }
-        } catch (error) {
-            console.warn('[JournalWidget] Error fetching meaningful weaves:', error);
-        }
-
-        // 3. Check for memories
-        try {
-            if (typeof getMemories === 'function') {
-                const memories = await getMemories(1);
-                if (memories && memories.length > 0) {
-                    return { type: 'memory', memory: memories[0] };
-                }
-            }
-        } catch (error) {
-            console.warn('[JournalWidget] Error fetching memories:', error);
-        }
-
-        // 4. Check days since last journal entry (nudge if 3+ days)
+        // 2. Check days since last journal entry (nudge if 3+ days)
         try {
             const lastEntry = await database
                 .get<JournalEntry>('journal_entries')
@@ -337,14 +278,13 @@ export function JournalWidget() {
                     return { type: 'nudge', daysSinceLastEntry: daysSince };
                 }
             } else {
-                // No entries at all - nudge to start
                 return { type: 'nudge', daysSinceLastEntry: -1 };
             }
         } catch (error) {
             console.warn('[JournalWidget] Error checking last entry:', error);
         }
 
-        // 5. Default - general prompt
+        // 3. Default - general prompt
         return getRandomGeneralPrompt();
     }, [getRandomGeneralPrompt]);
 
@@ -436,24 +376,7 @@ export function JournalWidget() {
         return () => {
             mountedRef.current = false;
         };
-    }, [determineState]); // Removed isFocused - it's not used as a gate and causes race conditions
-
-    // Keep insight state live so viewed insights clear immediately across surfaces
-    useEffect(() => {
-        const subscription = database.get<RelationshipInsight>('relationship_insights')
-            .query(
-                Q.where('status', 'active'),
-                Q.sortBy('generated_at', Q.desc),
-                Q.take(8)
-            )
-            .observe()
-            .subscribe((insights) => {
-                const now = Date.now();
-                setActiveInsights(insights.filter((insight) => insight.expiresAt > now).slice(0, 3));
-            });
-
-        return () => subscription.unsubscribe();
-    }, []);
+    }, [determineState]);
 
     // Cycle stats every 5 seconds (only when visible)
     useEffect(() => {
@@ -481,17 +404,13 @@ export function JournalWidget() {
                 return 'Your weekly reflection is ready';
             case 'weekly-reflection-completed':
                 return 'Weekly reflection completed';
-            case 'post-weave':
-                return widgetState.prompt.question;
-            case 'memory':
-                return widgetState.memory.title;
             case 'nudge':
                 if (widgetState.daysSinceLastEntry === -1) {
                     return 'Start capturing your friendship journey';
                 }
                 return `It's been ${widgetState.daysSinceLastEntry} days since your last entry`;
             case 'default':
-                return widgetState.prompt.question;
+                return widgetState.prompt;
         }
     };
 
@@ -504,10 +423,6 @@ export function JournalWidget() {
                 return 'Tap to reflect on this week\'s connections';
             case 'weekly-reflection-completed':
                 return "You're all caught up for the week!";
-            case 'post-weave':
-                return widgetState.prompt.context;
-            case 'memory':
-                return widgetState.memory.description;
             case 'nudge':
                 return 'Tap to write';
             case 'default':
@@ -518,15 +433,7 @@ export function JournalWidget() {
     const promptText = getPromptText();
     const subtext = getSubtext();
     const isReflectionState = widgetState?.type === 'weekly-reflection' || widgetState?.type === 'weekly-reflection-completed';
-    const activeInsight = activeInsights.length > 0 ? activeInsights[0] : null;
-    const hasSecondaryInsight = !!activeInsight && !isReflectionState;
-    const promptLines = isReflectionState ? 2 : hasSecondaryInsight ? 2 : 3;
-
-    const handleInsightPress = useCallback((insight: RelationshipInsight) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        insightOrchestratorService.markInsightViewed(insight.id).catch(console.error);
-        setSelectedInsight(insight);
-    }, []);
+    const promptLines = isReflectionState ? 2 : 3;
 
     return (
         <>
@@ -565,7 +472,7 @@ export function JournalWidget() {
                                 </Text>
 
                                 {/* Subtext (if any) */}
-                                {subtext && !isReflectionState && !hasSecondaryInsight && (
+                                {subtext && !isReflectionState && (
                                     <Text
                                         className="mt-1"
                                         style={{
@@ -701,139 +608,8 @@ export function JournalWidget() {
                         )}
                     </View>
 
-                    {/* Active Insight - subtle treatment */}
-                    {activeInsight && !isReflectionState && (
-                        <View className="pt-3 mt-3 border-t" style={{ borderTopColor: tokens.borderSubtle }}>
-                            <TouchableOpacity
-                                activeOpacity={0.8}
-                                className="rounded-xl px-3 py-2"
-                                style={{ backgroundColor: tokens.backgroundMuted }}
-                                onPress={() => handleInsightPress(activeInsight)}
-                            >
-                                <View className="flex-row items-center justify-between mb-1">
-                                    <View className="flex-row items-center gap-2">
-                                        <Sparkles size={13} color={tokens.primary} />
-                                        <Text
-                                            style={{
-                                                color: tokens.primary,
-                                                fontFamily: typography.fonts.sansMedium,
-                                                fontSize: typography.scale.caption.fontSize,
-                                                letterSpacing: 0.3,
-                                                textTransform: 'uppercase',
-                                            }}
-                                        >
-                                            Oracle insight
-                                        </Text>
-                                    </View>
-                                    <Text
-                                        style={{
-                                            color: tokens.foregroundMuted,
-                                            fontFamily: typography.fonts.sans,
-                                            fontSize: typography.scale.caption.fontSize,
-                                        }}
-                                    >
-                                        Open
-                                    </Text>
-                                </View>
-                                <Text
-                                    numberOfLines={2}
-                                    style={{
-                                        color: tokens.foreground,
-                                        fontFamily: typography.fonts.sans,
-                                        fontSize: typography.scale.bodySmall.fontSize,
-                                        lineHeight: typography.scale.bodySmall.lineHeight,
-                                    }}
-                                >
-                                    {activeInsight.message}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
                 </View>
             </HomeWidgetBase>
-
-            <StandardBottomSheet
-                visible={!!selectedInsight}
-                onClose={() => setSelectedInsight(null)}
-                title="Oracle Insight"
-                height="form"
-                showCloseButton
-            >
-                {selectedInsight ? (
-                    <View className="pt-1">
-                        <Text
-                            style={{
-                                color: tokens.foreground,
-                                fontFamily: typography.fonts.serif,
-                                fontSize: typography.scale.body.fontSize,
-                                lineHeight: typography.scale.body.lineHeight,
-                            }}
-                        >
-                            {selectedInsight.message}
-                        </Text>
-
-                        {selectedInsight.friendName && (
-                            <Text
-                                className="mt-3"
-                                style={{
-                                    color: tokens.foregroundMuted,
-                                    fontFamily: typography.fonts.sans,
-                                    fontSize: typography.scale.caption.fontSize,
-                                }}
-                            >
-                                About {selectedInsight.friendName}
-                            </Text>
-                        )}
-
-                        <View className="mt-5 flex-row gap-3">
-                            {selectedInsight.friendId && (
-                                <TouchableOpacity
-                                    className="flex-1 px-4 py-3 rounded-full border"
-                                    style={{ borderColor: tokens.border }}
-                                    onPress={() => {
-                                        const friendId = selectedInsight.friendId;
-                                        setSelectedInsight(null);
-                                        if (friendId) {
-                                            router.push({
-                                                pathname: '/friend-profile',
-                                                params: { friendId },
-                                            });
-                                        }
-                                    }}
-                                >
-                                    <Text
-                                        className="text-center"
-                                        style={{
-                                            color: tokens.foreground,
-                                            fontFamily: typography.fonts.sansSemiBold,
-                                        }}
-                                    >
-                                        View Friend
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-                            <TouchableOpacity
-                                className="flex-1 px-4 py-3 rounded-full"
-                                style={{ backgroundColor: tokens.primary }}
-                                onPress={() => {
-                                    setSelectedInsight(null);
-                                    router.push('/journal');
-                                }}
-                            >
-                                <Text
-                                    className="text-center"
-                                    style={{
-                                        color: tokens.primaryForeground || '#FFFFFF',
-                                        fontFamily: typography.fonts.sansSemiBold,
-                                    }}
-                                >
-                                    Journal About It
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                ) : null}
-            </StandardBottomSheet>
         </>
     );
 }

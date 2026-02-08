@@ -390,7 +390,7 @@ export function generateJournalPrompts(context: PromptContext): JournalPrompt[] 
 /**
  * Generate prompts for a specific weave.
  */
-function generateWeavePrompts(weave: MeaningfulWeave): JournalPrompt[] {
+export function generateWeavePrompts(weave: MeaningfulWeave): JournalPrompt[] {
   const sorted = [...WEAVE_PROMPTS].sort((a, b) => b.priority - a.priority);
   const prompts: JournalPrompt[] = [];
 

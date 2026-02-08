@@ -32,13 +32,15 @@ import * as Haptics from 'expo-haptics';
 import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, isToday, isYesterday, startOfDay } from 'date-fns';
-import { KeyboardScrollView } from '@/shared/ui';
+;
 import { BufferedTextInput } from '@/shared/ui/BufferedTextInput';
+import { ReflectionContext } from '@/modules/oracle';
 import { FriendSelector } from '@/modules/relationships';
 import { GuidedReflectionSheet } from './GuidedReflection/GuidedReflectionSheet';
-import { OracleSuggestion, ReflectionContext } from '@/modules/oracle';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
-import { journalIntelligenceService } from '@/modules/journal/services/journal-intelligence.service';
+import { journalIntelligenceService, ProcessingResult } from '../services/journal-intelligence.service';
+import { InsightReceipt } from './InsightReceipt';
+import { InsightReceiptExpanded } from './InsightReceiptExpanded';
 
 // ============================================================================
 // TYPES
@@ -79,6 +81,11 @@ export function QuickCaptureSheet({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGuidedReflection, setShowGuidedReflection] = useState(false);
 
+  // Receipt State
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showExpandedReceipt, setShowExpandedReceipt] = useState(false);
 
   // Load friends on mount
   useEffect(() => {
@@ -104,14 +111,14 @@ export function QuickCaptureSheet({
 
   // Focus input when sheet opens
   useEffect(() => {
-    if (visible) {
+    if (visible && !showReceipt) {
       // Small delay to allow sheet animation to complete
       const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [visible]);
+  }, [visible, showReceipt]);
 
   const loadFriends = async () => {
     try {
@@ -137,7 +144,13 @@ export function QuickCaptureSheet({
     if (!text.trim()) return;
 
     setSaving(true);
+    Keyboard.dismiss();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Show receipt immediately in loading state
+    setShowReceipt(true);
+    setIsProcessing(true);
+    setProcessingResult(null);
 
     try {
       const savedEntry = await database.write(async () => {
@@ -161,28 +174,51 @@ export function QuickCaptureSheet({
         return newEntry;
       });
 
-      journalIntelligenceService.processEntry(savedEntry).catch(error => {
-        console.error('[QuickCapture] Failed to process journal intelligence:', error);
-      });
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
       trackEvent(AnalyticsEvents.JOURNAL_ENTRY_CREATED, {
         source: 'quick_capture',
         has_friends: selectedFriends.length > 0,
         content_length: text.trim().length
       });
 
-      // Reset and close
-      setText('');
-      setSelectedFriends([]);
-      onClose();
+      // Await processing for the receipt
+      const result = await journalIntelligenceService.processEntry(savedEntry);
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      if (result) {
+        setProcessingResult(result);
+        setIsProcessing(false);
+        // Auto-dismiss logic handled by effects or user interaction, 
+        // but simple timer here if no actions generated?
+        if (result.actions.length === 0) {
+          setTimeout(() => {
+            handleDismissReceipt();
+          }, 2500);
+        }
+      } else {
+        // Fallback if no result (silent failure or bail out)
+        handleDismissReceipt();
+      }
+
     } catch (error) {
-      console.error('[QuickCapture] Error saving:', error);
+      console.error('[QuickCapture] Error saving/processing:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      handleDismissReceipt(); // Close on error
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDismissReceipt = () => {
+    setShowReceipt(false);
+    setShowExpandedReceipt(false);
+    setIsProcessing(false);
+    setProcessingResult(null);
+
+    // Clear and close
+    setText('');
+    setSelectedFriends([]);
+    onClose();
   };
 
   const handleExpandToFull = () => {
@@ -198,6 +234,12 @@ export function QuickCaptureSheet({
   }, []);
 
   const handleClose = () => {
+    // If showing receipt, close it first (which closes sheet)
+    if (showReceipt) {
+      handleDismissReceipt();
+      return;
+    }
+
     // Check for unsaved changes
     if (text.trim()) {
       Alert.alert(
@@ -258,228 +300,241 @@ export function QuickCaptureSheet({
               className="text-lg"
               style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
             >
-              Quick Note
+              {showReceipt ? 'Sent to Weave' : 'Quick Note'}
             </Text>
 
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={!hasContent || saving}
-              className="px-3 py-1 rounded-full"
-            >
-              <Text
-                style={{
-                  color: hasContent ? colors.primary : colors.muted,
-                  fontFamily: 'Inter_600SemiBold',
-                  fontSize: 16
-                }}
+            {!showReceipt && (
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={!hasContent || saving}
+                className="px-3 py-1 rounded-full"
               >
-                {saving ? '...' : 'Save'}
-              </Text>
-            </TouchableOpacity>
-
+                <Text
+                  style={{
+                    color: hasContent ? colors.primary : colors.muted,
+                    fontFamily: 'Inter_600SemiBold',
+                    fontSize: 16
+                  }}
+                >
+                  {saving ? '...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {showReceipt && <View style={{ width: 40 }} />}
           </View>
 
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
-            keyboardVerticalOffset={0}
-          >
-            <ScrollView
-              className="flex-1 px-5 py-4"
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="interactive"
-              contentContainerStyle={{ paddingBottom: 40 }}
+          {showReceipt ? (
+            <View className="flex-1 px-5 py-6 justify-center">
+              <InsightReceipt
+                loading={isProcessing}
+                result={processingResult === void 0 ? null : processingResult}
+                onDismiss={handleDismissReceipt}
+                onExpand={() => setShowExpandedReceipt(true)}
+              />
+            </View>
+          ) : (
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={0}
             >
-              {/* Date Selector */}
-              <View className="mb-4">
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setShowDatePicker(true);
-                  }}
-                  className="flex-row items-center gap-2 px-3 py-2 rounded-full self-start"
-                  style={{
-                    backgroundColor: colors.muted,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Calendar size={14} color={colors['muted-foreground']} />
-                  <Text
-                    className="text-sm"
-                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+              <ScrollView
+                className="flex-1 px-5 py-4"
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+                contentContainerStyle={{ paddingBottom: 40 }}
+              >
+                {/* Date Selector */}
+                <View className="mb-4">
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setShowDatePicker(true);
+                    }}
+                    className="flex-row items-center gap-2 px-3 py-2 rounded-full self-start"
+                    style={{
+                      backgroundColor: colors.muted,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    }}
                   >
-                    {isToday(entryDate)
-                      ? 'Today'
-                      : isYesterday(entryDate)
-                        ? 'Yesterday'
-                        : format(entryDate, 'MMM d')}
-                  </Text>
-                </TouchableOpacity>
+                    <Calendar size={14} color={colors['muted-foreground']} />
+                    <Text
+                      className="text-sm"
+                      style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                    >
+                      {isToday(entryDate)
+                        ? 'Today'
+                        : isYesterday(entryDate)
+                          ? 'Yesterday'
+                          : format(entryDate, 'MMM d')}
+                    </Text>
+                  </TouchableOpacity>
 
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={entryDate}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    maximumDate={new Date()}
-                    onChange={(event, selectedDate) => {
-                      setShowDatePicker(Platform.OS === 'ios');
-                      if (selectedDate) {
-                        setEntryDate(selectedDate);
-                      }
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={entryDate}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      maximumDate={new Date()}
+                      onChange={(event, selectedDate) => {
+                        setShowDatePicker(Platform.OS === 'ios');
+                        if (selectedDate) {
+                          setEntryDate(selectedDate);
+                        }
+                      }}
+                    />
+                  )}
+                </View>
+
+                {/* Prompt Label - Outside the box */}
+                <Text
+                  className="text-sm font-medium mb-3 px-1"
+                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                >
+                  What happened?
+                </Text>
+
+                {/* Text Input - The "Grey Box" */}
+                <View
+                  className="rounded-2xl p-4 mb-4"
+                  style={{ backgroundColor: colors.muted }}
+                >
+                  <BufferedTextInput
+                    ref={inputRef}
+                    value={text}
+                    onChangeText={setText}
+                    placeholder="Write your thoughts..."
+                    placeholderTextColor={colors['muted-foreground'] + '80'}
+                    multiline
+                    numberOfLines={6}
+                    textAlignVertical="top"
+                    // Remove internal padding/styling since container handles it
+                    containerClassName="w-full"
+                    inputClassName="p-0 text-base leading-6"
+                    style={{
+                      backgroundColor: 'transparent', // Input itself is transparent
+                      color: colors.foreground,
+                      fontFamily: 'Inter_400Regular',
+                      minHeight: 120, // height controlled here
+                      borderWidth: 0, // no border on internal input
                     }}
                   />
-                )}
-              </View>
+                </View>
 
-              {/* Prompt Label - Outside the box */}
-              <Text
-                className="text-sm font-medium mb-3 px-1"
-                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-              >
-                What happened?
-              </Text>
+                {/* Friend Selector - Distinct separate pill */}
+                <View className="flex-row flex-wrap gap-2 mb-4">
+                  {selectedFriends.map((friend) => (
+                    <TouchableOpacity
+                      key={friend.id}
+                      onPress={() => removeFriend(friend.id)}
+                      className="flex-row items-center gap-2 px-4 py-2.5 rounded-full"
+                      style={{
+                        backgroundColor: colors.primary + '15',
+                        borderWidth: 1,
+                        borderColor: colors.primary,
+                      }}
+                    >
+                      <User size={15} color={colors.primary} />
+                      <Text
+                        className="text-sm font-medium"
+                        style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                      >
+                        {friend.name}
+                      </Text>
+                      <X size={12} color={colors.primary} />
+                    </TouchableOpacity>
+                  ))}
 
-              {/* Text Input - The "Grey Box" */}
-              <View
-                className="rounded-2xl p-4 mb-4"
-                style={{ backgroundColor: colors.muted }}
-              >
-                <BufferedTextInput
-                  ref={inputRef}
-                  value={text}
-                  onChangeText={setText}
-                  placeholder="Write your thoughts..."
-                  placeholderTextColor={colors['muted-foreground'] + '80'}
-                  multiline
-                  numberOfLines={6}
-                  textAlignVertical="top"
-                  // Remove internal padding/styling since container handles it
-                  containerClassName="w-full"
-                  inputClassName="p-0 text-base leading-6"
-                  style={{
-                    backgroundColor: 'transparent', // Input itself is transparent
-                    color: colors.foreground,
-                    fontFamily: 'Inter_400Regular',
-                    minHeight: 120, // height controlled here
-                    borderWidth: 0, // no border on internal input
-                  }}
-                />
-              </View>
-
-              {/* Friend Selector - Distinct separate pill */}
-              <View className="flex-row flex-wrap gap-2 mb-4">
-                {selectedFriends.map((friend) => (
                   <TouchableOpacity
-                    key={friend.id}
-                    onPress={() => removeFriend(friend.id)}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setShowFriendPicker(true);
+                    }}
                     className="flex-row items-center gap-2 px-4 py-2.5 rounded-full"
                     style={{
-                      backgroundColor: colors.primary + '15',
+                      backgroundColor: colors.muted,
                       borderWidth: 1,
-                      borderColor: colors.primary,
+                      borderColor: colors.border,
                     }}
                   >
-                    <User size={15} color={colors.primary} />
+                    <User size={15} color={colors['muted-foreground']} />
                     <Text
                       className="text-sm font-medium"
-                      style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                      style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
                     >
-                      {friend.name}
+                      {selectedFriends.length > 0 ? 'Add friend' : 'Tag friend'}
                     </Text>
-                    <X size={12} color={colors.primary} />
                   </TouchableOpacity>
-                ))}
+                </View>
 
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setShowFriendPicker(true);
-                  }}
-                  className="flex-row items-center gap-2 px-4 py-2.5 rounded-full"
-                  style={{
-                    backgroundColor: colors.muted,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <User size={15} color={colors['muted-foreground']} />
-                  <Text
-                    className="text-sm font-medium"
-                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-                  >
-                    {selectedFriends.length > 0 ? 'Add friend' : 'Tag friend'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Primary Actions */}
-              <View className="gap-3 mt-4">
-                {/* Option 1: Quick Save (Freeform) */}
-                <TouchableOpacity
-                  onPress={handleSave}
-                  disabled={!hasContent || saving}
-                  className="flex-row items-center justify-center gap-2 py-4 rounded-2xl"
-                  style={{
-                    backgroundColor: hasContent ? colors.muted : colors.muted + '80',
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    opacity: hasContent ? 1 : 0.6
-                  }}
-                >
-                  <Text
-                    className="text-base"
+                {/* Primary Actions */}
+                <View className="gap-3 mt-4">
+                  {/* Option 1: Quick Save (Freeform) */}
+                  <TouchableOpacity
+                    onPress={handleSave}
+                    disabled={!hasContent || saving}
+                    className="flex-row items-center justify-center gap-2 py-4 rounded-2xl"
                     style={{
-                      color: hasContent ? colors.foreground : colors['muted-foreground'],
-                      fontFamily: 'Inter_600SemiBold'
+                      backgroundColor: hasContent ? colors.muted : colors.muted + '80',
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      opacity: hasContent ? 1 : 0.6
                     }}
                   >
-                    {saving ? 'Saving...' : 'Save Quick Note'}
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      className="text-base"
+                      style={{
+                        color: hasContent ? colors.foreground : colors['muted-foreground'],
+                        fontFamily: 'Inter_600SemiBold'
+                      }}
+                    >
+                      {saving ? 'Saving...' : 'Save Quick Note'}
+                    </Text>
+                  </TouchableOpacity>
 
-                {/* Option 2: Guided (Oracle) */}
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setShowGuidedReflection(true);
-                  }}
-                  disabled={!hasContent}
-                  className="flex-row items-center justify-center gap-2 py-4 rounded-2xl"
-                  style={{
-                    backgroundColor: hasContent ? colors.primary : colors.muted,
-                    opacity: hasContent ? 1 : 0.6
-                  }}
-                >
-                  <Sparkles size={18} color={hasContent ? colors['primary-foreground'] : colors['muted-foreground']} />
-                  <Text
-                    className="text-base"
+                  {/* Option 2: Guided (Oracle) */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setShowGuidedReflection(true);
+                    }}
+                    disabled={!hasContent}
+                    className="flex-row items-center justify-center gap-2 py-4 rounded-2xl"
                     style={{
-                      color: hasContent ? colors['primary-foreground'] : colors['muted-foreground'],
-                      fontFamily: 'Inter_600SemiBold'
+                      backgroundColor: hasContent ? colors.primary : colors.muted,
+                      opacity: hasContent ? 1 : 0.6
                     }}
                   >
-                    Help me write more
-                  </Text>
-                </TouchableOpacity>
+                    <Sparkles size={18} color={hasContent ? colors['primary-foreground'] : colors['muted-foreground']} />
+                    <Text
+                      className="text-base"
+                      style={{
+                        color: hasContent ? colors['primary-foreground'] : colors['muted-foreground'],
+                        fontFamily: 'Inter_600SemiBold'
+                      }}
+                    >
+                      Help me write more
+                    </Text>
+                  </TouchableOpacity>
 
-                {/* Secondary: Expand to full */}
-                <TouchableOpacity
-                  onPress={handleExpandToFull}
-                  className="flex-row items-center justify-center gap-1 py-2 opacity-60"
-                >
-                  <Text
-                    className="text-sm"
-                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                  {/* Secondary: Expand to full */}
+                  <TouchableOpacity
+                    onPress={handleExpandToFull}
+                    className="flex-row items-center justify-center gap-1 py-2 opacity-60"
                   >
-                    Open in full editor
-                  </Text>
-                  <ChevronRight size={14} color={colors['muted-foreground']} />
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
+                    <Text
+                      className="text-sm"
+                      style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                    >
+                      Open in full editor
+                    </Text>
+                    <ChevronRight size={14} color={colors['muted-foreground']} />
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          )}
 
           {/* Help me write sheet - NESTED INSIDE THE MAIN MODAL to avoid iOS pageSheet conflicts */}
           <GuidedReflectionSheet
@@ -503,6 +558,26 @@ export function QuickCaptureSheet({
               handleExpandToFull();
             }}
           />
+
+          {/* Expanded Receipt Modal */}
+          {processingResult && (
+            <Modal
+              visible={showExpandedReceipt}
+              animationType="slide"
+              presentationStyle="pageSheet"
+              onRequestClose={() => setShowExpandedReceipt(false)}
+            >
+              <View style={{ flex: 1, backgroundColor: colors.background }}>
+                <View className="pt-4 px-4 flex-1">
+                  <InsightReceiptExpanded
+                    result={processingResult}
+                    onClose={() => setShowExpandedReceipt(false)}
+                  />
+                </View>
+              </View>
+            </Modal>
+          )}
+
         </View>
       </Modal>
 

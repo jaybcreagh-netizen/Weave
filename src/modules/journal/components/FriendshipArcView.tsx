@@ -47,6 +47,7 @@ import { resolveImageUri } from '@/modules/relationships/services/image.service'
 import { normalizeContactImageUri } from '@/modules/relationships/utils/image.utils';
 import { archiveExpiredFriendMemories } from '@/modules/relationships/services/memory-life-event.service';
 import * as Haptics from 'expo-haptics';
+import { archetypeData } from '@/shared/constants/constants';
 
 // ============================================================================
 // TYPES
@@ -454,7 +455,7 @@ export function FriendshipArcView({
                   className="text-sm"
                   style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                 >
-                  {arc.friend.dunbarTier} · {arc.friendshipDuration}
+                  {archetypeData[arc.friend.archetype]?.name || arc.friend.archetype}
                 </Text>
               </View>
             </View>

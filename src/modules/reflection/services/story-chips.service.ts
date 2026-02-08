@@ -1264,3 +1264,17 @@ export function createCustomChip(
     userId,
   };
 }
+
+// ====================================================================
+// CHIP PROMPTS - Generative writing aids
+// ====================================================================
+export const CHIP_PROMPTS: Record<ChipType, string> = {
+  activity: "What did you actually do together?",
+  setting: "Where were you? What was the vibe of the place?",
+  people: "Who else was there? How did they affect the dynamic?",
+  dynamic: "How did the energy feel between you?",
+  topic: "What did you talk about?",
+  feeling: "What emotions came up for you?",
+  moment: "What's one moment you want to remember?",
+  surprise: "What caught you off guard?",
+};

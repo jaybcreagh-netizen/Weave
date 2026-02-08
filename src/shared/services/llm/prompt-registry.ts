@@ -142,6 +142,12 @@ DYNAMICS:
 - tensionDetected: Was there explicit friction? true/false
 - reconnectionRelevant: Was this after a gap or re-establishing contact? true/false
 
+TITLE:
+Generate a short, evocative title (3-8 words, max 50 characters) that captures the essence of the entry.
+- Prefer the friend's name + the core topic (e.g. "Coffee and Career Worries with Sarah")
+- If no friend is mentioned, use the activity or emotional theme ("A Quiet Sunday Reflection")
+- Never use generic titles like "Journal Entry" or "Reflection"
+
 CONFIDENCE SCORING:
 - 0.85-1.0: Multiple clear signals, unambiguous sentiment, detailed entry
 - 0.7-0.84: Clear primary signal, minor ambiguity
@@ -153,6 +159,7 @@ Entry: "Coffee with Sarah. She's stressed about her job search but staying posit
 
 Output:
 {
+  "title": "Supporting Sarah Through Job Stress",
   "sentiment": 1,
   "sentimentLabel": "positive",
   "coreThemes": ["support", "life_transition"],
@@ -186,6 +193,10 @@ Extract signals (JSON only):`,
     outputSchema: {
       type: 'object',
       properties: {
+        title: {
+          type: 'string',
+          description: 'Short evocative title for the entry (3-8 words, max 50 chars)',
+        },
         sentiment: {
           type: 'number',
           description: 'Sentiment score from -2 to +2',
@@ -224,7 +235,7 @@ Extract signals (JSON only):`,
           description: 'Confidence score 0-1',
         },
       },
-      required: ['sentiment', 'sentimentLabel', 'coreThemes', 'confidence'],
+      required: ['sentiment', 'sentimentLabel', 'coreThemes', 'confidence', 'title'],
     } as JSONSchema,
   },
 
@@ -1658,6 +1669,59 @@ Describe the texture of this friendship in one sentence:`,
 
     defaultOptions: {
       maxTokens: 512,
+      temperature: 0.7,
+    },
+  },
+
+  // ========================================================================
+  // WEEKLY REFLECTION DRAFT
+  // Generates a personal reflection draft using the week's stats and Oracle context
+  // ========================================================================
+  weekly_reflection_draft: {
+    id: 'weekly_reflection_draft',
+    version: '1.0.0',
+    description: 'Generate a short personal reflection draft for weekly check-in',
+
+    systemPrompt: `You help someone write a brief weekly reflection about their friendships. Write in FIRST PERSON as if you ARE the user writing in their journal.
+
+REQUIREMENTS:
+- 2-4 sentences maximum
+- Reference specific people, activities, or patterns from the data
+- Sound personal and genuine, like someone's actual journal entry
+- If observations or narrative context are provided, weave them in naturally
+- Never sound like an AI or a therapist. Sound like a thoughtful person reflecting on their week.
+- End with something forward-looking or grateful
+
+GOOD EXAMPLES:
+- "Spending that long dinner with Sarah this week reminded me how much I miss our deep talks. I've been so caught up in work that I forgot how grounding it is to just sit and listen. Want to make that a regular thing."
+- "Quiet week — only texted Marcus a couple of times. But honestly, I think I needed the space to recharge. Looking forward to the group hike on Saturday."
+
+BAD EXAMPLES:
+- "I am grateful for the 5 connections I had this week." (generic, no names)
+- "My social health score improved because I contacted 3 friends." (app-speak)
+- "I should reflect on why I haven't reached out to anyone." (self-critical, therapy-speak)
+
+OUTPUT:
+Return ONLY the reflection text. No quotes, no preamble.`,
+
+    userPromptTemplate: `WEEKLY STATS:
+- Total weaves: {{totalWeaves}}
+- Friends contacted: {{friendsContacted}}
+- Top friend: {{topFriend}}
+- Reconnected with: {{reconnected}}
+
+PROMPT QUESTION: {{promptQuestion}}
+
+{{#if observations}}ORACLE OBSERVATIONS:
+- {{observations}}
+{{/if}}
+{{#if narrative}}ORACLE NARRATIVE:
+{{narrative}}
+{{/if}}
+Write a 2-4 sentence personal reflection responding to the prompt question:`,
+
+    defaultOptions: {
+      maxTokens: 150,
       temperature: 0.7,
     },
   },

@@ -49,50 +49,80 @@ class ActionExtractionService {
     }
 
     /**
-     * Run the "Silent Audit" on a journal entry.
+     * Run the "Silent Audit" on a journal entry and return actions.
      */
-    private async analyzeEntry(entryId: string) {
+    public async extractActions(entryId: string): Promise<SmartAction[]> {
+        return this.analyzeEntry(entryId);
+    }
+
+    private async analyzeEntry(entryId: string): Promise<SmartAction[]> {
         logger.info('ActionExtractionService', 'Starting analysis', { entryId });
 
-        const entry = await database.get<JournalEntry>('journal_entries').find(entryId);
-
-        // Skip if too short
-        if (!entry.content || entry.content.length < 10) {
-            logger.info('ActionExtractionService', 'Skipping short entry');
-            return;
-        }
-
-        // Fetch friend names for context
-        const links = await database.get<JournalEntryFriend>('journal_entry_friends')
-            .query(Q.where('journal_entry_id', entry.id))
-            .fetch();
-
-        const friends = await Promise.all(
-            links.map(link => database.get<FriendModel>('friends').find(link.friendId))
-        );
-        const friendNames = friends.map(f => f.name).join(', ');
-
-        // Get Prompt
-        const promptDef = getPrompt('journal_action_detection');
-        if (!promptDef) {
-            logger.error('ActionExtractionService', 'Prompt not found: journal_action_detection');
-            return;
-        }
-
-        const userPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
-            content: entry.content,
-            friendNames: friendNames || 'None detected'
-        });
-
-        // Call LLM
-        const response = await llmService.complete({
-            system: promptDef.systemPrompt,
-            user: userPrompt
-        }, promptDef.defaultOptions);
-
         try {
+            const entry = await database.get<JournalEntry>('journal_entries').find(entryId);
+
+            // Skip if too short
+            if (!entry.content || entry.content.length < 10) {
+                logger.info('ActionExtractionService', 'Skipping short entry');
+                return [];
+            }
+
+            // Fetch friend names for context
+            const links = await database.get<JournalEntryFriend>('journal_entry_friends')
+                .query(Q.where('journal_entry_id', entry.id))
+                .fetch();
+
+            const friends = await Promise.all(
+                links.map(link => database.get<FriendModel>('friends').find(link.friendId))
+            );
+            const friendNames = friends.map(f => f.name).join(', ');
+
+            // Get Prompt
+            const promptDef = getPrompt('journal_action_detection');
+            if (!promptDef) {
+                logger.error('ActionExtractionService', 'Prompt not found: journal_action_detection');
+                return [];
+            }
+
+            const userPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+                content: entry.content,
+                friendNames: friendNames || 'None detected'
+            });
+
+            // Call LLM
+            const response = await llmService.complete({
+                system: promptDef.systemPrompt,
+                user: userPrompt
+            }, promptDef.defaultOptions);
+
             const jsonStr = this.extractJson(response.text);
-            const actions: SmartAction[] = JSON.parse(jsonStr);
+            const rawActions: SmartAction[] = JSON.parse(jsonStr);
+
+            // Resolve friend names → database IDs
+            // The LLM returns names (e.g. "Polo") since it doesn't know UUIDs
+            const nameToId = new Map<string, string>();
+            for (const f of friends) {
+                nameToId.set(f.name.toLowerCase(), f.id);
+                // Also map first name for partial matches
+                const firstName = f.name.split(' ')[0].toLowerCase();
+                if (!nameToId.has(firstName)) {
+                    nameToId.set(firstName, f.id);
+                }
+            }
+
+            const actions = rawActions.map(action => {
+                if (action.data?.friendId) {
+                    const resolved = nameToId.get(action.data.friendId.toLowerCase());
+                    if (resolved) {
+                        return { ...action, data: { ...action.data, friendId: resolved } };
+                    }
+                }
+                // Fallback: if no friendId or unresolved, use first linked friend
+                if (!action.data?.friendId && friends.length > 0) {
+                    return { ...action, data: { ...action.data, friendId: friends[0].id } };
+                }
+                return action;
+            });
 
             if (Array.isArray(actions) && actions.length > 0) {
                 // Save to DB
@@ -104,12 +134,15 @@ class ActionExtractionService {
 
                 await memoryBridgeService.ingestSmartActions(entry, friends, actions);
                 logger.info('ActionExtractionService', 'Actions saved', { count: actions.length });
+                return actions;
             } else {
                 logger.info('ActionExtractionService', 'No actions detected', { actions });
+                return [];
             }
 
         } catch (e) {
             logger.error('ActionExtractionService', 'Failed to parse LLM response', e);
+            return [];
         }
     }
 

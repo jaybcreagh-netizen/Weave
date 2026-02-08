@@ -34,6 +34,7 @@ export {
   resolveImageUri,
 } from './services/image.service';
 export * from './utils/image.utils';
+export { resolveFriendPhotoUrl } from './utils/photo-path.utils';
 export * from './services/life-event-detection';
 export * from './services/life-event.service';
 export * from './services/memory-life-event.service';

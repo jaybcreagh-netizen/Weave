@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 74, // v74: Add username to user_profile schema
+  version: 75, // v75: Add insight receipt tracking to journal_entries
   tables: [
     // ===== RELATIONSHIP INSIGHTS (Phase 3C) =====
     tableSchema({
@@ -656,6 +656,9 @@ export default appSchema({
         { name: 'server_updated_at', type: 'number', isOptional: true },
         // NEW v60: Smart Actions Cache
         { name: 'smart_actions_json', type: 'string', isOptional: true },
+        // NEW v75: Insight Receipt Tracking
+        { name: 'receipt_shown_at', type: 'number', isOptional: true }, // When receipt was shown
+        { name: 'receipt_actions_taken_json', type: 'string', isOptional: true }, // JSON array of action IDs taken (for filtering)
       ]
     }),
     tableSchema({

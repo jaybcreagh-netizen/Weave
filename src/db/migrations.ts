@@ -1632,5 +1632,19 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v74 to v75
+      // Add insight receipt tracking fields to journal_entries
+      toVersion: 75,
+      steps: [
+        addColumns({
+          table: 'journal_entries',
+          columns: [
+            { name: 'receipt_shown_at', type: 'number', isOptional: true },
+            { name: 'receipt_actions_taken_json', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

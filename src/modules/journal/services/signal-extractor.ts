@@ -26,6 +26,7 @@ export interface SignalExtractionResult {
     confidence: number // 0-1
     extractedAt: number
     extractorVersion: string
+    title?: string // LLM-generated evocative title (3-8 words)
 }
 
 /**
@@ -93,7 +94,8 @@ async function extractWithLLM(text: string): Promise<SignalExtractionResult> {
         dynamics: validateDynamics(result.dynamics),
         confidence: 0.9,
         extractedAt: Date.now(),
-        extractorVersion: `llm-${promptDef.version}`
+        extractorVersion: `llm-${promptDef.version}`,
+        title: typeof result.title === 'string' ? result.title.slice(0, 50) : undefined,
     }
 }
 
@@ -149,7 +151,8 @@ function extractWithRules(text: string): SignalExtractionResult {
         dynamics: {}, // Rules can't easily infer dynamics
         confidence: 0.5, // Lower confidence for rules
         extractedAt: Date.now(),
-        extractorVersion: 'rule-v1'
+        extractorVersion: 'rule-v1',
+        title: undefined, // Rules can't generate meaningful titles
     }
 }
 
