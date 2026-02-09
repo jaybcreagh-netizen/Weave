@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, ScrollView, Alert, InteractionManager } from 'react-native';
+import { View, TouchableOpacity, Alert, InteractionManager, ScrollView } from 'react-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Text } from '@/shared/ui/Text';
 import { Icon } from '@/shared/ui/Icon';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -344,7 +345,7 @@ export function JournalEntryDetailSheet({
                     case 'reach_out':
                         return handleReachOut;
                     default:
-                        return () => {};
+                        return () => { };
                 }
             };
 
@@ -368,9 +369,10 @@ export function JournalEntryDetailSheet({
         <StandardBottomSheet
             visible={isOpen}
             onClose={onClose}
-            height="auto"
+            height="full"
             title=""
             showCloseButton={false}
+            disableContentPanning={true}
         >
             <View className="flex-1">
                 {/* Header actions */}
@@ -401,7 +403,7 @@ export function JournalEntryDetailSheet({
                     </TouchableOpacity>
                 </View>
 
-                <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                <BottomSheetScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
                     {/* Date & friend context */}
                     <View className="px-6 pt-2">
                         <View className="flex-row items-center gap-1.5 mb-3">
@@ -607,7 +609,7 @@ export function JournalEntryDetailSheet({
                             </View>
                         </View>
                     )}
-                </ScrollView>
+                </BottomSheetScrollView>
             </View>
         </StandardBottomSheet>
     );

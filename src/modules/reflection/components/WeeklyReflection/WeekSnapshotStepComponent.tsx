@@ -7,7 +7,8 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { View, ScrollView, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Sparkles, ChevronRight, Clock } from 'lucide-react-native';
@@ -169,7 +170,7 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
 
   return (
     <>
-      <ScrollView
+      <BottomSheetScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24), flexGrow: 1 }}
@@ -363,7 +364,7 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
             </View>
           </Button>
         </Animated.View>
-      </ScrollView>
+      </BottomSheetScrollView>
 
       {/* Intention Form Modal */}
       {selectedFriend && (

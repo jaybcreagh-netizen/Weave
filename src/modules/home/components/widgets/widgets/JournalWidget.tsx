@@ -373,8 +373,16 @@ export function JournalWidget() {
         loadWidgetState();
         loadStats();
 
+        const unsubscribe = UIEventBus.subscribe((event) => {
+            if (event.type === 'WEEKLY_REFLECTION_COMPLETED') {
+                console.log('[JournalWidget] Reflection completed event received, reloading state');
+                loadWidgetState();
+            }
+        });
+
         return () => {
             mountedRef.current = false;
+            unsubscribe();
         };
     }, [determineState]);
 

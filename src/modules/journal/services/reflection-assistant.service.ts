@@ -29,7 +29,7 @@ export const ReflectionAssistant = {
             throw new Error('LLM service not available');
         }
 
-        const { timeoutMs = 10000, signal } = options;
+        const { timeoutMs = 45000, signal } = options;
 
         try {
             const promptDef = getPrompt(PROMPT_ID);
@@ -42,6 +42,8 @@ export const ReflectionAssistant = {
                 friendsContacted: input.friendsContacted,
                 topFriend: input.topFriend ? `${input.topFriend.name} (${input.topFriend.weaveCount} times)` : 'None',
                 reconnected: input.reconnectedFriend ? input.reconnectedFriend.name : 'None',
+                topActivity: input.topActivity || 'mixed activities',
+                weekStreak: input.weekStreak || 0,
                 promptQuestion: promptQuestion,
                 observations: weekContext.observations?.length
                     ? weekContext.observations.join('\n- ')
@@ -58,7 +60,7 @@ export const ReflectionAssistant = {
                 },
                 {
                     temperature: 0.7,
-                    maxTokens: 150,
+                    maxTokens: 1000,
                     timeoutMs,
                     signal,
                 }
@@ -83,7 +85,7 @@ export const ReflectionAssistant = {
             throw new Error('LLM service not available');
         }
 
-        const { timeoutMs = 10000, signal } = options;
+        const { timeoutMs = 30000, signal } = options;
         const PROMPT_ID = 'interaction_reflection_draft';
 
         try {
@@ -108,7 +110,7 @@ export const ReflectionAssistant = {
                 },
                 {
                     temperature: 0.7,
-                    maxTokens: 100,
+                    maxTokens: 250,
                     timeoutMs,
                     signal,
                 }

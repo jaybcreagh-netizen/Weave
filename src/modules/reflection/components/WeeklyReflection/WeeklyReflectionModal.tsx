@@ -1,10 +1,10 @@
 /**
  * WeeklyReflectionModal (Redesigned)
- * 
+ *
  * Sunday check-in flow: 60 seconds, writing-first, compact celebration.
- * 
+ *
  * Flow:
- * 1. ReflectionPromptStep - One contextual question, optional writing, chip detection
+ * 1. ReflectionPromptStep - Contextual question with Oracle observations, optional writing
  * 2. WeekSnapshotStep - Compact stats, insight, up to 3 friends needing attention
  * 3. CalendarEventsStep - Only if unlogged events exist (optional catch-up)
  */
@@ -25,7 +25,6 @@ import {
 import {
   ExtendedWeeklySummary,
   calculateExtendedWeeklySummary,
-  extendWeeklySummary,
 } from '../../services/weekly-summary-extended.service';
 import {
   generateReflectionPrompt,
@@ -45,11 +44,9 @@ import { ScannedEvent } from '@/modules/interactions/services/event-scanner';
 import * as Haptics from 'expo-haptics';
 import { WeeklyReflectionChannel } from '@/modules/notifications/services/channels/weekly-reflection';
 import { logger } from '@/shared/services/logger.service';
-import ProactiveInsight from '@/db/models/ProactiveInsight'; // Default import
-import { Q } from '@nozbe/watermelondb'; // Query
-import { OracleSummaryStep } from './OracleSummaryStep';
 import { oracleService } from '@/modules/oracle/services/oracle-service';
 import { reflectionSynthesizer } from '../../services/ReflectionSynthesizerService';
+import { UIEventBus } from '@/shared/services/ui-event-bus';
 
 // ============================================================================
 // TYPES
@@ -60,7 +57,7 @@ interface WeeklyReflectionModalProps {
   onClose: () => void;
 }
 
-type Step = 'prompt' | 'summary' | 'snapshot' | 'events';
+type Step = 'prompt' | 'snapshot' | 'events';
 
 interface ReflectionData {
   text: string;
@@ -130,7 +127,6 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   const [reflectionData, setReflectionData] = useState<ReflectionData>({ text: '', chipIds: [] });
   const [hasUnloggedEvents, setHasUnloggedEvents] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<ScannedEvent[]>([]);
-  const [activeInsights, setActiveInsights] = useState<ProactiveInsight[]>([]); // New state
   const [weeklyNarrative, setWeeklyNarrative] = useState<string | null>(null); // Oracle narrative
   const [observations, setObservations] = useState<string[]>([]); // Network observations
 
@@ -167,14 +163,6 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
       setHasUnloggedEvents(eventReview.events.length > 0);
 
-      // Fetch active proactive insights (unread/active)
-      // We want to surface high-priority ones (e.g. drift) as context
-      // Fetch active proactive insights (unread/active)
-      // We want to surface high-priority ones (e.g. drift) as context
-      // REMOVED: User feedback indicates this feels like "opening the nudges tab" inside reflection.
-      // Keeping reflection focused on the prompt for now.
-      setActiveInsights([]);
-
       // Fetch current season
       const season = await SocialSeasonService.getCurrentSeason();
 
@@ -210,10 +198,6 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
   const handlePromptNext = (text: string, chipIds: string[]) => {
     setReflectionData({ text, chipIds });
-    setCurrentStep('summary'); // Go to Oracle Summary first
-  };
-
-  const handleSummaryNext = () => {
     setCurrentStep('snapshot');
   };
 
@@ -295,6 +279,9 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       const { useUIStore } = await import('@/shared/stores/uiStore');
       useUIStore.getState().showToast('Weekly reflection saved', '');
 
+      // Notify listeners (like JournalWidget) that reflection is done
+      UIEventBus.emit({ type: 'WEEKLY_REFLECTION_COMPLETED' });
+
       onClose();
 
     } catch (error) {
@@ -319,10 +306,8 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   const handleBack = () => {
     Keyboard.dismiss();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (currentStep === 'summary') {
+    if (currentStep === 'snapshot') {
       setCurrentStep('prompt');
-    } else if (currentStep === 'snapshot') {
-      setCurrentStep('summary');
     } else if (currentStep === 'events') {
       setCurrentStep('snapshot');
     }
@@ -340,23 +325,23 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
   const stepTitles: Record<Step, string> = {
     prompt: 'Check-in',
-    summary: 'Oracle Insight',
     snapshot: 'Your Week',
     events: 'Calendar',
   };
 
   // Progress indicator
-  const steps: Step[] = hasUnloggedEvents ? ['prompt', 'summary', 'snapshot', 'events'] : ['prompt', 'summary', 'snapshot'];
+  const steps: Step[] = hasUnloggedEvents ? ['prompt', 'snapshot', 'events'] : ['prompt', 'snapshot'];
   const currentStepIndex = steps.indexOf(currentStep);
 
-  return (
-    <StandardBottomSheet
-      visible={isOpen}
-      onClose={handleClose}
-      height="full"
-      title={stepTitles[currentStep]}
-      keyboardBlurBehavior="none"
-    >
+  // Week summary line for the prompt step header
+  const weekSummaryLine = summary
+    ? `Your week: ${summary.totalWeaves} weave${summary.totalWeaves !== 1 ? 's' : ''} with ${summary.friendsContacted} friend${summary.friendsContacted !== 1 ? 's' : ''}`
+    : undefined;
+
+  // Render content directly inside BottomSheet (bypasses BottomSheetView wrapper)
+  // Each step manages its own BottomSheetScrollView for proper gesture handling
+  const renderContent = () => (
+    <View style={{ flex: 1 }}>
       {/* Back Button */}
       {currentStep !== 'prompt' && (
         <View className="px-5 pb-3 border-b border-border">
@@ -386,8 +371,8 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
         })}
       </View>
 
-      {/* Content */}
-      <View className="flex-1 px-5 py-2" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
+      {/* Step Content */}
+      <View style={{ flex: 1, paddingBottom: Math.max(insets.bottom, 16) }}>
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
             <WeaveLoading size={48} />
@@ -398,44 +383,29 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
         ) : summary && prompt && insight ? (
           <>
             {currentStep === 'prompt' && (
-              <View className="flex-1">
-                <ReflectionPromptStep
-                  prompt={prompt}
-                  promptEngineInput={buildPromptEngineInput(summary)}
-                  insights={activeInsights}
-                  observations={observations}
-                  narrative={weeklyNarrative}
-                  onNext={handlePromptNext}
-                />
-              </View>
-            )}
-
-            {currentStep === 'summary' && (
-              <View className="flex-1">
-                <OracleSummaryStep
-                  narrative={weeklyNarrative}
-                  onContinue={handleSummaryNext}
-                />
-              </View>
+              <ReflectionPromptStep
+                prompt={prompt}
+                promptEngineInput={buildPromptEngineInput(summary)}
+                observations={observations}
+                narrative={weeklyNarrative}
+                weekSummaryLine={weekSummaryLine}
+                onNext={handlePromptNext}
+              />
             )}
 
             {currentStep === 'snapshot' && (
-              <View className="flex-1">
-                <WeekSnapshotStep
-                  summary={summary}
-                  insight={insight}
-                  onComplete={handleSnapshotComplete}
-                />
-              </View>
+              <WeekSnapshotStep
+                summary={summary}
+                insight={insight}
+                onComplete={handleSnapshotComplete}
+              />
             )}
 
             {currentStep === 'events' && (
-              <View className="flex-1">
-                <CalendarEventsStep
-                  onNext={handleEventsNext}
-                  onSkip={handleEventsSkip}
-                />
-              </View>
+              <CalendarEventsStep
+                onNext={handleEventsNext}
+                onSkip={handleEventsSkip}
+              />
             )}
           </>
         ) : (
@@ -452,6 +422,20 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
           </View>
         )}
       </View>
+    </View>
+  );
+
+  return (
+    <StandardBottomSheet
+      visible={isOpen}
+      onClose={handleClose}
+      height="full"
+      title={stepTitles[currentStep]}
+      keyboardBlurBehavior="none"
+      disableContentPanning={true}
+      renderScrollContent={renderContent}
+    >
+      <></>
     </StandardBottomSheet>
   );
 }

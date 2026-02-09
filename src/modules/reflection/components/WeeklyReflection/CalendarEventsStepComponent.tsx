@@ -7,7 +7,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, TouchableOpacity, Alert } from 'react-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Check, Users, MapPin, ChevronRight, X } from 'lucide-react-native'; // Cleaned up unused imports
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -107,7 +108,7 @@ export function CalendarEventsStep({ onNext, onSkip }: CalendarEventsStepProps) 
           </Text>
         </View>
 
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        <BottomSheetScrollView className="flex-1" showsVerticalScrollIndicator={false}>
           {events.map((event, index) => {
             const isSelected = selectedIds.has(event.id);
             const eventDate = new Date(event.startDate);
@@ -206,7 +207,7 @@ export function CalendarEventsStep({ onNext, onSkip }: CalendarEventsStepProps) 
               </Animated.View>
             );
           })}
-        </ScrollView>
+        </BottomSheetScrollView>
       </View>
 
       {/* Bottom Actions */}

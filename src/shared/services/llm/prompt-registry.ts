@@ -1679,38 +1679,41 @@ Describe the texture of this friendship in one sentence:`,
   // ========================================================================
   weekly_reflection_draft: {
     id: 'weekly_reflection_draft',
-    version: '1.0.0',
-    description: 'Generate a short personal reflection draft for weekly check-in',
+    version: '1.1.0',
+    description: 'Generate a personal weekly journal entry draft for the check-in flow',
 
-    systemPrompt: `You help someone write a brief weekly reflection about their friendships. Write in FIRST PERSON as if you ARE the user writing in their journal.
+    systemPrompt: `You help someone write a weekly journal entry about their friendships. Write in FIRST PERSON as if you ARE the user writing in their journal.
 
 REQUIREMENTS:
-- 2-4 sentences maximum
-- Reference specific people, activities, or patterns from the data
+- 3-5 sentences
+- Reference specific people, activities, and patterns from the data
 - Sound personal and genuine, like someone's actual journal entry
 - If observations or narrative context are provided, weave them in naturally
+- Write a cohesive weekly summary — what happened, how it felt, what's ahead
+- Use the prompt question as thematic inspiration, but don't just answer it literally
 - Never sound like an AI or a therapist. Sound like a thoughtful person reflecting on their week.
-- End with something forward-looking or grateful
 
 GOOD EXAMPLES:
-- "Spending that long dinner with Sarah this week reminded me how much I miss our deep talks. I've been so caught up in work that I forgot how grounding it is to just sit and listen. Want to make that a regular thing."
-- "Quiet week — only texted Marcus a couple of times. But honestly, I think I needed the space to recharge. Looking forward to the group hike on Saturday."
+- "This week felt full in the best way. Spending that long dinner with Sarah reminded me how much I miss our deep talks — we hadn't done that since before the holidays. I also finally got Marcus out for a run, which we've been putting off for weeks. The group hangout on Saturday was chaotic but fun. I want to keep this momentum going into next week."
+- "Quiet week, honestly. Only really talked to Marcus a couple of times over text. But I think I needed the space to recharge after last week's social marathon. I noticed I haven't reached out to my close friends much — Bridie and Alex haven't heard from me in a while. Going to fix that this week."
 
 BAD EXAMPLES:
-- "I am grateful for the 5 connections I had this week." (generic, no names)
-- "My social health score improved because I contacted 3 friends." (app-speak)
-- "I should reflect on why I haven't reached out to anyone." (self-critical, therapy-speak)
+- "I am grateful for the 5 connections I had this week." (too generic, no names)
+- "My social health improved." (app-speak)
+- "It was so good to finally" (truncated, incomplete)
 
 OUTPUT:
-Return ONLY the reflection text. No quotes, no preamble.`,
+Return ONLY the reflection text. No quotes, no preamble. Must be complete sentences.`,
 
     userPromptTemplate: `WEEKLY STATS:
 - Total weaves: {{totalWeaves}}
 - Friends contacted: {{friendsContacted}}
 - Top friend: {{topFriend}}
 - Reconnected with: {{reconnected}}
+- Top activity: {{topActivity}}
+- Week streak: {{weekStreak}} consecutive weeks reflecting
 
-PROMPT QUESTION: {{promptQuestion}}
+THEMATIC ANCHOR: {{promptQuestion}}
 
 {{#if observations}}ORACLE OBSERVATIONS:
 - {{observations}}
@@ -1718,10 +1721,10 @@ PROMPT QUESTION: {{promptQuestion}}
 {{#if narrative}}ORACLE NARRATIVE:
 {{narrative}}
 {{/if}}
-Write a 2-4 sentence personal reflection responding to the prompt question:`,
+Write a 3-5 sentence personal weekly journal entry:`,
 
     defaultOptions: {
-      maxTokens: 150,
+      maxTokens: 400,
       temperature: 0.7,
     },
   },

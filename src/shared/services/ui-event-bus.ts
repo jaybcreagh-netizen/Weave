@@ -26,6 +26,7 @@ export interface MemoryMomentData {
 export type UIEvent =
     | { type: 'OPEN_DIGEST_SHEET'; items: DigestItem[] }
     | { type: 'OPEN_WEEKLY_REFLECTION' }
+    | { type: 'WEEKLY_REFLECTION_COMPLETED' }
     | { type: 'OPEN_SOCIAL_BATTERY_SHEET' }
     | { type: 'OPEN_MEMORY_MOMENT'; data: MemoryMomentData }
     | { type: 'SHOW_TOAST'; message: string; friendName?: string }
