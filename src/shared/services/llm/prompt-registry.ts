@@ -1169,9 +1169,10 @@ QUESTION TYPES (rotate through):
 5. Future: What's next ("Anything you want to follow up on?")
 
 CRITICAL - WHEN TO STOP:
-- ALWAYS ask at least 3 questions before setting readyToCompose: true
-- After the user has answered 3 questions (Turn 3 of 3), set readyToCompose: true
-- NEVER set readyToCompose: true before 3 answers unless the user explicitly says they're done
+- Ask at least 2 questions before setting readyToCompose: true
+- After 3 rich answers OR 4 answers of any length, set readyToCompose: true
+- NEVER set readyToCompose: true before 2 answers unless the user explicitly says they're done
+- If you run out of meaningfully different things to ask, set readyToCompose: true rather than repeating
 
 OUTPUT:
 Return JSON:
@@ -1206,8 +1207,8 @@ ACTIVE THREADS (ongoing topics with this friend):
 CONVERSATION SO FAR:
 {{conversationHistory}}
 
-TURN COUNT: This is turn {{turnCount}} of maximum 3.
-{{#if mustCompose}}⚠️ THIS IS TURN 3 - YOU MUST SET readyToCompose: true{{/if}}
+TURN COUNT: This is turn {{turnCount}} of maximum 5.
+{{#if mustCompose}}⚠️ THIS IS THE FINAL TURN - YOU MUST SET readyToCompose: true{{/if}}
 
 Generate the next question (or indicate ready to compose):`,
 

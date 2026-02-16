@@ -62,11 +62,12 @@ export interface ReflectionChip {
 
 /** Oracle-guided reflection metadata */
 export interface OracleReflectionMetadata {
-  turnCount: number;           // Number of Q&A turns (typically 3-6)
+  turnCount: number;           // Number of Q&A turns (typically 3-5)
   hasDeepened: boolean;        // Did they use "Go Deeper"?
   contentLength: number;       // Character count of composed entry
   linkedJournalId?: string;    // Reference to the journal entry
   extractedThemes?: string[];  // Keywords extracted from content
+  rawTurns?: Array<{ question: string; answer: string }>;  // Original Q&A for reference
 }
 
 export interface StructuredReflection {

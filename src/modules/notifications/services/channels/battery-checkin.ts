@@ -7,6 +7,8 @@
 import * as Notifications from 'expo-notifications';
 import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
+import SocialBatteryLog from '@/db/models/SocialBatteryLog';
+import { Q } from '@nozbe/watermelondb';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { shouldSendSocialBatteryNotification } from '../notification-grace-periods';
@@ -75,6 +77,23 @@ export const BatteryCheckinChannel: NotificationChannel & {
 
                 const title = config.templates.default.title;
                 const body = config.templates.default.body;
+
+                // Check if user already logged battery for this target date
+                const startOfDay = new Date(target);
+                startOfDay.setHours(0, 0, 0, 0);
+                const endOfDay = new Date(target);
+                endOfDay.setHours(23, 59, 59, 999);
+
+                const existingLogs = await database.get<SocialBatteryLog>('social_battery_logs').query(
+                    Q.where('user_id', profile.id),
+                    Q.where('timestamp', Q.gte(startOfDay.getTime())),
+                    Q.where('timestamp', Q.lte(endOfDay.getTime()))
+                ).fetch();
+
+                if (existingLogs.length > 0) {
+                    Logger.info(`[BatteryCheckin] Skipping schedule for ${target.toDateString()} - already logged`);
+                    continue;
+                }
 
                 await Notifications.scheduleNotificationAsync({
                     identifier: id,

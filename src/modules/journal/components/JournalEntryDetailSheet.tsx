@@ -365,6 +365,246 @@ export function JournalEntryDetailSheet({
         }
     }
 
+    const renderContent = () => (
+        <View className="flex-1">
+            {/* Header actions */}
+            <View className="px-5 pt-2 pb-1 flex-row justify-end items-center gap-1.5">
+                <TouchableOpacity
+                    onPress={handleDelete}
+                    className="p-2 rounded-full"
+                    style={{ backgroundColor: colors.destructive + '10' }}
+                >
+                    <Icon name="Trash2" size={18} color={colors.destructive} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        onEdit(entry);
+                    }}
+                    className="p-2 rounded-full"
+                    style={{ backgroundColor: colors.muted }}
+                >
+                    <Icon name="Pencil" size={18} color={colors.foreground} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={onClose}
+                    className="p-2 rounded-full"
+                    style={{ backgroundColor: colors.muted }}
+                >
+                    <Icon name="X" size={18} color={colors.foreground} />
+                </TouchableOpacity>
+            </View>
+
+            <BottomSheetScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                {/* Date & friend context */}
+                <View className="px-6 pt-2">
+                    <View className="flex-row items-center gap-1.5 mb-3">
+                        <Text
+                            variant="caption"
+                            weight="semibold"
+                            style={{ color: colors['muted-foreground'], fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase' }}
+                        >
+                            {new Date(entry.entryDate).toLocaleDateString(undefined, {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                            }).toUpperCase()}
+                        </Text>
+                        {friendLabel && (
+                            <>
+                                <View className="w-0.5 h-0.5 rounded-full" style={{ backgroundColor: colors['muted-foreground'] }} />
+                                <Text
+                                    variant="caption"
+                                    style={{ color: colors['muted-foreground'], fontSize: 11 }}
+                                >
+                                    with {friendLabel}
+                                </Text>
+                            </>
+                        )}
+                        {hasSentiment && (
+                            <>
+                                <View className="w-0.5 h-0.5 rounded-full" style={{ backgroundColor: colors['muted-foreground'] }} />
+                                <Icon name={sentiment.icon as any} size={11} color={sentimentColor} />
+                                <Text
+                                    variant="caption"
+                                    style={{ color: sentimentColor, fontSize: 11 }}
+                                >
+                                    {sentiment.label}
+                                </Text>
+                            </>
+                        )}
+                    </View>
+
+                    {/* Title */}
+                    {entry.title ? (
+                        <Text
+                            variant="h2"
+                            style={{ color: colors.foreground, fontFamily: typography.fonts.serifBold, fontSize: 24, lineHeight: 30, marginBottom: 16 }}
+                        >
+                            {entry.title}
+                        </Text>
+                    ) : (
+                        <Text
+                            variant="h2"
+                            style={{ color: colors['muted-foreground'], fontFamily: typography.fonts.serifBold, fontSize: 24, lineHeight: 30, marginBottom: 16, fontStyle: 'italic' }}
+                        >
+                            Untitled Entry
+                        </Text>
+                    )}
+                </View>
+
+                {/* Content — the hero */}
+                <View className="px-6 mb-6">
+                    <Text
+                        variant="body"
+                        style={{ color: colors.foreground, fontSize: 16, lineHeight: 28 }}
+                    >
+                        {entry.content}
+                    </Text>
+                </View>
+
+                {/* Story chips (if any) */}
+                {entry.storyChips.length > 0 && (
+                    <View className="px-6 mb-6">
+                        <View className="flex-row flex-wrap gap-1.5">
+                            {entry.storyChips.map(chip => {
+                                const chipDef = STORY_CHIPS.find(c => c.id === chip.chipId);
+                                if (!chipDef) return null;
+                                return (
+                                    <View
+                                        key={chip.chipId}
+                                        className="px-2.5 py-1 rounded-full"
+                                        style={{ backgroundColor: colors.muted }}
+                                    >
+                                        <Text
+                                            variant="caption"
+                                            style={{ color: colors['muted-foreground'], fontSize: 11 }}
+                                        >
+                                            {chipDef.plainText}
+                                        </Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </View>
+                )}
+
+                {/* Linked weave — subtle reference */}
+                {linkedWeaveInfo && (
+                    <View className="px-6 mb-6">
+                        <View
+                            className="flex-row items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
+                            style={{ backgroundColor: colors.muted }}
+                        >
+                            <Icon name="Link" size={13} color={colors['muted-foreground']} />
+                            <Text
+                                variant="caption"
+                                style={{ color: colors['muted-foreground'], fontSize: 12, flex: 1 }}
+                                numberOfLines={1}
+                            >
+                                {linkedWeaveInfo.title}
+                            </Text>
+                            {linkedWeaveInfo.category && (
+                                <Text
+                                    variant="caption"
+                                    style={{ color: colors['muted-foreground'], fontSize: 11, textTransform: 'capitalize' }}
+                                >
+                                    {linkedWeaveInfo.category.replace(/-/g, ' ')}
+                                </Text>
+                            )}
+                        </View>
+                    </View>
+                )}
+
+                {/* Actions — compact horizontal pills */}
+                {actionItems.length > 0 && (
+                    <View className="px-6 mb-6">
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ gap: 8 }}
+                        >
+                            {actionItems.map((item, idx) => (
+                                <TouchableOpacity
+                                    key={idx}
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        item.onPress();
+                                    }}
+                                    className="flex-row items-center gap-1.5 px-3.5 py-2 rounded-full"
+                                    style={{
+                                        backgroundColor: colors.card,
+                                        borderWidth: 1,
+                                        borderColor: colors.border,
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Icon name={item.icon as any} size={14} color={colors.primary} />
+                                    <Text
+                                        variant="caption"
+                                        weight="medium"
+                                        style={{ color: colors.foreground, fontSize: 13 }}
+                                    >
+                                        {item.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
+
+                {/* Related memories — warm thread */}
+                {relatedEntries.length > 0 && (
+                    <View className="px-6 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+                        <View className="flex-row items-center gap-1.5 mb-3">
+                            <Icon name="BookOpen" size={11} color={colors['muted-foreground']} />
+                            <Text
+                                variant="caption"
+                                weight="semibold"
+                                style={{ color: colors['muted-foreground'], fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase' }}
+                            >
+                                Related memories
+                            </Text>
+                        </View>
+                        <View className="gap-2">
+                            {relatedEntries.map((related) => (
+                                <View
+                                    key={related.id}
+                                    className="py-2.5 flex-row items-start justify-between"
+                                    style={{ borderBottomWidth: 1, borderBottomColor: colors.border + '60' }}
+                                >
+                                    <View className="flex-1 mr-3">
+                                        <Text
+                                            variant="body"
+                                            weight="medium"
+                                            style={{ color: colors.foreground, fontSize: 14, marginBottom: 2 }}
+                                            numberOfLines={1}
+                                        >
+                                            {related.title || 'Untitled'}
+                                        </Text>
+                                        <Text
+                                            variant="caption"
+                                            style={{ color: colors['muted-foreground'], fontSize: 12 }}
+                                            numberOfLines={1}
+                                        >
+                                            {related.content.replace(/\n/g, ' ')}
+                                        </Text>
+                                    </View>
+                                    <Text
+                                        variant="caption"
+                                        style={{ color: colors['muted-foreground'], fontSize: 11, marginTop: 2 }}
+                                    >
+                                        {new Date(related.entryDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                )}
+            </BottomSheetScrollView>
+        </View>
+    );
+
     return (
         <StandardBottomSheet
             visible={isOpen}
@@ -373,244 +613,9 @@ export function JournalEntryDetailSheet({
             title=""
             showCloseButton={false}
             disableContentPanning={true}
+            renderScrollContent={renderContent}
         >
-            <View className="flex-1">
-                {/* Header actions */}
-                <View className="px-5 pt-2 pb-1 flex-row justify-end items-center gap-1.5">
-                    <TouchableOpacity
-                        onPress={handleDelete}
-                        className="p-2 rounded-full"
-                        style={{ backgroundColor: colors.destructive + '10' }}
-                    >
-                        <Icon name="Trash2" size={18} color={colors.destructive} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            onEdit(entry);
-                        }}
-                        className="p-2 rounded-full"
-                        style={{ backgroundColor: colors.muted }}
-                    >
-                        <Icon name="Pencil" size={18} color={colors.foreground} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        onPress={onClose}
-                        className="p-2 rounded-full"
-                        style={{ backgroundColor: colors.muted }}
-                    >
-                        <Icon name="X" size={18} color={colors.foreground} />
-                    </TouchableOpacity>
-                </View>
-
-                <BottomSheetScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
-                    {/* Date & friend context */}
-                    <View className="px-6 pt-2">
-                        <View className="flex-row items-center gap-1.5 mb-3">
-                            <Text
-                                variant="caption"
-                                weight="semibold"
-                                style={{ color: colors['muted-foreground'], fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase' }}
-                            >
-                                {new Date(entry.entryDate).toLocaleDateString(undefined, {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric'
-                                }).toUpperCase()}
-                            </Text>
-                            {friendLabel && (
-                                <>
-                                    <View className="w-0.5 h-0.5 rounded-full" style={{ backgroundColor: colors['muted-foreground'] }} />
-                                    <Text
-                                        variant="caption"
-                                        style={{ color: colors['muted-foreground'], fontSize: 11 }}
-                                    >
-                                        with {friendLabel}
-                                    </Text>
-                                </>
-                            )}
-                            {hasSentiment && (
-                                <>
-                                    <View className="w-0.5 h-0.5 rounded-full" style={{ backgroundColor: colors['muted-foreground'] }} />
-                                    <Icon name={sentiment.icon as any} size={11} color={sentimentColor} />
-                                    <Text
-                                        variant="caption"
-                                        style={{ color: sentimentColor, fontSize: 11 }}
-                                    >
-                                        {sentiment.label}
-                                    </Text>
-                                </>
-                            )}
-                        </View>
-
-                        {/* Title */}
-                        {entry.title ? (
-                            <Text
-                                variant="h2"
-                                style={{ color: colors.foreground, fontFamily: typography.fonts.serifBold, fontSize: 24, lineHeight: 30, marginBottom: 16 }}
-                            >
-                                {entry.title}
-                            </Text>
-                        ) : (
-                            <Text
-                                variant="h2"
-                                style={{ color: colors['muted-foreground'], fontFamily: typography.fonts.serifBold, fontSize: 24, lineHeight: 30, marginBottom: 16, fontStyle: 'italic' }}
-                            >
-                                Untitled Entry
-                            </Text>
-                        )}
-                    </View>
-
-                    {/* Content — the hero */}
-                    <View className="px-6 mb-6">
-                        <Text
-                            variant="body"
-                            style={{ color: colors.foreground, fontSize: 16, lineHeight: 28 }}
-                        >
-                            {entry.content}
-                        </Text>
-                    </View>
-
-                    {/* Story chips (if any) */}
-                    {entry.storyChips.length > 0 && (
-                        <View className="px-6 mb-6">
-                            <View className="flex-row flex-wrap gap-1.5">
-                                {entry.storyChips.map(chip => {
-                                    const chipDef = STORY_CHIPS.find(c => c.id === chip.chipId);
-                                    if (!chipDef) return null;
-                                    return (
-                                        <View
-                                            key={chip.chipId}
-                                            className="px-2.5 py-1 rounded-full"
-                                            style={{ backgroundColor: colors.muted }}
-                                        >
-                                            <Text
-                                                variant="caption"
-                                                style={{ color: colors['muted-foreground'], fontSize: 11 }}
-                                            >
-                                                {chipDef.plainText}
-                                            </Text>
-                                        </View>
-                                    );
-                                })}
-                            </View>
-                        </View>
-                    )}
-
-                    {/* Linked weave — subtle reference */}
-                    {linkedWeaveInfo && (
-                        <View className="px-6 mb-6">
-                            <View
-                                className="flex-row items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
-                                style={{ backgroundColor: colors.muted }}
-                            >
-                                <Icon name="Link" size={13} color={colors['muted-foreground']} />
-                                <Text
-                                    variant="caption"
-                                    style={{ color: colors['muted-foreground'], fontSize: 12, flex: 1 }}
-                                    numberOfLines={1}
-                                >
-                                    {linkedWeaveInfo.title}
-                                </Text>
-                                {linkedWeaveInfo.category && (
-                                    <Text
-                                        variant="caption"
-                                        style={{ color: colors['muted-foreground'], fontSize: 11, textTransform: 'capitalize' }}
-                                    >
-                                        {linkedWeaveInfo.category.replace(/-/g, ' ')}
-                                    </Text>
-                                )}
-                            </View>
-                        </View>
-                    )}
-
-                    {/* Actions — compact horizontal pills */}
-                    {actionItems.length > 0 && (
-                        <View className="px-6 mb-6">
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={{ gap: 8 }}
-                            >
-                                {actionItems.map((item, idx) => (
-                                    <TouchableOpacity
-                                        key={idx}
-                                        onPress={() => {
-                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                            item.onPress();
-                                        }}
-                                        className="flex-row items-center gap-1.5 px-3.5 py-2 rounded-full"
-                                        style={{
-                                            backgroundColor: colors.card,
-                                            borderWidth: 1,
-                                            borderColor: colors.border,
-                                        }}
-                                        activeOpacity={0.7}
-                                    >
-                                        <Icon name={item.icon as any} size={14} color={colors.primary} />
-                                        <Text
-                                            variant="caption"
-                                            weight="medium"
-                                            style={{ color: colors.foreground, fontSize: 13 }}
-                                        >
-                                            {item.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-                        </View>
-                    )}
-
-                    {/* Related memories — warm thread */}
-                    {relatedEntries.length > 0 && (
-                        <View className="px-6 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
-                            <View className="flex-row items-center gap-1.5 mb-3">
-                                <Icon name="BookOpen" size={11} color={colors['muted-foreground']} />
-                                <Text
-                                    variant="caption"
-                                    weight="semibold"
-                                    style={{ color: colors['muted-foreground'], fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase' }}
-                                >
-                                    Related memories
-                                </Text>
-                            </View>
-                            <View className="gap-2">
-                                {relatedEntries.map((related) => (
-                                    <View
-                                        key={related.id}
-                                        className="py-2.5 flex-row items-start justify-between"
-                                        style={{ borderBottomWidth: 1, borderBottomColor: colors.border + '60' }}
-                                    >
-                                        <View className="flex-1 mr-3">
-                                            <Text
-                                                variant="body"
-                                                weight="medium"
-                                                style={{ color: colors.foreground, fontSize: 14, marginBottom: 2 }}
-                                                numberOfLines={1}
-                                            >
-                                                {related.title || 'Untitled'}
-                                            </Text>
-                                            <Text
-                                                variant="caption"
-                                                style={{ color: colors['muted-foreground'], fontSize: 12 }}
-                                                numberOfLines={1}
-                                            >
-                                                {related.content.replace(/\n/g, ' ')}
-                                            </Text>
-                                        </View>
-                                        <Text
-                                            variant="caption"
-                                            style={{ color: colors['muted-foreground'], fontSize: 11, marginTop: 2 }}
-                                        >
-                                            {new Date(related.entryDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                        </Text>
-                                    </View>
-                                ))}
-                            </View>
-                        </View>
-                    )}
-                </BottomSheetScrollView>
-            </View>
+            {null}
         </StandardBottomSheet>
     );
 }

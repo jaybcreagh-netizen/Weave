@@ -360,7 +360,7 @@ INSTRUCTIONS:
     }, [context, friendId, onClose, router, saveToJournal])
 
     const handleGuidedComplete = () => {
-        setShowGuidedReflection(false)
+        // Don't close here — sheet handles its own receipt/close flow
     }
 
     const handleGuidedEscape = () => {

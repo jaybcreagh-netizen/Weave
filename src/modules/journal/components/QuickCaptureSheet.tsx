@@ -539,7 +539,10 @@ export function QuickCaptureSheet({
           {/* Help me write sheet - NESTED INSIDE THE MAIN MODAL to avoid iOS pageSheet conflicts */}
           <GuidedReflectionSheet
             isOpen={showGuidedReflection}
-            onClose={() => setShowGuidedReflection(false)}
+            onClose={() => {
+              setShowGuidedReflection(false)
+              onClose()
+            }}
             context={{
               type: 'quick_capture',
               friendIds: selectedFriends.map(f => f.id),
@@ -547,10 +550,10 @@ export function QuickCaptureSheet({
               quickCaptureText: text,
             } as ReflectionContext}
             onComplete={(content, friendIds) => {
-              setShowGuidedReflection(false);
+              // Don't close here — sheet handles its own receipt/close flow.
+              // Reset capture state so it's clean when user returns.
               setText('');
               setSelectedFriends([]);
-              onClose();
             }}
             onEscape={() => {
               setShowGuidedReflection(false);

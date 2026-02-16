@@ -905,18 +905,18 @@ export async function unlinkPhone(): Promise<AuthResult> {
         }
 
         // 2. Check if phone is their only auth method
-        // Users have identities array with their auth providers
         const identities = user.identities || [];
-        const providers = identities.map(i => i.provider);
+        const phoneIdentity = identities.find(i => i.provider === 'phone');
 
         // Check for non-phone auth methods (apple, google, email)
-        const hasOtherAuth = providers.some(p => p !== 'phone');
-        const hasPhoneAuth = providers.includes('phone');
+        // We consider it safe if there is at least one other provider
+        const hasOtherAuth = identities.some(i => i.provider !== 'phone');
 
-        console.log('[Auth] User providers:', providers, { hasOtherAuth, hasPhoneAuth });
+        console.log('[Auth] User providers:', identities.map(i => i.provider), { hasOtherAuth, hasPhoneIdentity: !!phoneIdentity });
 
         // If phone is their only auth method, block the operation
-        if (hasPhoneAuth && !hasOtherAuth) {
+        // Only block if they actually HAVE a phone identity to unlink
+        if (phoneIdentity && !hasOtherAuth) {
             console.log('[Auth] Cannot unlink - phone is only auth method');
             return {
                 success: false,
@@ -925,18 +925,19 @@ export async function unlinkPhone(): Promise<AuthResult> {
             };
         }
 
-        // 3. Clear phone from auth.users
-        // This is the canonical way to remove phone without identity-unlink config dependencies.
-        const { error: authError } = await withTimeout(
-            client.auth.updateUser({ phone: '' }),
-            AUTH_TIMEOUTS.OTP_SEND,
-            'Unlink Phone'
-        );
+        // 3. Unlink identity
+        // This is the canonical way to remove an identity in Supabase (GoTrue)
+        if (phoneIdentity) {
+            const { error: unlinkError } = await client.auth.unlinkIdentity(phoneIdentity);
 
-        if (authError) {
-            console.error('[Auth] Failed to clear phone from auth.users:', authError);
-            const classified = classifyAuthError(authError);
-            return { success: false, error: classified.message, errorCode: classified.code };
+            if (unlinkError) {
+                console.error('[Auth] Failed to unlink phone identity:', unlinkError);
+                const classified = classifyAuthError(unlinkError);
+                return { success: false, error: classified.message, errorCode: classified.code };
+            }
+            console.log('[Auth] Phone identity unlinked successfully');
+        } else {
+            console.log('[Auth] No phone identity to unlink (cleanup only)');
         }
 
         // 4. Clear phone from user_profiles (keep for UI consistency and contact matching)
@@ -951,11 +952,10 @@ export async function unlinkPhone(): Promise<AuthResult> {
 
         if (profileError) {
             console.error('[Auth] Failed to clear phone from user_profiles:', profileError);
-            // We successfully cleared auth phone, so we should probably return success
-            // but warn about profile sync
+            // We successfully cleared auth phone (if it existed), so we return success
+            // but warn about profile sync failure
         }
 
-        console.log('[Auth] Phone unlinked successfully');
         return { success: true };
     } catch (error: any) {
         console.error('[Auth] unlinkPhone exception:', error);

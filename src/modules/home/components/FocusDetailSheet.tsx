@@ -32,8 +32,8 @@ import { oracleService } from '@/modules/oracle';
 import { oracleContextBuilder, ContextTier } from '@/modules/oracle/services/context-builder';
 
 interface UpcomingDate {
-    friend: FriendModel;
-    type: 'birthday' | 'anniversary' | 'life_event';
+    friend?: FriendModel;
+    type: 'birthday' | 'anniversary' | 'life_event' | 'holiday';
     daysUntil: number;
     title?: string;
     importance?: 'low' | 'medium' | 'high' | 'critical';
@@ -540,10 +540,32 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                         <WidgetHeader title="Life Events" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
                         <Card padding="none">
                             {upcomingDates.map((event, index) => (
-                                <View key={`${event.friend.id}-${event.type}`} className="px-4">
+                                <View key={`${event.friend?.id || 'holiday'}-${event.title}-${index}`} className="px-4">
                                     <ListItem
-                                        title={event.friend.name}
-                                        subtitle={`${event.type === 'birthday' ? 'Birthday' : event.title} • ${event.daysUntil === 0 ? 'Today' : event.daysUntil === 1 ? 'Tomorrow' : `In ${event.daysUntil} days`}`}
+                                        title={event.friend?.name || event.title || 'Event'}
+                                        subtitle={event.friend
+                                            ? `${event.type === 'birthday' ? 'Birthday' : event.title} • ${event.daysUntil === 0 ? 'Today' : event.daysUntil === 1 ? 'Tomorrow' : `In ${event.daysUntil} days`}`
+                                            : `${event.daysUntil === 0 ? 'Today' : event.daysUntil === 1 ? 'Tomorrow' : `In ${event.daysUntil} days`}`}
+                                        leading={!event.friend && (
+                                            <View style={{
+                                                width: 40,
+                                                height: 40,
+                                                borderRadius: 20,
+                                                backgroundColor: tokens.backgroundSubtle,
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}>
+                                                {event.title?.toLowerCase().includes('valentine') ? (
+                                                    <Heart size={20} color={tokens.primary} />
+                                                ) : event.title?.toLowerCase().includes('christmas') ? (
+                                                    <Gift size={20} color={tokens.primary} />
+                                                ) : event.title?.toLowerCase().includes('new year') ? (
+                                                    <Sparkles size={20} color={tokens.primary} />
+                                                ) : (
+                                                    <Calendar size={20} color={tokens.primary} />
+                                                )}
+                                            </View>
+                                        )}
                                         showDivider={index < upcomingDates.length - 1}
                                         compact
                                     />

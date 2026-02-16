@@ -11,6 +11,7 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import Intention from '@/db/models/Intention';
 import { Archetype } from '@/shared/types/legacy-types';
 import { getRandomActionForArchetype, getArchetypeValue } from './archetype-actions.service';
+import { calculateCurrentScore } from '@/modules/intelligence';
 
 export interface MissedFriend {
   friend: FriendModel;
@@ -157,7 +158,7 @@ export async function calculateWeeklySummary(): Promise<WeeklySummary> {
         friend,
         suggestedAction: getRandomActionForArchetype(archetype),
         archetypeValue: getArchetypeValue(archetype),
-        weaveScore: friend.weaveScore,
+        weaveScore: calculateCurrentScore(friend),
         daysSinceLastContact,
       });
     }
@@ -256,10 +257,10 @@ export async function calculateWeeklySummary(): Promise<WeeklySummary> {
     .fetch();
 
   const risingConnection = contactedFriends
-    .sort((a, b) => b.weaveScore - a.weaveScore)[0];
+    .sort((a, b) => calculateCurrentScore(b) - calculateCurrentScore(a))[0];
 
   // Friends needing attention (friends with score < 50)
-  const needsAttention = allImportantFriends.filter(f => f.weaveScore < 50).length;
+  const needsAttention = allImportantFriends.filter(f => calculateCurrentScore(f) < 50).length;
 
   const patterns = {
     mostConsistentFriend,
@@ -277,7 +278,7 @@ export async function calculateWeeklySummary(): Promise<WeeklySummary> {
     .fetch();
 
   const socialHealthScore = allFriends.length > 0
-    ? Math.round(allFriends.reduce((sum, f) => sum + f.weaveScore, 0) / allFriends.length)
+    ? Math.round(allFriends.reduce((sum, f) => sum + calculateCurrentScore(f), 0) / allFriends.length)
     : 0;
 
   const socialHealth = {

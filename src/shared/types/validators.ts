@@ -27,6 +27,7 @@ export const OracleReflectionMetadataSchema = z.object({
   contentLength: z.number(),
   linkedJournalId: z.string().optional(),
   extractedThemes: z.array(z.string()).optional(),
+  rawTurns: z.array(z.object({ question: z.string(), answer: z.string() })).optional(),
 });
 
 export const StructuredReflectionSchema = z.object({

@@ -5,8 +5,9 @@
  *
  * Flow:
  * 1. ReflectionPromptStep - Contextual question with Oracle observations, optional writing
- * 2. WeekSnapshotStep - Compact stats, insight, up to 3 friends needing attention
- * 3. CalendarEventsStep - Only if unlogged events exist (optional catch-up)
+ * 2. OracleSummaryStep - Personalized Oracle narrative of the week
+ * 3. WeekSnapshotStep - Compact stats, insight, up to 3 friends needing attention
+ * 4. CalendarEventsStep - Only if unlogged events exist (optional catch-up)
  */
 
 import React, { useState, useEffect } from 'react';
@@ -44,6 +45,7 @@ import { ScannedEvent } from '@/modules/interactions/services/event-scanner';
 import * as Haptics from 'expo-haptics';
 import { WeeklyReflectionChannel } from '@/modules/notifications/services/channels/weekly-reflection';
 import { logger } from '@/shared/services/logger.service';
+import { OracleSummaryStep } from './OracleSummaryStep';
 import { oracleService } from '@/modules/oracle/services/oracle-service';
 import { reflectionSynthesizer } from '../../services/ReflectionSynthesizerService';
 import { UIEventBus } from '@/shared/services/ui-event-bus';
@@ -57,7 +59,7 @@ interface WeeklyReflectionModalProps {
   onClose: () => void;
 }
 
-type Step = 'prompt' | 'snapshot' | 'events';
+type Step = 'prompt' | 'summary' | 'snapshot' | 'events';
 
 interface ReflectionData {
   text: string;
@@ -198,6 +200,10 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
   const handlePromptNext = (text: string, chipIds: string[]) => {
     setReflectionData({ text, chipIds });
+    setCurrentStep('summary');
+  };
+
+  const handleSummaryNext = () => {
     setCurrentStep('snapshot');
   };
 
@@ -306,8 +312,10 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   const handleBack = () => {
     Keyboard.dismiss();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (currentStep === 'snapshot') {
+    if (currentStep === 'summary') {
       setCurrentStep('prompt');
+    } else if (currentStep === 'snapshot') {
+      setCurrentStep('summary');
     } else if (currentStep === 'events') {
       setCurrentStep('snapshot');
     }
@@ -325,12 +333,13 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
   const stepTitles: Record<Step, string> = {
     prompt: 'Check-in',
+    summary: 'Oracle Insight',
     snapshot: 'Your Week',
     events: 'Calendar',
   };
 
   // Progress indicator
-  const steps: Step[] = hasUnloggedEvents ? ['prompt', 'snapshot', 'events'] : ['prompt', 'snapshot'];
+  const steps: Step[] = hasUnloggedEvents ? ['prompt', 'summary', 'snapshot', 'events'] : ['prompt', 'summary', 'snapshot'];
   const currentStepIndex = steps.indexOf(currentStep);
 
   // Week summary line for the prompt step header
@@ -391,6 +400,15 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
                 weekSummaryLine={weekSummaryLine}
                 onNext={handlePromptNext}
               />
+            )}
+
+            {currentStep === 'summary' && (
+              <View style={{ flex: 1 }}>
+                <OracleSummaryStep
+                  narrative={weeklyNarrative}
+                  onContinue={handleSummaryNext}
+                />
+              </View>
             )}
 
             {currentStep === 'snapshot' && (

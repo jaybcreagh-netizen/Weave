@@ -44,6 +44,7 @@ export function MicroReflectionSheet({
   const [notes, setNotes] = useState('');
   const [title, setTitle] = useState(activityLabel);
   const [showGuidedReflection, setShowGuidedReflection] = useState(false);
+  const [guidedFlowSaved, setGuidedFlowSaved] = useState(false);
   const [friend, setFriend] = useState<FriendModel | null>(null);
 
   // Fetch friend to get photo
@@ -346,7 +347,13 @@ export function MicroReflectionSheet({
       {/* Oracle Help me write */}
       <GuidedReflectionSheet
         isOpen={showGuidedReflection}
-        onClose={() => setShowGuidedReflection(false)}
+        onClose={() => {
+          setShowGuidedReflection(false)
+          if (guidedFlowSaved) {
+            setGuidedFlowSaved(false)
+            onSkip()
+          }
+        }}
         context={friendId ? {
           type: 'post_weave',
           friendIds: [friendId],
@@ -354,9 +361,8 @@ export function MicroReflectionSheet({
           interactionId: interactionId,
           activity: activityLabel,
         } : undefined}
-        onComplete={(content) => {
-          setNotes(content);
-          setShowGuidedReflection(false);
+        onComplete={() => {
+          setGuidedFlowSaved(true)
         }}
         onEscape={() => {
           setShowGuidedReflection(false);

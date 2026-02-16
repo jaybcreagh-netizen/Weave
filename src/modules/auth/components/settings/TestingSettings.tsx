@@ -16,7 +16,11 @@ import {
     Clock,
     X,
     Repeat,
-    Play
+    Play,
+    Battery,
+    Sun,
+    Zap,
+    Flame
 } from 'lucide-react-native';
 import { NotificationOrchestrator } from '@/modules/notifications';
 import { SettingsItem } from './SettingsItem';
@@ -26,6 +30,12 @@ import { DiagnosticService } from '@/shared/services/diagnostic.service';
 import { EveningDigestChannel } from '@/modules/notifications';
 import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/seeds/stress-test-seed-data';
 import * as Notifications from 'expo-notifications';
+import { SocialSeason } from '@/db/models/UserProfile';
+import { database } from '@/db';
+import Interaction from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import Friend from '@/db/models/Friend';
+import { subWeeks } from 'date-fns';
 
 interface TestingSettingsProps {
     onClose: () => void;
@@ -101,6 +111,108 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
             console.error('Failed to check stress test data:', error);
             Alert.alert('Error', 'Failed to check stress test data.');
         }
+    };
+
+
+
+    const handleSetSeason = (season: SocialSeason) => {
+        Alert.alert(
+            'Set Social Season',
+            `Change season to ${season}?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Set',
+                    onPress: async () => {
+                        try {
+                            const { useUserProfileStore } = await import('@/modules/auth/store/user-profile.store');
+                            await useUserProfileStore.getState().updateSocialSeason(season, 7); // Override for 7 days
+                            Alert.alert('Success', `Season set to ${season}`);
+                        } catch (error) {
+                            console.error('Failed to set season:', error);
+                            Alert.alert('Error', 'Failed to set season');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleSetBattery = (level: number) => {
+        Alert.alert(
+            'Set Social Battery',
+            `Set battery to ${level}%?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Set',
+                    onPress: async () => {
+                        try {
+                            const { useUserProfileStore } = await import('@/modules/auth/store/user-profile.store');
+                            // Force check-in for today (overwrite)
+                            await useUserProfileStore.getState().submitBatteryCheckin(level, 'Manual Dev Override', Date.now(), true);
+                            Alert.alert('Success', `Battery set to ${level}%`);
+                        } catch (error) {
+                            console.error('Failed to set battery:', error);
+                            Alert.alert('Error', 'Failed to set battery');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleBoostStreak = async () => {
+        Alert.alert(
+            'Boost Streak',
+            'This will create dummy interactions for the past 5 weeks to simulate a streak.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Boost',
+                    onPress: async () => {
+                        try {
+                            await database.write(async () => {
+                                const friendsCollection = database.get<Friend>('friends');
+                                const interactionsCollection = database.get<Interaction>('interactions');
+                                const friends = await friendsCollection.query().fetch();
+
+                                if (friends.length === 0) {
+                                    Alert.alert('Error', 'Need at least one friend to boost streak');
+                                    return;
+                                }
+
+                                const friend = friends[0]; // Just use the first friend
+
+                                for (let i = 1; i <= 5; i++) {
+                                    const date = subWeeks(new Date(), i);
+
+                                    // 1. Create Interaction
+                                    const interaction = await interactionsCollection.create(newInteraction => {
+                                        newInteraction.interactionType = 'text';
+                                        newInteraction.interactionDate = date;
+                                        newInteraction.status = 'completed';
+                                        newInteraction.vibe = 'good';
+                                        newInteraction.notes = 'Dev Tool Streak Boost';
+                                    });
+
+                                    // 2. Link to Friend (Many-to-Many)
+                                    const interactionFriendsCollection = database.get<InteractionFriend>('interaction_friends');
+                                    await interactionFriendsCollection.create(link => {
+                                        link.interaction.set(interaction);
+                                        link.friend.set(friend);
+                                    });
+                                }
+                            });
+                            Alert.alert('Success', 'Streak boosted! Pull to refresh home screen.');
+                        } catch (error) {
+                            console.error('Failed to boost streak:', error);
+                            Alert.alert('Error', 'Failed to boost streak');
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const handleRunDiagnostics = async () => {
@@ -321,6 +433,51 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
         <View className="gap-4">
             {/* Debug Section Title */}
             <Text className="text-xs font-inter-semibold uppercase tracking-wide mb-2" style={{ color: colors['muted-foreground'] }}>
+                Developer Pipeline
+            </Text>
+
+            <SettingsItem
+                icon={Sun}
+                title="Social Season"
+                subtitle="Force season state"
+                onPress={() => {
+                    Alert.alert('Select Season', 'Choose a season to force:', [
+                        { text: 'Resting ❄️', onPress: () => handleSetSeason('resting') },
+                        { text: 'Balanced ⚖️', onPress: () => handleSetSeason('balanced') },
+                        { text: 'Blooming 🌸', onPress: () => handleSetSeason('blooming') },
+                        { text: 'Cancel', style: 'cancel' }
+                    ]);
+                }}
+            />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <SettingsItem
+                icon={Battery}
+                title="Social Battery"
+                subtitle="Set battery level"
+                onPress={() => {
+                    Alert.alert('Set Battery', 'Choose level:', [
+                        { text: 'Empty (10%)', onPress: () => handleSetBattery(10) },
+                        { text: 'Half (50%)', onPress: () => handleSetBattery(50) },
+                        { text: 'Full (100%)', onPress: () => handleSetBattery(100) },
+                        { text: 'Cancel', style: 'cancel' }
+                    ]);
+                }}
+            />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <SettingsItem
+                icon={Flame}
+                title="Boost Streak"
+                subtitle="Add 5 weeks of history"
+                onPress={handleBoostStreak}
+            />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <Text className="text-xs font-inter-semibold uppercase tracking-wide mb-2 mt-4" style={{ color: colors['muted-foreground'] }}>
                 Debug Tools
             </Text>
 

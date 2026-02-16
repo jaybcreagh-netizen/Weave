@@ -22,7 +22,7 @@ import { FocusPlanItem } from './components/FocusPlanItem';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
 import type { SuggestionDismissalReason } from '@/shared/types/common';
-import { SeasonAnalyticsService } from '@/modules/intelligence';
+import { SeasonAnalyticsService, FocusGenerator } from '@/modules/intelligence';
 import { parseFlexibleDate } from '@/shared/utils/date-utils';
 import { useReachOut, ContactLinker } from '@/modules/messaging';
 import { SuggestionActionSheet } from '@/modules/interactions/components/SuggestionActionSheet';
@@ -47,8 +47,8 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
 };
 
 interface UpcomingDate {
-    friend: FriendModel;
-    type: 'birthday' | 'anniversary' | 'life_event';
+    friend?: FriendModel;
+    type: 'birthday' | 'anniversary' | 'life_event' | 'holiday';
     daysUntil: number;
     title?: string;
     importance?: 'low' | 'medium' | 'high' | 'critical';
@@ -369,100 +369,12 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         if (!friends || friends.length === 0) return;
 
         const loadLifeEvents = async () => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const sevenDaysFromNow = new Date();
-            sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-            const events: UpcomingDate[] = [];
-
-            // 1. Fetch from life_events table
             try {
-                const lifeEvents = await database
-                    .get<LifeEvent>('life_events')
-                    .query(
-                        Q.where('event_date', Q.gte(today.getTime())),
-                        Q.where('event_date', Q.lte(sevenDaysFromNow.getTime()))
-                    )
-                    .fetch();
-
-                lifeEvents.forEach(event => {
-                    const friend = friends.find(f => f.id === event.friendId);
-                    if (friend) {
-                        events.push({
-                            friend,
-                            type: 'life_event',
-                            daysUntil: differenceInDays(startOfDay(event.eventDate), startOfDay(today)),
-                            title: event.title,
-                            importance: event.importance,
-                        });
-                    }
-                });
+                const events = await FocusGenerator.getUpcomingDates(friends);
+                setUpcomingDates(events);
             } catch (e) {
-                console.error('Error fetching life_events:', e);
+                console.error('Error loading upcoming dates:', e);
             }
-
-            // 2. Check Friends for Birthdays and Anniversaries
-            friends.forEach(friend => {
-                try {
-                    // Birthday Check
-                    if (friend.birthday) {
-                        const dateParts = parseFlexibleDate(friend.birthday);
-                        if (dateParts) {
-                            const { month, day } = dateParts;
-                            const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
-                            birthdayThisYear.setHours(0, 0, 0, 0);
-
-                            if (birthdayThisYear < today) {
-                                birthdayThisYear.setFullYear(today.getFullYear() + 1);
-                            }
-
-                            const daysUntil = differenceInDays(startOfDay(birthdayThisYear), startOfDay(today));
-                            if (daysUntil >= 0 && daysUntil <= 7) { // check next 7 days
-                                events.push({
-                                    friend,
-                                    type: 'birthday',
-                                    daysUntil,
-                                    importance: daysUntil <= 7 ? 'high' : 'medium'
-                                });
-                            }
-                        }
-                    }
-
-                    // Anniversary Check
-                    if (friend.anniversary && friend.relationshipType?.toLowerCase().includes('partner')) {
-                        const dateParts = parseFlexibleDate(friend.anniversary);
-                        if (dateParts) {
-                            const { month, day } = dateParts;
-                            const anniversaryThisYear = new Date(today.getFullYear(), month - 1, day);
-                            anniversaryThisYear.setHours(0, 0, 0, 0);
-
-                            if (anniversaryThisYear < today) {
-                                anniversaryThisYear.setFullYear(today.getFullYear() + 1);
-                            }
-
-                            const daysUntil = differenceInDays(startOfDay(anniversaryThisYear), startOfDay(today));
-                            if (daysUntil >= 0 && daysUntil <= 7) {
-                                events.push({
-                                    friend,
-                                    type: 'anniversary',
-                                    daysUntil,
-                                    importance: daysUntil <= 7 ? 'medium' : 'low'
-                                });
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.warn(`Error parsing dates for friend ${friend.id}`, e);
-                }
-            });
-
-            // Sort by importance, then date
-            events.sort((a, b) => {
-                // Sort by date first
-                return a.daysUntil - b.daysUntil;
-            });
-
-            setUpcomingDates(events);
         };
 
         loadLifeEvents();

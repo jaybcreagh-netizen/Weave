@@ -199,10 +199,10 @@ export function WeaveReflectPrompt({
   }, []);
 
   const handleGuidedComplete = useCallback((content: string, friendIds: string[]) => {
-    setShowGuidedSheet(false);
+    // Don't close the guided sheet here — it handles its own receipt/close flow.
+    // Just notify parent that save completed.
     onGuidedReflectionComplete?.(content, friendIds);
-    onDismiss();
-  }, [onGuidedReflectionComplete, onDismiss]);
+  }, [onGuidedReflectionComplete]);
 
   const handleGuidedEscape = useCallback(() => {
     setShowGuidedSheet(false);
@@ -368,7 +368,10 @@ export function WeaveReflectPrompt({
       {guidedContext && (
         <GuidedReflectionSheet
           isOpen={showGuidedSheet}
-          onClose={() => setShowGuidedSheet(false)}
+          onClose={() => {
+            setShowGuidedSheet(false)
+            onDismiss()
+          }}
           context={guidedContext}
           onComplete={handleGuidedComplete}
           onEscape={handleGuidedEscape}

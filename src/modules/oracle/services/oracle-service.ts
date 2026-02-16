@@ -843,12 +843,22 @@ class OracleService {
             user: userPrompt
         }, promptDef.defaultOptions)
 
-        const question = this.extractGuidedQuestion(response.text)
+        const parsed = this.parseGuidedResponse(response.text)
 
-        session.pendingQuestion = (question && question.length > 3)
-            ? question
-            : 'What else stood out to you?'
+        // If the LLM signals ready to compose (e.g. after 3 turns), compose now
+        if (parsed.readyToCompose || !parsed.question) {
+            logger.info('OracleService', 'LLM signaled readyToCompose, composing entry', {
+                turnCount,
+                readyToCompose: parsed.readyToCompose
+            })
+            session.composedDraft = await this.composeEntry(session)
+            session.pendingQuestion = undefined
+            session.status = 'draft_ready'
+            this.activeGuidedSession = session
+            return session
+        }
 
+        session.pendingQuestion = parsed.question
         this.activeGuidedSession = session
         return session
     }
@@ -858,11 +868,12 @@ class OracleService {
      * Complete the guided reflection and save the entry
      */
     async completeReflection(session: GuidedSession): Promise<ComposedEntry> {
-        if (session.status !== 'draft_ready' || !session.composedDraft) {
-            throw new Error('Session not ready for completion')
+        if (!session.composedDraft) {
+            throw new Error('Session not ready for completion - no draft')
         }
 
-        session.status = 'complete'
+        // Don't mutate session.status until after all work succeeds
+        // This allows retry if the caller's DB write fails
         this.activeGuidedSession = null
 
         const result: ComposedEntry = {
@@ -977,12 +988,12 @@ class OracleService {
             user: userPrompt
         }, promptDef.defaultOptions)
 
-        const question = this.extractGuidedQuestion(response.text)
+        const parsed = this.parseGuidedResponse(response.text)
 
         session.deepeningTurns = []
         session.originalDraft = session.composedDraft
         session.hasDeepened = true
-        session.pendingQuestion = (question && question.length > 3) ? question : 'What else would you like to add?'
+        session.pendingQuestion = (parsed.question && parsed.question.length > 3) ? parsed.question : 'What else would you like to add?'
         session.status = 'deepening'
 
         logger.info('OracleService', 'Started deepening reflection', {
@@ -1044,20 +1055,14 @@ class OracleService {
             user: userPrompt
         }, promptDef.defaultOptions)
 
-        const question = this.extractGuidedQuestion(response.text)
+        const parsed = this.parseGuidedResponse(response.text)
 
-        // Check if response indicates ready to compose (look for the flag in raw response)
-        const readyToCompose = response.text.toLowerCase().includes('"readytocompose": true') ||
-            response.text.toLowerCase().includes('"readytocompose":true')
-
-        if (readyToCompose) {
+        if (parsed.readyToCompose || !parsed.question) {
             session.composedDraft = await this.composeDeepenedEntry(session)
             session.pendingQuestion = undefined
             session.status = 'draft_ready'
         } else {
-            session.pendingQuestion = (question && question.length > 3)
-                ? question
-                : 'What else would you like to add?'
+            session.pendingQuestion = parsed.question
         }
 
         this.activeGuidedSession = session
@@ -1392,15 +1397,16 @@ class OracleService {
         }, promptDef.defaultOptions)
 
         // Robust parsing with multiple fallback strategies
-        const question = this.extractGuidedQuestion(response.text)
-        return question && question.length > 3 ? question : 'How was it?'
+        const parsed = this.parseGuidedResponse(response.text)
+        return parsed.question && parsed.question.length > 3 ? parsed.question : 'How was it?'
     }
 
     /**
-     * Extract question from LLM response with multiple fallback strategies
+     * Result from parsing an LLM guided question response.
+     * Distinguishes between: got a question, LLM says ready to compose, or extraction failed.
      */
-    private extractGuidedQuestion(responseText: string): string | undefined {
-        logger.debug('OracleService', 'extractGuidedQuestion input', {
+    private parseGuidedResponse(responseText: string): { question?: string; readyToCompose: boolean } {
+        logger.debug('OracleService', 'parseGuidedResponse input', {
             responseLength: responseText?.length,
             responsePreview: responseText?.substring(0, 200)
         })
@@ -1412,43 +1418,48 @@ class OracleService {
             const parsed = JSON.parse(json)
             logger.debug('OracleService', 'Parsed JSON', { parsed })
 
-            // If we successfully parsed JSON, use its values
             if (typeof parsed === 'object' && parsed !== null) {
+                // If readyToCompose is true, signal composition
+                if (parsed.readyToCompose === true) {
+                    logger.info('OracleService', 'Strategy 1: readyToCompose=true')
+                    return { readyToCompose: true }
+                }
+
                 // If question exists and is a valid string, return it
                 if (parsed.question && typeof parsed.question === 'string' && parsed.question.length > 3) {
                     logger.info('OracleService', 'Strategy 1 succeeded: JSON parse with question', { question: parsed.question })
-                    return parsed.question
-                }
-
-                // If readyToCompose is true, return undefined to trigger composition
-                if (parsed.readyToCompose === true) {
-                    logger.info('OracleService', 'Strategy 1: readyToCompose=true, returning undefined')
-                    return undefined
+                    return { question: parsed.question, readyToCompose: false }
                 }
             }
         } catch (e) {
             logger.debug('OracleService', 'JSON parse failed', { error: (e as Error).message })
         }
 
-        // Strategy 2: Extract question field via regex
+        // Strategy 2: Extract question field via regex (also check readyToCompose)
+        const composeMatch = responseText.match(/"readyToCompose"\s*:\s*true/)
+        if (composeMatch) {
+            logger.info('OracleService', 'Strategy 2: readyToCompose=true via regex')
+            return { readyToCompose: true }
+        }
+
         const questionMatch = responseText.match(/"question"\s*:\s*"([^"]+)"/)
         if (questionMatch?.[1] && questionMatch[1].length > 3) {
             logger.info('OracleService', 'Strategy 2 succeeded: regex extraction', { question: questionMatch[1] })
-            return questionMatch[1]
+            return { question: questionMatch[1], readyToCompose: false }
         }
 
         // Strategy 3: Look for a question in the text (ends with ?)
         const questionSentence = responseText.match(/([^.!?]*\?)\s*$/)?.[1]?.trim()
         if (questionSentence && questionSentence.length > 10) {
             logger.info('OracleService', 'Strategy 3 succeeded: question sentence', { question: questionSentence })
-            return questionSentence
+            return { question: questionSentence, readyToCompose: false }
         }
 
         // Strategy 4: Clean up raw text as last resort
         // SKIP if the response looks like JSON (contains readyToCompose or structured data)
         if (responseText.includes('readyToCompose') || responseText.includes('"question"')) {
             logger.debug('OracleService', 'Strategy 4 skipped: response appears to be JSON')
-            return undefined
+            return { readyToCompose: false }
         }
 
         const cleaned = responseText
@@ -1460,13 +1471,13 @@ class OracleService {
 
         if (cleaned.length > 10 && !cleaned.includes('{') && !cleaned.includes(':')) {
             logger.info('OracleService', 'Strategy 4 succeeded: cleaned text', { question: cleaned })
-            return cleaned
+            return { question: cleaned, readyToCompose: false }
         }
 
         logger.warn('OracleService', 'All extraction strategies failed', {
             responseText: responseText?.substring(0, 300)
         })
-        return undefined
+        return { readyToCompose: false }
     }
 
     private async composeEntry(session: GuidedSession): Promise<string> {

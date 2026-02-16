@@ -43,6 +43,7 @@ export function EditReflectionModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isDrafting, setIsDrafting] = useState(false); // New state
   const [showGuidedReflection, setShowGuidedReflection] = useState(false);
+  const [guidedFlowSaved, setGuidedFlowSaved] = useState(false);
 
   // Track which interaction we've initialized to prevent resetting state on re-renders
   const [initializedForId, setInitializedForId] = React.useState<string | null>(null);
@@ -194,7 +195,13 @@ export function EditReflectionModal({
       {/* Oracle Help me write */}
       <GuidedReflectionSheet
         isOpen={showGuidedReflection}
-        onClose={() => setShowGuidedReflection(false)}
+        onClose={() => {
+          setShowGuidedReflection(false)
+          if (guidedFlowSaved) {
+            setGuidedFlowSaved(false)
+            onClose()
+          }
+        }}
         context={friendId ? {
           type: 'post_weave',
           friendIds: [friendId],
@@ -202,9 +209,8 @@ export function EditReflectionModal({
           interactionId: interaction?.id,
           activity: interaction?.activity || interaction?.interactionCategory || undefined,
         } : undefined}
-        onComplete={(content) => {
-          setReflection({ ...reflection, customNotes: content });
-          setShowGuidedReflection(false);
+        onComplete={() => {
+          setGuidedFlowSaved(true)
         }}
         onEscape={() => {
           setShowGuidedReflection(false);

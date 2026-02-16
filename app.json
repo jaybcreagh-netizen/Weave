@@ -2,12 +2,12 @@
   "expo": {
     "name": "Weave",
     "slug": "weave",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "updates": {
       "enabled": true,
       "fallbackToCacheTimeout": 0
     },
-    "runtimeVersion": "1.0.4",
+    "runtimeVersion": "1.0.5",
     "icon": "./assets/icon.png",
     "notification": {
       "icon": "./assets/icon.png",

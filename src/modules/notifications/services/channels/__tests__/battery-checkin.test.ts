@@ -8,12 +8,32 @@ import { NOTIFICATION_CONFIG } from '../../../notification.config';
 
 // Mocks
 jest.mock('expo-notifications');
+
+const mockFetchProfile = jest.fn().mockResolvedValue([{ id: '1', batteryCheckinTime: '08:00' }]);
+const mockFetchLogs = jest.fn().mockResolvedValue([]);
+
 jest.mock('@/db', () => ({
     database: {
-        get: jest.fn().mockReturnValue({
-            query: jest.fn().mockReturnValue({
-                fetch: jest.fn().mockResolvedValue([{ id: '1', batteryCheckinTime: '08:00' }]),
-            }),
+        get: jest.fn((collection) => {
+            if (collection === 'user_profile') {
+                return {
+                    query: jest.fn().mockReturnValue({
+                        fetch: mockFetchProfile,
+                    }),
+                };
+            }
+            if (collection === 'social_battery_logs') {
+                return {
+                    query: jest.fn().mockReturnValue({
+                        fetch: mockFetchLogs,
+                    }),
+                };
+            }
+            return {
+                query: jest.fn().mockReturnValue({
+                    fetch: jest.fn().mockResolvedValue([]),
+                }),
+            };
         }),
     },
 }));
@@ -33,6 +53,7 @@ describe('BatteryCheckinChannel', () => {
         (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([]);
         (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('test-id');
         (gracePeriods.shouldSendSocialBatteryNotification as jest.Mock).mockResolvedValue({ shouldSend: true });
+        mockFetchLogs.mockResolvedValue([]); // Default: no logs
     });
 
     describe('schedule', () => {
@@ -64,6 +85,23 @@ describe('BatteryCheckinChannel', () => {
             await BatteryCheckinChannel.schedule();
 
             expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+        });
+
+        it('should skip scheduling for days with existing logs', async () => {
+            // Mock existing log for "today" (or the first scheduled day)
+            mockFetchLogs.mockResolvedValue([{ id: 'log1', timestamp: Date.now() }]);
+
+            await BatteryCheckinChannel.schedule();
+
+            // Should still try to schedule for OTHER days in the batch, but let's check if it skipped at least one.
+            // BATCH_DAYS is 14. If today is logged, we expect 13 calls?
+            // Actually, the loop runs for BATCH_DAYS.
+            // If mockFetchLogs returns a log for EVERY query, then it should schedule NOTHING.
+            // But our mock is simple and returns the same array for all queries in this test run.
+            // So if we return a log, it will think ALL days are logged.
+            // So we expect 0 calls.
+
+            expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
         });
     });
 

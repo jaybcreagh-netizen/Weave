@@ -7,13 +7,15 @@ import { Suggestion } from '@/shared/types/common';
 import { fetchSuggestions } from '@/modules/interactions/services/suggestion-provider.service';
 import type { SocialSeason } from '@/db/models/UserProfile';
 import { differenceInDays, isSameDay, startOfDay } from 'date-fns';
+import { HOLIDAYS, DYNAMIC_DATE_CALCULATORS, Holiday } from './calendar-season/holidays';
 
 export interface UpcomingDate {
-    friend: FriendModel;
-    type: 'birthday' | 'anniversary' | 'life_event';
+    friend?: FriendModel;
+    type: 'birthday' | 'anniversary' | 'life_event' | 'holiday';
     daysUntil: number;
     title?: string;
     importance?: 'low' | 'medium' | 'high' | 'critical';
+    date?: Date;
 }
 
 export interface FocusData {
@@ -118,7 +120,87 @@ export const FocusGenerator = {
             }
         });
 
+        // 3. Holidays
+        const upcomingHolidays = this.getUpcomingHolidays(today, thirtyDaysFromNow, allFriends);
+        events.push(...upcomingHolidays);
+
         events.sort((a, b) => a.daysUntil - b.daysUntil);
+        return events;
+    },
+
+    /**
+     * Get upcoming holidays
+     */
+    getUpcomingHolidays(today: Date, endDate: Date, friends: FriendModel[]): UpcomingDate[] {
+        const events: UpcomingDate[] = [];
+        const currentYear = today.getFullYear();
+
+        // Check current year and next year to cover year boundaries
+        const yearsToCheck = [currentYear, currentYear + 1];
+
+        // Helper to get date from holiday
+        const getHolidayDate = (holiday: Holiday, year: number): Date | null => {
+            try {
+                if (holiday.date === 'dynamic' && holiday.dynamicDateKey) {
+                    const calculator = DYNAMIC_DATE_CALCULATORS[holiday.dynamicDateKey];
+                    return calculator ? calculator(year) : null;
+                } else if (holiday.date !== 'dynamic') {
+                    const [month, day] = holiday.date.split('-').map(n => parseInt(n, 10));
+                    return new Date(year, month - 1, day);
+                }
+            } catch (e) {
+                console.warn(`Error calculating date for holiday ${holiday.id}`, e);
+            }
+            return null;
+        };
+
+        HOLIDAYS.forEach(holiday => {
+            // Skip disabled holidays (unless we want to support user preferences later)
+            if (!holiday.defaultEnabled) return;
+
+            yearsToCheck.forEach(year => {
+                const date = getHolidayDate(holiday, year);
+                if (!date) return;
+
+                // Normalize time
+                date.setHours(0, 0, 0, 0);
+
+                // Check if within window
+                if (date >= today && date <= endDate) {
+                    const daysUntil = differenceInDays(startOfDay(date), startOfDay(today));
+
+                    // Special logic for specific holidays
+                    if (holiday.id === 'valentines-day') {
+                        // Partner logic: find a partner
+                        const partner = friends.find(f =>
+                            f.relationshipType?.toLowerCase() === 'partner'
+                        );
+
+                        if (partner) {
+                            events.push({
+                                friend: partner,
+                                type: 'holiday',
+                                daysUntil,
+                                title: holiday.name,
+                                importance: 'high',
+                                date
+                            });
+                            return; // Don't add generic event if we found a partner
+                        }
+                    }
+
+                    // Generic holiday event
+                    events.push({
+                        type: 'holiday',
+                        daysUntil,
+                        title: holiday.name,
+                        importance: holiday.category === 'major' ? 'high' : 'medium',
+                        date
+                    });
+                }
+            });
+        });
+
         return events;
     },
 

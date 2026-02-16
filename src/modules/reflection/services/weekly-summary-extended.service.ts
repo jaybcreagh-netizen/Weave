@@ -17,6 +17,7 @@ import FriendModel from '@/db/models/Friend';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { getAverageWeeklyWeaves } from './prompt-engine';
 import { getCurrentWeekBounds } from './weekly-reflection.service';
+import { calculateCurrentScore } from '@/modules/intelligence';
 
 // ============================================================================
 // TYPES
@@ -597,7 +598,7 @@ async function getMissedFriends(): Promise<MissedFriend[]> {
 
     missedFriends.push({
       friend,
-      weaveScore: friend.weaveScore,
+      weaveScore: calculateCurrentScore(friend),
       daysSinceLastContact: daysSince,
       archetypeValue: getArchetypeValue(friend.archetype),
       suggestedAction: getSuggestedAction(friend.archetype, friend.dunbarTier),
@@ -716,7 +717,7 @@ async function calculateSocialHealth(): Promise<{ score: number } | undefined> {
 
   if (friends.length === 0) return undefined;
 
-  const totalScore = friends.reduce((sum, f) => sum + f.weaveScore, 0);
+  const totalScore = friends.reduce((sum, f) => sum + calculateCurrentScore(f), 0);
   const averageScore = Math.round(totalScore / friends.length);
 
   return { score: averageScore };

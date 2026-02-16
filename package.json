@@ -1,6 +1,6 @@
 {
   "name": "weave",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "expo-router/entry",
   "scripts": {
     "start": "NODE_OPTIONS=--max-old-space-size=8192 expo start",

@@ -96,7 +96,7 @@ export const GROUP_IMMUNE_ARCHETYPES: Archetype[] = ['Sun', 'Lovers', 'Magician'
  * event multiplier, momentum, etc.), scores are capped to maintain balance.
  */
 export const MAX_INTERACTION_SCORE = 50; // Cap for a single interaction
-export const SCORE_BUFFER_CAP = 150; // Buffered cap for storage (allows for deletion headroom)
+export const SCORE_BUFFER_CAP = 110; // Buffered cap for storage (allows for deletion headroom)
 
 /**
  * Group dilution curve parameters.
