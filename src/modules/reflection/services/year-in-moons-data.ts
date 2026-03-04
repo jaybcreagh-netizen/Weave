@@ -54,6 +54,13 @@ let pendingFetch: Promise<BatteryHistoryEntry[]> | null = null;
 const CACHE_TTL_MS = 60_000; // 60 seconds - covers component remounts and observable churn
 
 /**
+ * Invalidate cached battery history so subsequent reads reflect recent writes immediately.
+ */
+export function invalidateYearMoonDataCache(): void {
+  batteryHistoryCache = null;
+}
+
+/**
  * Fetch battery history from SocialBatteryLog table (cached with request deduplication)
  */
 async function fetchBatteryHistory(): Promise<BatteryHistoryEntry[]> {

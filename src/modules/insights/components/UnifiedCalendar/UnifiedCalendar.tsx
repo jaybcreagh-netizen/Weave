@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, ScrollView, ActivityIndicator, Text } from 'react-native';
 import { useRouter } from 'expo-router';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isSameDay } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { Users, CalendarClock, Flame } from 'lucide-react-native';
 
@@ -27,6 +27,13 @@ interface UnifiedCalendarProps {
     onEditWeave?: (weaveId: string) => void;
     /** Increment this to trigger a data refresh */
     refreshTrigger?: number;
+    /** Optimistic local check-in to apply instantly before DB re-sync */
+    latestBatteryCheckin?: {
+        date: Date;
+        value: number;
+        note?: string;
+        token: number;
+    } | null;
 }
 
 export function UnifiedCalendar({
@@ -34,6 +41,7 @@ export function UnifiedCalendar({
     onOpenBatteryCheckin,
     onEditWeave,
     refreshTrigger,
+    latestBatteryCheckin,
 }: UnifiedCalendarProps) {
     const { tokens } = useTheme();
     const router = useRouter();
@@ -67,6 +75,35 @@ export function UnifiedCalendar({
             loadMonthData();
         }
     }, [refreshTrigger]);
+
+    // Apply optimistic check-in update immediately so moon fill + animation happens instantly.
+    useEffect(() => {
+        if (!latestBatteryCheckin) return;
+
+        const key = format(latestBatteryCheckin.date, 'yyyy-MM-dd');
+
+        setDayDataMap((prev) => {
+            const next = new Map(prev);
+            const existing = next.get(key);
+            next.set(key, {
+                date: latestBatteryCheckin.date,
+                batteryLevel: latestBatteryCheckin.value,
+                hasCheckin: true,
+                weaveCount: existing?.weaveCount ?? 0,
+                planCount: existing?.planCount ?? 0,
+            });
+            return next;
+        });
+
+        setDayDetailData((prev) => {
+            if (!prev || !isSameDay(prev.date, latestBatteryCheckin.date)) return prev;
+            return {
+                ...prev,
+                batteryLevel: latestBatteryCheckin.value,
+                batteryNote: latestBatteryCheckin.note ?? prev.batteryNote,
+            };
+        });
+    }, [latestBatteryCheckin?.token]);
 
     const loadData = async () => {
         setIsLoading(true);

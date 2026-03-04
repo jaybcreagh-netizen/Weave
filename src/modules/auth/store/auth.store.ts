@@ -6,7 +6,9 @@
 import { create } from 'zustand';
 import { supabase } from '../services/supabase.service';
 import type { User, Session } from '@supabase/supabase-js';
+import * as Network from 'expo-network';
 import { hasFeatureAccess, isAtLimit, TIER_LIMITS, type SubscriptionTier } from '../services/subscription-tiers';
+import { withTimeout } from '../services/auth-utils';
 
 // Type for the auth state change subscription (has unsubscribe method)
 type AuthSubscription = { unsubscribe: () => void };
@@ -14,6 +16,10 @@ type AuthSubscription = { unsubscribe: () => void };
 // Module-level state to prevent duplicate initialization and listeners
 let authListenerSubscription: AuthSubscription | null = null;
 let isInitialized = false;
+
+const AUTH_INIT_FALLBACK_MS = 3000;
+const SESSION_FETCH_TIMEOUT_MS = 2500;
+const SESSION_VALIDATION_TIMEOUT_MS = 3000;
 
 interface UserSubscription {
   tier: SubscriptionTier;
@@ -94,6 +100,18 @@ async function withRetry<T>(
   throw lastError;
 }
 
+async function hasInternetConnection(): Promise<boolean> {
+  try {
+    const networkState = await Network.getNetworkStateAsync();
+    if (!networkState.isConnected) return false;
+    // Treat unknown reachability as online to avoid false offline detections.
+    return networkState.isInternetReachable !== false;
+  } catch {
+    // If network probing fails, proceed optimistically.
+    return true;
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   session: null,
@@ -120,19 +138,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     isInitialized = true;
 
-    try {
-      // Step 1: Get cached session from local storage
-      const { data: { session: cachedSession } } = await supabase.auth.getSession();
+    // Safety valve: never let auth init block the global loading screen indefinitely.
+    const loadingFallbackTimer = setTimeout(() => {
+      set({ isLoading: false });
+    }, AUTH_INIT_FALLBACK_MS);
 
-      if (cachedSession) {
-        // Step 2: Validate the cached session is still valid server-side
-        // This catches revoked tokens, password changes, etc.
-        console.log('[Auth] Validating cached session...');
+    const validateCachedSessionInBackground = async (cachedSession: Session) => {
+      try {
+        const isOnline = await hasInternetConnection();
+        if (!isOnline) {
+          console.log('[Auth] Offline at startup, skipping server-side session validation');
+          return;
+        }
 
+        console.log('[Auth] Validating cached session in background...');
         const { data: { user: validatedUser }, error: userError } = await withRetry(
-          () => supabase.auth.getUser(),
-          3,
-          1000
+          () => withTimeout(
+            supabase.auth.getUser(),
+            SESSION_VALIDATION_TIMEOUT_MS,
+            'supabase.auth.getUser'
+          ),
+          2,
+          750
         );
 
         if (userError || !validatedUser) {
@@ -146,25 +173,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             subscription: null,
             usage: null,
           });
-        } else {
-          // Session is valid - restore auth state
-          console.log('[Auth] Session validated successfully');
-          set({
-            user: validatedUser,
-            session: cachedSession,
-            isAuthenticated: true,
-          });
-
-          // Step 3: Load subscription and usage data in parallel (non-blocking for UI)
-          get().refreshSubscriptionAndUsage().catch(err => {
-            console.error('[Auth] Background refresh failed:', err);
-          });
+          return;
         }
+
+        // Refresh user shape from server if validation succeeded.
+        set({
+          user: validatedUser,
+          session: cachedSession,
+          isAuthenticated: true,
+        });
+
+        // Subscription/usage refresh is best-effort and non-blocking.
+        get().refreshSubscriptionAndUsage().catch(err => {
+          console.error('[Auth] Background refresh failed:', err);
+        });
+      } catch (error) {
+        // Keep cached session so the app remains usable offline.
+        console.warn('[Auth] Deferred session validation failed, keeping cached session:', error);
       }
+    };
 
-      set({ isLoading: false });
-
-      // Step 4: Set up auth state change listener (with duplicate guard)
+    try {
+      // Step 1: Set up auth state change listener (with duplicate guard)
       if (authListenerSubscription) {
         console.log('[Auth] Cleaning up existing listener');
         authListenerSubscription.unsubscribe();
@@ -208,10 +238,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       authListenerSubscription = subscription;
 
+      // Step 2: Restore cached session quickly (bounded by timeout)
+      const { data: { session: cachedSession } } = await withTimeout(
+        supabase.auth.getSession(),
+        SESSION_FETCH_TIMEOUT_MS,
+        'supabase.auth.getSession'
+      );
+
+      if (cachedSession) {
+        // Restore immediately so offline users can use the app without waiting on network.
+        set({
+          user: cachedSession.user ?? null,
+          session: cachedSession,
+          isAuthenticated: true,
+        });
+
+        // Validate with server asynchronously when online.
+        void validateCachedSessionInBackground(cachedSession);
+      }
     } catch (error) {
       console.error('[Auth] Initialization error:', error);
       // Reset initialization flag so retry is possible on next app foreground
       isInitialized = false;
+    } finally {
+      clearTimeout(loadingFallbackTimer);
       set({ isLoading: false });
     }
   },

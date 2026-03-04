@@ -37,9 +37,7 @@ import Intention from '@/db/models/Intention';
 import { Q } from '@nozbe/watermelondb';
 import { StatusLineIcon } from '@/shared/components/StatusLineIcon';
 import { Sparkles, Handshake, Users, Heart, Briefcase, Home, GraduationCap, Palette, Target, Star, Link2, type LucideIcon } from 'lucide-react-native';
-
-const ATTENTION_THRESHOLD = 35;
-const STABLE_THRESHOLD = 65;
+import { getFriendHealthGradient } from '../utils/health-color.utils';
 
 // Relationship type icon mapping
 const RELATIONSHIP_ICONS: Record<RelationshipType, LucideIcon> = {
@@ -98,23 +96,11 @@ export const FriendListRowContent = ({
     [friend.id, friend.weaveScore, friend.lastUpdated, friend.archetype, friend.dunbarTier]
   );
 
-  // Determine gradient colors based on score
-  const gradientColors = useMemo(() => {
-    if (weaveScore > STABLE_THRESHOLD) {
-      return colors.living.healthy;
-    } else if (weaveScore > ATTENTION_THRESHOLD) {
-      return colors.living.stable;
-    } else {
-      return colors.living.attention;
-    }
-  }, [weaveScore, colors]);
-
-  // Determine gradient opacity based on score (attention gets more visible)
-  const gradientOpacity = useMemo(() => {
-    if (weaveScore > STABLE_THRESHOLD) return 0.22;
-    if (weaveScore > ATTENTION_THRESHOLD) return 0.25;
-    return 0.30; // Attention state more visible
-  }, [weaveScore]);
+  // Interpolate colors/opacity across score anchors for smoother health feedback.
+  const { colors: gradientColors, opacity: gradientOpacity } = useMemo(
+    () => getFriendHealthGradient(weaveScore, isDarkMode),
+    [weaveScore, isDarkMode]
+  );
 
   const glowProgress = useSharedValue(0);
   const pressScale = useSharedValue(1);

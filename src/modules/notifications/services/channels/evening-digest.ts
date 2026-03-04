@@ -159,13 +159,22 @@ export const EveningDigestChannel: NotificationChannel & {
         // 2. Upcoming (Priority 90/30)
         focusData.upcomingDates.forEach(d => {
             const priority = d.daysUntil <= 1 ? 90 : (d.importance === 'critical' ? 80 : 30);
+            const digestType: DigestItem['type'] = d.type === 'holiday' ? 'life_event' : d.type;
+            const friendName = d.friend?.name;
+            const title =
+                d.type === 'birthday'
+                    ? (friendName ? `${friendName}'s Birthday` : 'Birthday')
+                    : d.type === 'anniversary'
+                        ? (friendName ? `Anniversary with ${friendName}` : (d.title || 'Anniversary'))
+                        : (d.title || (d.type === 'holiday' ? 'Upcoming holiday' : d.type));
+
             items.push({
-                type: d.type,
+                type: digestType,
                 priority,
-                title: d.type === 'birthday' ? `${d.friend.name}'s Birthday` : (d.title || d.type),
+                title,
                 subtitle: d.daysUntil === 0 ? 'Today' : (d.daysUntil === 1 ? 'Tomorrow' : `In ${d.daysUntil} days`),
-                friendId: d.friend.id,
-                friendName: d.friend.name,
+                friendId: d.friend?.id,
+                friendName,
             });
         });
 
@@ -351,8 +360,12 @@ export const EveningDigestChannel: NotificationChannel & {
             );
 
             tomorrowBirthdays.slice(0, 2 - tomorrowItems.length).forEach(d => {
+                if (!d.friend) {
+                    return;
+                }
+
                 tomorrowItems.push({
-                    type: d.type,
+                    type: d.type === 'anniversary' ? 'anniversary' : 'birthday',
                     priority: 95,
                     title: d.type === 'birthday'
                         ? `${d.friend.name}'s Birthday`

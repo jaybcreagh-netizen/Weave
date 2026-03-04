@@ -216,12 +216,6 @@ export function GuidedReflectionSheet({
             if (result) {
                 setProcessingResult(result)
                 setIsProcessing(false)
-
-                if (result.actions.length === 0) {
-                    setTimeout(() => {
-                        handleDismissReceipt()
-                    }, 2500)
-                }
             } else {
                 handleDismissReceipt()
             }
@@ -312,7 +306,7 @@ export function GuidedReflectionSheet({
     }
 
     const getTitle = () => {
-        if (showReceipt) return 'Saved'
+        if (showReceipt) return 'Reflection saved'
         if (!flowMode && !preSelectedContext) return 'Help me write'
         if (flowMode === 'prompted') return 'Prompted reflection'
         if (showTopicSelection) return 'Help me write'

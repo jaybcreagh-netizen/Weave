@@ -11,6 +11,7 @@ import { notificationStore } from './notification-store';
 import { notificationAnalytics } from './notification-analytics';
 import { checkNotificationPermissions, requestNotificationPermissions } from './permission.service';
 import { registerPushToken, handleRemotePushNotification } from './push-token.service';
+import { registerNotificationCategories } from './notification-categories';
 
 import { showSharedWeaveNotification, showLinkRequestNotification, handleIncomingSharedWeave } from './shared-weave-notifications';
 import { onIncomingLink, onIncomingWeave, IncomingLinkPayload, IncomingWeavePayload } from '@/modules/sync';
@@ -77,6 +78,8 @@ class NotificationOrchestratorService {
                         notificationAnalytics.trackForegroundShown(type);
                     }
 
+                    const forceForegroundAlert = data.forceForegroundAlert === true;
+
                     // Determine if we should show a system alert based on type
                     // We want to show alerts for social interactions (High Priority)
                     const isSocialNotification = [
@@ -86,7 +89,7 @@ class NotificationOrchestratorService {
                         'friend_joined'
                     ].includes(type || '');
 
-                    if (isSocialNotification) {
+                    if (isSocialNotification || forceForegroundAlert) {
                         return {
                             shouldShowAlert: true,
                             shouldPlaySound: true,
@@ -107,6 +110,9 @@ class NotificationOrchestratorService {
                     };
                 },
             });
+
+            // Register action categories (quick actions, etc.)
+            await registerNotificationCategories();
 
             // 2. Check if we have permissions to proceed with setup
             const hasPermission = await checkNotificationPermissions();

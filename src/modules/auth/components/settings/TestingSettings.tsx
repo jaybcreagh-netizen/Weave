@@ -22,12 +22,11 @@ import {
     Zap,
     Flame
 } from 'lucide-react-native';
-import { NotificationOrchestrator } from '@/modules/notifications';
+import { NotificationOrchestrator, EveningDigestChannel, BatteryCheckinChannel } from '@/modules/notifications';
 import { SettingsItem } from './SettingsItem';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { DiagnosticService } from '@/shared/services/diagnostic.service';
-import { EveningDigestChannel } from '@/modules/notifications';
 import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/seeds/stress-test-seed-data';
 import * as Notifications from 'expo-notifications';
 import { SocialSeason } from '@/db/models/UserProfile';
@@ -273,6 +272,33 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
         }
     };
 
+    const handleTestBatteryQuickActions = async () => {
+        try {
+            const { status } = await Notifications.getPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert(
+                    'Notifications Disabled',
+                    'Enable notifications first, then run this test again.'
+                );
+                return;
+            }
+
+            const notificationId = await BatteryCheckinChannel.sendTestQuickActionNotification();
+            if (!notificationId) {
+                Alert.alert('Error', 'Failed to send battery quick-action test notification.');
+                return;
+            }
+
+            Alert.alert(
+                'Test Notification Sent',
+                'Battery quick actions are now available on the notification: Low, Okay, High.'
+            );
+        } catch (error) {
+            console.error('Failed to send battery quick-action test notification:', error);
+            Alert.alert('Error', 'Failed to send battery quick-action test notification.');
+        }
+    };
+
     const handleResetScheduler = async () => {
         Alert.alert(
             'Reset Scheduler',
@@ -325,6 +351,7 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
             case 'memory-nudge': return '💭';
             case 'smart-suggestions': return '💡';
             case 'daily-battery-checkin': return '🔋';
+            case 'battery-checkin': return '🔋';
             case 'deepening-nudge': return '🌱';
             case 'event-reminder': return '📅';
             default: return '🔔';
@@ -521,6 +548,15 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
                     onClose();
                     setTimeout(() => openWeeklyReflection(), 300);
                 }}
+            />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <SettingsItem
+                icon={Battery}
+                title="Test Battery Quick Log"
+                subtitle="Send notification with Low/Okay/High"
+                onPress={handleTestBatteryQuickActions}
             />
 
             <View className="border-t border-border" style={{ borderColor: colors.border }} />

@@ -14,12 +14,30 @@ import { notificationAnalytics } from '../notification-analytics';
 import { shouldSendSocialBatteryNotification } from '../notification-grace-periods';
 import { NotificationChannel } from '@/modules/notifications';
 import { NOTIFICATION_CONFIG, NOTIFICATION_TIMING } from '../../notification.config';
+import { BATTERY_CHECKIN_CATEGORY_ID, registerNotificationCategories } from '../notification-categories';
 
 const ID_PREFIX = 'battery-checkin';
+
+function buildBatteryCheckinContent(
+    title: string,
+    body: string,
+    extraData: Record<string, unknown> = {}
+) {
+    return {
+        title,
+        body,
+        data: {
+            type: 'battery-checkin',
+            ...extraData,
+        },
+        categoryIdentifier: BATTERY_CHECKIN_CATEGORY_ID,
+    };
+}
 
 export const BatteryCheckinChannel: NotificationChannel & {
     rescheduleForTomorrow: () => Promise<void>;
     checkAndExtendBatch: () => Promise<void>;
+    sendTestQuickActionNotification: () => Promise<string | null>;
 } = {
     /**
      * Schedule battery check-in notifications for the next batch period.
@@ -97,11 +115,7 @@ export const BatteryCheckinChannel: NotificationChannel & {
 
                 await Notifications.scheduleNotificationAsync({
                     identifier: id,
-                    content: {
-                        title,
-                        body,
-                        data: { type: 'battery-checkin' },
-                    },
+                    content: buildBatteryCheckinContent(title, body),
                     trigger: {
                         type: Notifications.SchedulableTriggerInputTypes.DATE,
                         date: target
@@ -207,6 +221,30 @@ export const BatteryCheckinChannel: NotificationChannel & {
             if (profile?.batteryCheckinEnabled !== false) {
                 await BatteryCheckinChannel.schedule();
             }
+        }
+    },
+
+    /**
+     * Dev helper: send an immediate foreground-visible test notification
+     * with quick actions enabled.
+     */
+    sendTestQuickActionNotification: async (): Promise<string | null> => {
+        try {
+            await registerNotificationCategories();
+
+            const notificationId = await Notifications.scheduleNotificationAsync({
+                content: buildBatteryCheckinContent(
+                    'Test: How\'s your energy?',
+                    'Use Low, Okay, or High to quick-log from the notification.',
+                    { isTest: true, forceForegroundAlert: true }
+                ),
+                trigger: null,
+            });
+
+            return notificationId;
+        } catch (error) {
+            Logger.error('[BatteryCheckin] Failed to send test quick-action notification:', error);
+            return null;
         }
     }
 };

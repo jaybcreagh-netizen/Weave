@@ -46,6 +46,7 @@ export const InsightReceipt: React.FC<InsightReceiptProps> = ({
 
     // Build a human-readable summary line
     const summaryParts: string[] = [];
+    summaryParts.push('Saved to Journal');
     if (themeCount > 0) summaryParts.push(`${themeCount} theme${themeCount > 1 ? 's' : ''}`);
     if (memoryCount > 0) summaryParts.push(`${memoryCount} memor${memoryCount > 1 ? 'ies' : 'y'}`);
     if (threads.length > 0) summaryParts.push(`${threads.length} thread${threads.length > 1 ? 's' : ''}`);
@@ -76,7 +77,7 @@ export const InsightReceipt: React.FC<InsightReceiptProps> = ({
                                 weight="semibold"
                                 style={{ color: colors.foreground, fontSize: 15 }}
                             >
-                                Insights captured
+                                Journal entry saved
                             </Text>
                             {summaryParts.length > 0 && (
                                 <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
@@ -161,6 +162,19 @@ export const InsightReceipt: React.FC<InsightReceiptProps> = ({
                         <Icon name="ArrowRight" size={12} color={colors.primary} style={{ marginLeft: 4 }} />
                     </TouchableOpacity>
                 )}
+
+                <TouchableOpacity
+                    onPress={onDismiss}
+                    className="mt-3 py-2 flex-row items-center justify-center"
+                    activeOpacity={0.6}
+                >
+                    <Text
+                        variant="caption"
+                        style={{ color: colors['muted-foreground'], fontWeight: '500' }}
+                    >
+                        Done
+                    </Text>
+                </TouchableOpacity>
             </View>
         </Animated.View>
     );

@@ -15,10 +15,11 @@ import { PatternsTabContent } from '@/modules/intelligence/components/social-sea
 import { TierBalanceContent } from '@/modules/relationships/components/TierBalanceContent';
 import { EditInteractionModal } from '@/modules/interactions';
 import { InteractionActions } from '@/modules/interactions/services/interaction.actions';
-import { SocialBatterySheet } from '@/modules/home/components/widgets/SocialBatterySheet';
 import { SocialBatteryService } from '@/modules/auth/services/social-battery.service';
 import { useUserProfile } from '@/modules/auth/hooks/useUserProfile';
 import { database } from '@/db';
+import { BatteryCheckinOverlay } from './BatteryCheckinOverlay';
+import { invalidateYearMoonDataCache } from '@/modules/reflection/services/year-in-moons-data';
 
 type TabId = 'moons' | 'alignment' | 'patterns';
 
@@ -41,7 +42,7 @@ export function UnifiedCalendarModal({
     initialTab = 'moons',
     onOpenPlanWizard,
 }: UnifiedCalendarModalProps) {
-    const { tokens, isDarkMode } = useTheme();
+    const { tokens } = useTheme();
     const { profile } = useUserProfile();
     const [currentTab, setCurrentTab] = useState<TabId>(initialTab);
 
@@ -49,6 +50,12 @@ export function UnifiedCalendarModal({
     const [isBatterySheetOpen, setIsBatterySheetOpen] = useState(false);
     const [checkinDate, setCheckinDate] = useState<Date | null>(null);
     const [calendarRefreshTrigger, setCalendarRefreshTrigger] = useState(0);
+    const [latestBatteryCheckin, setLatestBatteryCheckin] = useState<{
+        date: Date;
+        value: number;
+        note?: string;
+        token: number;
+    } | null>(null);
 
     // Reset tab when modal opens
     React.useEffect(() => {
@@ -69,11 +76,26 @@ export function UnifiedCalendarModal({
         if (!profile || !checkinDate) return;
 
         try {
-            const timestamp = startOfDay(checkinDate).getTime() + 12 * 60 * 60 * 1000;
+            const normalizedDate = startOfDay(checkinDate);
+            const timestamp = normalizedDate.getTime() + 12 * 60 * 60 * 1000;
             await SocialBatteryService.submitCheckin(profile.id, value, note, timestamp, true);
-            setIsBatterySheetOpen(false);
-            // Trigger calendar refresh to show the new battery data
+
+            // 1) Optimistic update for instant moon fill + animation.
+            setLatestBatteryCheckin({
+                date: normalizedDate,
+                value,
+                note,
+                token: Date.now(),
+            });
+
+            // 2) Invalidate cached battery history used by calendar services.
+            invalidateYearMoonDataCache();
+
+            // 3) Trigger async re-sync from DB as a safety net.
             setCalendarRefreshTrigger(prev => prev + 1);
+
+            setIsBatterySheetOpen(false);
+            setCheckinDate(null);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (error) {
             console.error('[UnifiedCalendarModal] Error submitting battery check-in:', error);
@@ -82,6 +104,7 @@ export function UnifiedCalendarModal({
 
     const handleBatteryDismiss = React.useCallback(() => {
         setIsBatterySheetOpen(false);
+        setCheckinDate(null);
     }, []);
 
     // Edit Weave Modal State
@@ -180,6 +203,7 @@ export function UnifiedCalendarModal({
                             onOpenBatteryCheckin={handleOpenBatteryCheckin}
                             onEditWeave={handleEditWeave}
                             refreshTrigger={calendarRefreshTrigger}
+                            latestBatteryCheckin={latestBatteryCheckin}
                         />
                     )}
                     {currentTab === 'alignment' && (
@@ -189,16 +213,15 @@ export function UnifiedCalendarModal({
                     )}
                     {currentTab === 'patterns' && <PatternsTabContent />}
 
+                    {/* Inline calendar check-in overlay (avoids nested modal sheet clashes on iOS) */}
+                    <BatteryCheckinOverlay
+                        visible={isBatterySheetOpen}
+                        date={checkinDate}
+                        onSubmit={handleBatterySubmit}
+                        onDismiss={handleBatteryDismiss}
+                    />
                 </SafeAreaView>
             </Modal>
-
-            {/* Battery Check-in Sheet - Outside Modal for better performance and z-index handling */}
-            <SocialBatterySheet
-                isVisible={isBatterySheetOpen}
-                onSubmit={handleBatterySubmit}
-                onDismiss={handleBatteryDismiss}
-            />
-
 
             <EditInteractionModal
                 interaction={selectedInteraction}

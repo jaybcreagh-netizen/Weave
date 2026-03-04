@@ -21,6 +21,7 @@ import { MemoryNudgeChannel } from './channels/memory-nudge';
 import { SmartSuggestionsChannel } from './channels/smart-suggestions';
 import { EventSuggestionChannel } from './channels/event-suggestion';
 import { EveningDigestChannel } from './channels/evening-digest';
+import { getBatteryValueForQuickAction } from './notification-categories';
 
 /**
  * Safely execute a channel's handleTap with error isolation.
@@ -73,6 +74,27 @@ export const useNotificationResponseHandler = () => {
           await notificationStore.incrementIgnoreCount(type);
         }
         return;
+      }
+
+      // Quick action: log battery directly without opening the check-in sheet.
+      if (type === 'battery-checkin') {
+        const quickValue = getBatteryValueForQuickAction(actionId);
+        if (quickValue !== null) {
+          try {
+            const { SocialBatteryService } = await import('@/modules/auth/services/social-battery.service');
+            await SocialBatteryService.submitCheckin(
+              undefined,
+              quickValue,
+              'Logged from notification quick action',
+              Date.now(),
+              true
+            );
+            notificationAnalytics.trackActionCompleted('battery-checkin', `quick_log_${quickValue}`);
+            return;
+          } catch (quickLogError) {
+            Logger.error('[NotificationHandler] Battery quick action log failed:', quickLogError);
+          }
+        }
       }
 
       // Route to channel with error isolation
