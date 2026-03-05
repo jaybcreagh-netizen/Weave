@@ -50,6 +50,7 @@ export async function completePlan(interactionId: string, data?: { vibe?: string
       activity: interaction.activity,
       notes: interaction.note,
       date: interaction.interactionDate,
+      endDate: interaction.endDate,
       type: 'log',
       status: 'completed',
       mode: interaction.mode,
@@ -157,6 +158,10 @@ export async function checkPendingPlans(): Promise<void> {
       Q.where('status', 'planned'),
       Q.where('interaction_date', Q.lt(now)),
       Q.or(
+        Q.where('end_date', null),
+        Q.where('end_date', Q.lt(now))
+      ),
+      Q.or(
         Q.where('completion_prompted_at', null),
         Q.where('completion_prompted_at', Q.lt(now - 24 * 60 * 60 * 1000))
       )
@@ -196,6 +201,7 @@ export async function checkPendingPlans(): Promise<void> {
         activity: plan.activity,
         notes: plan.note,
         date: plan.interactionDate,
+        endDate: plan.endDate,
         type: 'log',
         status: 'completed',
         mode: plan.mode,

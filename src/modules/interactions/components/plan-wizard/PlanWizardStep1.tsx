@@ -1,29 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Modal, Switch } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, FadeIn } from 'react-native-reanimated';
 import { Calendar, Sun, X, TrendingUp, CalendarDays } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
-import { startOfDay, addDays, format, isSaturday, nextSaturday, getDay } from 'date-fns';
-import { Q } from '@nozbe/watermelondb';
+import { startOfDay, addDays, format, isSaturday, nextSaturday, differenceInCalendarDays } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { CustomCalendar } from '@/shared/components/CustomCalendar';
-import { database } from '@/db';
-import FriendModel from '@/db/models/Friend';
 
 interface PlanWizardStep1Props {
   selectedDate?: Date;
+  selectedEndDate?: Date;
+  isDateRange: boolean;
   onDateSelect: (date: Date) => void;
+  onEndDateSelect: (date: Date) => void;
+  onDateRangeToggle: (enabled: boolean) => void;
   onContinue: () => void;
   canContinue: boolean;
-  friend: FriendModel;
   plannedDates: Date[];
   mostCommonDay: { day: number; name: string; date: Date } | null;
 }
 
-export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canContinue, friend, plannedDates, mostCommonDay }: PlanWizardStep1Props) {
+export function PlanWizardStep1({
+  selectedDate,
+  selectedEndDate,
+  isDateRange,
+  onDateSelect,
+  onEndDateSelect,
+  onDateRangeToggle,
+  onContinue,
+  canContinue,
+  plannedDates,
+  mostCommonDay,
+}: PlanWizardStep1Props) {
   const { colors, isDarkMode } = useTheme();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [rangeSelectionPhase, setRangeSelectionPhase] = useState<'start' | 'end'>('start');
   const scale = useSharedValue(1);
 
   // Create animated style once at the top level
@@ -32,8 +44,6 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
   }));
 
   const today = startOfDay(new Date());
-
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   const handleQuickSelect = (option: 'today' | 'weekend' | 'usual' | 'next-week') => {
     setSelectedKey(option);
@@ -60,7 +70,16 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
     }
 
     onDateSelect(targetDate);
+    if (isDateRange && selectedEndDate && selectedEndDate < targetDate) {
+      onEndDateSelect(targetDate);
+    }
   };
+
+  const effectiveEndDate = selectedEndDate || selectedDate;
+  const rangeDays = selectedDate && effectiveEndDate
+    ? differenceInCalendarDays(effectiveEndDate, selectedDate) + 1
+    : 1;
+  const hasValidRange = !isDateRange || (!!selectedDate && !!effectiveEndDate && rangeDays >= 1 && rangeDays <= 30);
 
   return (
     <View className="px-5 py-6">
@@ -186,6 +205,8 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
             if (!selectedDate) {
               onDateSelect(today);
             }
+            setSelectedKey('calendar');
+            setRangeSelectionPhase('start');
             setShowDatePicker(true);
           }}
           className="p-5 rounded-2xl flex-row items-center justify-between"
@@ -209,10 +230,22 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
             </View>
             <View>
               <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
-                {selectedKey === 'calendar' && selectedDate ? format(selectedDate, 'EEEE, MMM d') : 'Pick a Date'}
+                {selectedDate
+                  ? (
+                    isDateRange && selectedEndDate && selectedEndDate.getTime() > selectedDate.getTime()
+                      ? `${format(selectedDate, 'EEE, MMM d')} - ${format(selectedEndDate, 'EEE, MMM d')}`
+                      : format(selectedDate, 'EEEE, MMM d')
+                  )
+                  : 'Pick a Date'}
               </Text>
               <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
-                {selectedKey === 'calendar' && selectedDate ? 'Tap to change' : 'Choose from calendar'}
+                {selectedDate
+                  ? (
+                    isDateRange && selectedEndDate
+                      ? `${rangeDays} day${rangeDays === 1 ? '' : 's'} • Tap to edit`
+                      : 'Tap to change'
+                  )
+                  : 'Choose from calendar'}
               </Text>
             </View>
           </View>
@@ -249,21 +282,89 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
                 {/* Header */}
                 <View className="flex-row justify-between items-center mb-4">
                   <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                    Pick a Date
+                    {!isDateRange
+                      ? 'Pick a Date'
+                      : (rangeSelectionPhase === 'end' ? 'Pick End Date' : 'Pick Start Date')}
                   </Text>
                   <TouchableOpacity onPress={() => setShowDatePicker(false)} className="p-2 -mr-2">
                     <X color={colors['muted-foreground']} size={22} />
                   </TouchableOpacity>
                 </View>
 
+                <View
+                  className="flex-row items-center justify-between mb-4 p-3 rounded-xl"
+                  style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }}
+                >
+                  <Text className="font-inter-semibold text-sm" style={{ color: colors.foreground }}>
+                    Date range
+                  </Text>
+                  <Switch
+                    value={isDateRange}
+                    onValueChange={(enabled) => {
+                      onDateRangeToggle(enabled);
+                      setRangeSelectionPhase('start');
+                    }}
+                    trackColor={{ false: colors.muted, true: colors.primary }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                {isDateRange && (
+                  <View className="mb-4">
+                    <Text className="font-inter-regular text-xs" style={{ color: colors['muted-foreground'] }}>
+                      {rangeSelectionPhase === 'end'
+                        ? 'Tap an end date'
+                        : 'Tap a start date'}
+                    </Text>
+                    <Text className="font-inter-regular text-xs mt-1" style={{ color: colors['muted-foreground'] }}>
+                      {selectedDate
+                        ? `Selected range: ${format(selectedDate, 'MMM d')}${selectedEndDate ? ` - ${format(selectedEndDate, 'MMM d')}` : ''}`
+                        : 'Pick a start date, then an end date'}
+                    </Text>
+                  </View>
+                )}
+
                 <CustomCalendar
-                  selectedDate={selectedDate}
+                  selectedDate={
+                    rangeSelectionPhase === 'end'
+                      ? (selectedEndDate || selectedDate || today)
+                      : (selectedDate || today)
+                  }
                   onDateSelect={(date) => {
-                    setSelectedKey('calendar');
-                    onDateSelect(date);
+                    const normalizedDate = startOfDay(date);
+                    if (!isDateRange) {
+                      setSelectedKey('calendar');
+                      onDateSelect(normalizedDate);
+                      setShowDatePicker(false);
+                      return;
+                    }
+
+                    if (rangeSelectionPhase === 'start') {
+                      setSelectedKey('calendar');
+                      onDateSelect(normalizedDate);
+                      onEndDateSelect(normalizedDate);
+                      setRangeSelectionPhase('end');
+                      return;
+                    }
+
+                    const currentStart = selectedDate ? startOfDay(selectedDate) : normalizedDate;
+                    if (normalizedDate.getTime() < currentStart.getTime()) {
+                      // Restart selection when user taps before start.
+                      setSelectedKey('calendar');
+                      onDateSelect(normalizedDate);
+                      onEndDateSelect(normalizedDate);
+                      setRangeSelectionPhase('end');
+                      return;
+                    }
+
+                    onEndDateSelect(normalizedDate);
                     setShowDatePicker(false);
                   }}
-                  minDate={today}
+                  minDate={
+                    isDateRange && rangeSelectionPhase === 'end'
+                      ? (selectedDate || today)
+                      : today
+                  }
                   plannedDates={plannedDates}
                 />
               </Animated.View>
@@ -275,18 +376,23 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
       {/* Continue button (after date is selected) */}
       {selectedDate && (
         <View className="mt-6">
+          {!hasValidRange && (
+            <Text className="font-inter-medium text-sm mb-3" style={{ color: colors.destructive }}>
+              End date must be on or after start date, and within 30 days.
+            </Text>
+          )}
           <TouchableOpacity
             onPress={onContinue}
-            disabled={!canContinue}
+            disabled={!canContinue || !hasValidRange}
             className="p-5 rounded-2xl items-center"
             style={{
-              backgroundColor: canContinue ? colors.primary : colors.card,
-              opacity: canContinue ? 1 : 0.5,
+              backgroundColor: (canContinue && hasValidRange) ? colors.primary : colors.card,
+              opacity: (canContinue && hasValidRange) ? 1 : 0.5,
             }}
           >
             <Text
               className="font-inter-semibold text-base"
-              style={{ color: canContinue ? '#FFFFFF' : colors['muted-foreground'] }}
+              style={{ color: (canContinue && hasValidRange) ? '#FFFFFF' : colors['muted-foreground'] }}
             >
               Continue
             </Text>

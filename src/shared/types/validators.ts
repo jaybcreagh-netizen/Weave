@@ -71,6 +71,7 @@ export const FriendSchema = z.object({
 export const InteractionSchema = z.object({
   id: z.string(),
   interactionDate: z.date(),
+  endDate: z.date().nullable().optional(),
   interactionType: z.string(),
   duration: DurationSchema.optional(), // Using enum schema or string? Model says string. But type says Duration.
   vibe: VibeSchema.optional(),
@@ -88,6 +89,31 @@ export const InteractionSchema = z.object({
   calendarEventId: z.string().optional(),
   eventImportance: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   initiator: z.enum(['user', 'friend', 'mutual']).optional(),
+}).superRefine((data, ctx) => {
+  if (!data.endDate) return;
+
+  const start = new Date(data.interactionDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(data.endDate);
+  end.setHours(0, 0, 0, 0);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const rangeDays = Math.floor((end.getTime() - start.getTime()) / dayMs) + 1;
+
+  if (rangeDays < 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endDate'],
+      message: 'End date must be on or after interaction date',
+    });
+  }
+
+  if (rangeDays > 30) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endDate'],
+      message: 'Date range cannot exceed 30 days',
+    });
+  }
 });
 
 // WeaveLog Schema (InteractionFormData)
@@ -96,6 +122,7 @@ export const WeaveLogSchema = z.object({
   activity: z.string().min(1, "Activity is required"),
   notes: z.string().optional(),
   date: z.date(),
+  endDate: z.date().optional(),
   type: z.enum(['log', 'plan']),
   status: z.enum(['completed', 'planned']),
   mode: z.string(),
@@ -107,6 +134,31 @@ export const WeaveLogSchema = z.object({
   location: z.string().optional(),
   eventImportance: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   initiator: z.enum(['user', 'friend', 'mutual']).optional(),
+}).superRefine((data, ctx) => {
+  if (!data.endDate) return;
+
+  const start = new Date(data.date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(data.endDate);
+  end.setHours(0, 0, 0, 0);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const rangeDays = Math.floor((end.getTime() - start.getTime()) / dayMs) + 1;
+
+  if (rangeDays < 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endDate'],
+      message: 'End date must be on or after start date',
+    });
+  }
+
+  if (rangeDays > 30) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endDate'],
+      message: 'Date range cannot exceed 30 days',
+    });
+  }
 });
 
 // Infer Types

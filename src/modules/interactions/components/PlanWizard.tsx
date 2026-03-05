@@ -28,8 +28,7 @@ import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { getDefaultTimeForCategory, calculateActivityPriorities, isSmartDefaultsEnabled } from '../services/smart-defaults.service';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
-import { startOfDay, addDays, isSaturday, nextSaturday, getDay } from 'date-fns';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { startOfDay, addDays, getDay, differenceInCalendarDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { InitiatorType } from '@/modules/relationships';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
@@ -57,6 +56,7 @@ interface PlanWizardProps {
   // Optional prefill from suggestions or reschedule
   prefillData?: {
     date?: Date;
+    endDate?: Date;
     category?: InteractionCategory;
     title?: string;
     location?: string;
@@ -69,6 +69,7 @@ interface PlanWizardProps {
 
 export interface PlanFormData {
   date: Date;
+  endDate?: Date;
   category: InteractionCategory;
   title?: string;
   location?: string;
@@ -88,6 +89,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
   const [selectedFriends, setSelectedFriends] = useState<FriendModel[]>([initialFriend]); // Manage internally
   const [formData, setFormData] = useState<Partial<PlanFormData>>({
     date: prefillData?.date,
+    endDate: prefillData?.endDate,
     category: prefillData?.category || suggestion?.suggestedCategory,
     title: prefillData?.title,
   });
@@ -274,6 +276,21 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
       setCurrentStep(1);
       return;
     }
+    if (formData.endDate) {
+      const rangeDays = differenceInCalendarDays(formData.endDate, formData.date) + 1;
+      if (rangeDays < 1) {
+        Alert.alert('Invalid Date Range', 'End date must be on or after the start date.');
+        setDirection('backward');
+        setCurrentStep(1);
+        return;
+      }
+      if (rangeDays > 30) {
+        Alert.alert('Range Too Long', 'Please keep multi-day plans to 30 days or less.');
+        setDirection('backward');
+        setCurrentStep(1);
+        return;
+      }
+    }
 
     // 1. VISUAL CONFIRMATION
     setIsSuccess(true);
@@ -295,6 +312,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
     const validNotes = formData.notes;
     const validInitiator = formData.initiator;
     const validTime = formData.time;
+    const validEndDate = formData.endDate;
     const validShouldShare = formData.shouldShare;
 
     // 2. BACKGROUND WORK (Fire and forget)
@@ -317,6 +335,23 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
             0
           );
         }
+        let finalEndDate: Date | undefined;
+        if (validEndDate) {
+          finalEndDate = new Date(validEndDate);
+          if (validTime) {
+            finalEndDate.setHours(
+              validTime.getHours(),
+              validTime.getMinutes(),
+              0,
+              0
+            );
+          } else {
+            finalEndDate = startOfDay(finalEndDate);
+          }
+          if (finalEndDate.getTime() < finalDate.getTime()) {
+            finalEndDate = new Date(finalDate);
+          }
+        }
 
         // Create the interaction
         const newPlan = await planWeave({
@@ -325,6 +360,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
           category: validCategory,
           notes: validNotes,
           date: finalDate,
+          endDate: finalEndDate,
           type: 'plan',
           status: 'planned',
           mode: selectedFriends.length > 1 ? 'group' : 'one-on-one',
@@ -348,6 +384,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
               friendNames: friendNames,
               category: categoryMeta?.label || validCategory,
               date: finalDate,
+              endDate: finalEndDate,
               location: validLocation?.trim(),
               notes: validNotes?.trim(),
             });
@@ -397,7 +434,11 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
     })();
   });
 
-  const canProceedFromStep1 = !!formData.date;
+  const step1RangeDays = formData.date && formData.endDate
+    ? differenceInCalendarDays(formData.endDate, formData.date) + 1
+    : 1;
+  const hasValidStep1Range = !formData.endDate || (step1RangeDays >= 1 && step1RangeDays <= 30);
+  const canProceedFromStep1 = !!formData.date && hasValidStep1Range;
   const canProceedFromStep2 = !!formData.category;
 
   return (
@@ -464,10 +505,23 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
               >
                 <PlanWizardStep1
                   selectedDate={formData.date}
+                  selectedEndDate={formData.endDate}
+                  isDateRange={!!formData.endDate}
                   onDateSelect={date => updateFormData({ date })}
+                  onEndDateSelect={endDate => updateFormData({ endDate })}
+                  onDateRangeToggle={(enabled) => {
+                    if (!enabled) {
+                      updateFormData({ endDate: undefined });
+                      return;
+                    }
+                    const startDate = formData.date || startOfDay(new Date());
+                    updateFormData({
+                      date: startDate,
+                      endDate: formData.endDate || startDate,
+                    });
+                  }}
                   onContinue={goToNextStep}
                   canContinue={canProceedFromStep1}
-                  friend={initialFriend}
                   plannedDates={plannedDates}
                   mostCommonDay={mostCommonDay}
                 />

@@ -47,9 +47,7 @@ platform :ios do
       include_symbols: true,
       export_xcargs: "-allowProvisioningUpdates",
       export_options: {
-        uploadBitcode: false,
         uploadSymbols: true,
-        compileBitcode: false,
         signingStyle: "automatic",
         teamID: "4B8M99LBV9"
       }

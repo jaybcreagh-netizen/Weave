@@ -27,6 +27,7 @@ export interface InteractionFormData {
     activity: string;
     notes?: string;
     date: Date;
+    endDate?: Date;
     type: 'log' | 'plan';
     status: 'completed' | 'planned';
     mode: string; // e.g. 'one-on-one'

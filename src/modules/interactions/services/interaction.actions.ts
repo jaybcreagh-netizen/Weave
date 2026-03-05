@@ -12,7 +12,7 @@ import { recalculateScoreOnDelete, processWeaveScoring, recalculateScoreOnEdit }
 import { writeScheduler } from '@/shared/services/write-scheduler';
 
 export const InteractionActions = {
-    updateInteraction: async (interactionId: string, updates: Partial<Interaction> & { friendIds?: string[] }): Promise<void> => {
+    updateInteraction: async (interactionId: string, updates: (Partial<Interaction> & { endDate?: Date | null }) & { friendIds?: string[] }): Promise<void> => {
         // 1. Fetch current interaction state
         const interaction = await database.get<Interaction>('interactions').find(interactionId);
 
@@ -57,6 +57,7 @@ export const InteractionActions = {
                     category: (updates.interactionCategory || interaction.interactionCategory) as InteractionCategory,
                     activity: updates.activity || interaction.activity,
                     date: updates.interactionDate || interaction.interactionDate,
+                    endDate: ('endDate' in updates) ? (updates.endDate || undefined) : interaction.endDate,
                     type: 'log',
                     status: 'completed',
                     mode: interaction.mode,
@@ -96,6 +97,7 @@ export const InteractionActions = {
                 (updates.vibe && updates.vibe !== interaction.vibe) ||
                 (updates.duration && updates.duration !== interaction.duration) ||
                 (updates.note && updates.note !== interaction.note) ||
+                (('endDate' in updates) && ((updates.endDate || undefined)?.getTime() !== interaction.endDate?.getTime())) ||
                 (updates.reflectionJSON && updates.reflectionJSON !== interaction.reflectionJSON)
             );
 
@@ -106,6 +108,7 @@ export const InteractionActions = {
                 category: interaction.interactionCategory as InteractionCategory,
                 activity: interaction.activity,
                 date: interaction.interactionDate,
+                endDate: interaction.endDate,
                 type: 'log',
                 status: 'completed',
                 mode: interaction.mode,
@@ -119,6 +122,7 @@ export const InteractionActions = {
                 ...oldData,
                 category: (updates.interactionCategory || updates.activity || oldData.category) as InteractionCategory,
                 activity: updates.activity || oldData.activity,
+                endDate: ('endDate' in updates) ? (updates.endDate || undefined) : oldData.endDate,
                 vibe: (updates.vibe !== undefined ? updates.vibe : oldData.vibe) as Vibe | null,
                 duration: (updates.duration !== undefined ? updates.duration : oldData.duration) as Duration | null,
                 notes: updates.note !== undefined ? updates.note : oldData.notes,
@@ -151,6 +155,7 @@ export const InteractionActions = {
                     if (updates.note !== undefined) rec.note = updates.note;
                     if (updates.reflectionJSON) rec.reflectionJSON = updates.reflectionJSON;
                     if (updates.interactionDate) rec.interactionDate = updates.interactionDate;
+                    if ('endDate' in updates) rec.endDate = updates.endDate || undefined;
                     if (updates.title !== undefined) rec.title = updates.title;
                     if (updates.location !== undefined) rec.location = updates.location;
                 });
@@ -159,10 +164,15 @@ export const InteractionActions = {
 
         // 4. Sync Calendar Event (for planned interactions with calendar events)
         if (interaction.calendarEventId && interaction.status === 'planned') {
-            const calendarUpdates: { title?: string; date?: Date; location?: string; notes?: string } = {};
+            const calendarUpdates: { title?: string; date?: Date; endDate?: Date | null; location?: string; notes?: string } = {};
 
             if (updates.interactionDate) {
                 calendarUpdates.date = updates.interactionDate;
+            }
+            if ('endDate' in updates) {
+                calendarUpdates.endDate = updates.endDate === null
+                    ? null
+                    : (updates.endDate || undefined);
             }
             if (updates.title !== undefined) {
                 calendarUpdates.title = updates.title || undefined;

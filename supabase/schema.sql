@@ -147,6 +147,7 @@ CREATE TABLE interactions (
 
   -- Core interaction data
   interaction_date BIGINT NOT NULL,
+  end_date BIGINT,
   interaction_type TEXT NOT NULL,
   duration TEXT,
   vibe TEXT,

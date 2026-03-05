@@ -32,7 +32,10 @@ export const WeaveCompactSummary: React.FC<WeaveCompactSummaryProps> = ({
         ? getCategoryMetadata(interaction.interactionCategory as InteractionCategory)
         : null;
 
-    const formattedDate = format(interaction.interactionDate, 'MMM d');
+    const hasRange = !!interaction.endDate && new Date(interaction.endDate).getTime() > new Date(interaction.interactionDate).getTime();
+    const formattedDate = hasRange
+        ? `${format(interaction.interactionDate, 'MMM d')} - ${format(new Date(interaction.endDate!), 'MMM d')}`
+        : format(interaction.interactionDate, 'MMM d');
     const vibeInfo = interaction.vibe ? VIBE_DISPLAY[interaction.vibe] : null;
 
     const friendLabel = friends.length <= 2

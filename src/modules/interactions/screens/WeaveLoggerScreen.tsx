@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Alert, Modal, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Alert, Modal, Platform, KeyboardAvoidingView, Switch } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +19,7 @@ import { Calendar as CalendarIcon, X, Sparkles, Users, ChevronLeft, Clock, Sun, 
 import { CustomCalendar } from '@/shared/components/CustomCalendar';
 import { MoonPhaseSelector } from '@/modules/intelligence/components/MoonPhaseSelector';
 import { ContextualReflectionInput } from '@/modules/reflection/components/ContextualReflectionInput';
-import { format, subDays, isSameDay, startOfDay } from 'date-fns';
+import { differenceInCalendarDays, format, subDays, isSameDay, startOfDay } from 'date-fns';
 import { type Vibe, type InteractionCategory, type Archetype } from '@/shared/types/legacy-types';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
@@ -90,6 +90,9 @@ export function WeaveLoggerScreen({
     const [showFriendPicker, setShowFriendPicker] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<InteractionCategory | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
+    const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+    const [isDateRange, setIsDateRange] = useState(false);
+    const [calendarTarget, setCalendarTarget] = useState<'start' | 'end'>('start');
     const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
     const [reflection, setReflection] = useState<StructuredReflection>({});
     const [friendArchetype, setFriendArchetype] = useState<Archetype | undefined>(undefined);
@@ -265,7 +268,15 @@ export function WeaveLoggerScreen({
     };
 
     const handleDateSelect = (date: Date) => {
-        setSelectedDate(startOfDay(date));
+        const normalizedDate = startOfDay(date);
+        if (calendarTarget === 'end') {
+            setEndDate(normalizedDate);
+        } else {
+            setSelectedDate(normalizedDate);
+            if (isDateRange && endDate && normalizedDate > endDate) {
+                setEndDate(normalizedDate);
+            }
+        }
         setShowCalendar(false);
     };
 
@@ -277,7 +288,11 @@ export function WeaveLoggerScreen({
         // Recommendation: If they pick date text, reset to default time unless they edit it.
         // Actually, let's stick to startOfDay for "Yesterday" etc to be safe, but "Today" could be now?
         // Let's stick to startOfDay logic which was there, they can add time if they want.
-        setSelectedDate(startOfDay(date));
+        const normalizedDate = startOfDay(date);
+        setSelectedDate(normalizedDate);
+        if (isDateRange && endDate && normalizedDate > endDate) {
+            setEndDate(normalizedDate);
+        }
         Vibration.vibrate(50);
     };
 
@@ -299,6 +314,19 @@ export function WeaveLoggerScreen({
         if (selectedFriends.length === 0) {
             showToast('Choose at least one friend', 'Add a friend before saving');
             return;
+        }
+
+        if (isDateRange) {
+            const resolvedEndDate = endDate || selectedDate;
+            const rangeDays = differenceInCalendarDays(resolvedEndDate, selectedDate) + 1;
+            if (rangeDays < 1) {
+                showToast('Invalid date range', 'End date must be on or after start date');
+                return;
+            }
+            if (rangeDays > 30) {
+                showToast('Range too long', 'Please keep multi-day weaves to 30 days or less');
+                return;
+            }
         }
 
         if (!selectedCategory || !selectedDate || isSubmitting) return;
@@ -335,6 +363,7 @@ export function WeaveLoggerScreen({
             activity: selectedCategory,
             notes: legacyNotes,
             date: selectedDate,
+            endDate: isDateRange ? (endDate || selectedDate) : undefined,
             type: isPlanMode ? 'plan' : 'log',
             status: isPlanMode ? 'planned' : 'completed',
             mode: 'one-on-one',
@@ -420,7 +449,8 @@ export function WeaveLoggerScreen({
     });
 
     const deepeningMetrics = calculateDeepeningLevel(reflection);
-    const canSave = !!selectedCategory && selectedFriends.length > 0 && !!selectedDate && !isSubmitting;
+    const hasValidRange = !isDateRange || differenceInCalendarDays(endDate || selectedDate, selectedDate) >= 0;
+    const canSave = !!selectedCategory && selectedFriends.length > 0 && !!selectedDate && hasValidRange && !isSubmitting;
 
     const screenTitle = selectedFriends.length === 0
         ? (isPlanMode ? 'Plan a Weave' : 'Log a Weave')
@@ -495,7 +525,7 @@ export function WeaveLoggerScreen({
                                         {/* Header */}
                                         <View className="flex-row justify-between items-center mb-4">
                                             <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                                                Pick a Date
+                                                {calendarTarget === 'end' ? 'Pick an End Date' : 'Pick a Date'}
                                             </Text>
                                             <TouchableOpacity onPress={() => setShowCalendar(false)} className="p-2 -mr-2">
                                                 <X color={colors['muted-foreground']} size={22} />
@@ -503,9 +533,9 @@ export function WeaveLoggerScreen({
                                         </View>
 
                                         <CustomCalendar
-                                            selectedDate={selectedDate}
+                                            selectedDate={calendarTarget === 'end' ? (endDate || selectedDate) : selectedDate}
                                             onDateSelect={handleDateSelect}
-                                            minDate={undefined}
+                                            minDate={calendarTarget === 'end' ? selectedDate : undefined}
                                             maxDate={new Date()}
                                             plannedDates={calendarDates.planned}
                                             completedDates={calendarDates.completed}
@@ -527,9 +557,29 @@ export function WeaveLoggerScreen({
                                 >
                                     {/* Date Selection */}
                                     <View className="mb-5">
-                                        <Text className="font-lora-bold text-lg mb-2" style={{ color: colors.foreground }}>
-                                            When?
-                                        </Text>
+                                        <View className="flex-row items-center justify-between mb-2">
+                                            <Text className="font-lora-bold text-lg" style={{ color: colors.foreground }}>
+                                                When?
+                                            </Text>
+                                            <View className="flex-row items-center gap-2">
+                                                <Text className="text-xs font-inter-medium" style={{ color: colors['muted-foreground'] }}>
+                                                    Multi-day
+                                                </Text>
+                                                <Switch
+                                                    value={isDateRange}
+                                                    onValueChange={(value) => {
+                                                        setIsDateRange(value);
+                                                        if (value) {
+                                                            setEndDate(prev => prev || selectedDate);
+                                                        } else {
+                                                            setEndDate(undefined);
+                                                        }
+                                                    }}
+                                                    trackColor={{ false: colors.muted, true: colors.primary }}
+                                                    thumbColor="white"
+                                                />
+                                            </View>
+                                        </View>
                                         <ScrollView
                                             horizontal
                                             showsHorizontalScrollIndicator={false}
@@ -569,7 +619,10 @@ export function WeaveLoggerScreen({
                                                         backgroundColor: colors.card,
                                                         borderColor: colors.border,
                                                     }}
-                                                    onPress={() => setShowCalendar(true)}
+                                                    onPress={() => {
+                                                        setCalendarTarget('start');
+                                                        setShowCalendar(true);
+                                                    }}
                                                 >
                                                     <CalendarIcon size={16} color={colors.primary} style={{ marginRight: 6 }} />
                                                     <Text className="font-inter-medium text-sm" style={{ color: colors.foreground }}>
@@ -577,6 +630,26 @@ export function WeaveLoggerScreen({
                                                     </Text>
                                                 </TouchableOpacity>
                                             </Animated.View>
+                                            {isDateRange && (
+                                                <Animated.View entering={FadeInUp.duration(500).delay(150)}>
+                                                    <TouchableOpacity
+                                                        className="px-4 py-3 rounded-full flex-row items-center justify-center border"
+                                                        style={{
+                                                            backgroundColor: colors.card,
+                                                            borderColor: colors.border,
+                                                        }}
+                                                        onPress={() => {
+                                                            setCalendarTarget('end');
+                                                            setShowCalendar(true);
+                                                        }}
+                                                    >
+                                                        <CalendarIcon size={16} color={colors.primary} style={{ marginRight: 6 }} />
+                                                        <Text className="font-inter-medium text-sm" style={{ color: colors.foreground }}>
+                                                            Ends {format(endDate || selectedDate, 'MMM d')}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                </Animated.View>
+                                            )}
                                         </ScrollView>
 
                                         {/* Time Display / Picker */}

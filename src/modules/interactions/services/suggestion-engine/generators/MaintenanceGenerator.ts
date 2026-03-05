@@ -17,10 +17,13 @@ export class MaintenanceGenerator implements SuggestionGenerator {
             const nowTime = now.getTime();
             const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
             const hasSoonPlan = plannedInteractions.some(p => {
-                const planTime = p.interactionDate instanceof Date
+                const planStart = p.interactionDate instanceof Date
                     ? p.interactionDate.getTime()
                     : new Date(p.interactionDate || 0).getTime();
-                return planTime > nowTime && planTime < nowTime + sevenDaysMs;
+                const planEnd = p.endDate instanceof Date
+                    ? p.endDate.getTime()
+                    : (p.endDate ? new Date(p.endDate || 0).getTime() : planStart);
+                return planEnd >= nowTime && planStart < nowTime + sevenDaysMs;
             });
             if (hasSoonPlan) return null;
         }

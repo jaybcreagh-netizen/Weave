@@ -5,7 +5,21 @@
 
 import React from 'react'
 import { TouchableOpacity, Text, View } from 'react-native'
-import { Calendar, Gift, BookOpen, CalendarPlus, LucideIcon, AlarmClock, User, Sparkles, Zap, Share } from 'lucide-react-native'
+import {
+    Calendar,
+    Gift,
+    BookOpen,
+    CalendarPlus,
+    LucideIcon,
+    AlarmClock,
+    User,
+    Sparkles,
+    Zap,
+    Share,
+    Repeat,
+    MessageCircle,
+    Target,
+} from 'lucide-react-native'
 import { useTheme } from '@/shared/hooks/useTheme'
 import { OracleAction, OracleActionType } from '../services/types'
 // Types
@@ -31,6 +45,11 @@ const ACTION_CONFIG: Record<OracleActionType, {
     view_insights: { label: 'View insights', Icon: Sparkles, color: '#8B5CF6' },
     start_deepening: { label: 'Deepen bond', Icon: Zap, color: '#F43F5E' },
     share_summary: { label: 'Share summary', Icon: Share, color: '#10B981' },
+    mimic_plan: { label: 'Plan this again', Icon: Repeat, color: '#6366F1' },
+    schedule_event: { label: 'Schedule meetup', Icon: CalendarPlus, color: '#F59E0B' },
+    update_profile: { label: 'Update profile', Icon: User, color: '#0EA5E9' },
+    reach_out: { label: 'Reach out', Icon: MessageCircle, color: '#10B981' },
+    create_intention: { label: 'Set intention', Icon: Target, color: '#8B5CF6' },
 }
 
 export function OracleActionButton({ action, onPress }: OracleActionButtonProps) {

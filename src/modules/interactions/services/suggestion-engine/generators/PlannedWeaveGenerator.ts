@@ -21,11 +21,15 @@ export class PlannedWeaveGenerator implements SuggestionGenerator {
         });
 
         for (const plan of relevantPlans) {
-            const planTime = plan.interactionDate instanceof Date ? plan.interactionDate.getTime() : new Date(plan.interactionDate || 0).getTime();
-            const hoursDiff = (planTime - nowTime) / 3600000;
+            const planStart = plan.interactionDate instanceof Date ? plan.interactionDate.getTime() : new Date(plan.interactionDate || 0).getTime();
+            const planEnd = plan.endDate instanceof Date
+                ? plan.endDate.getTime()
+                : (plan.endDate ? new Date(plan.endDate || 0).getTime() : planStart);
+            const hoursUntilStart = (planStart - nowTime) / 3600000;
+            const hoursSinceEnd = (nowTime - planEnd) / 3600000;
 
             // PRIORITY 1: Past Due (within last 7 days)
-            if (hoursDiff < 0 && hoursDiff > -168) {
+            if (hoursSinceEnd > 0 && hoursSinceEnd <= 168) {
                 return {
                     id: `past-plan-${plan.id}`,
                     friendId: friend.id,
@@ -47,8 +51,8 @@ export class PlannedWeaveGenerator implements SuggestionGenerator {
             }
 
             // PRIORITY 4: Upcoming (Next 48 hours)
-            if (hoursDiff >= 0 && hoursDiff <= 48) {
-                const timeText = hoursDiff < 24 ? 'today' : 'tomorrow';
+            if (hoursUntilStart >= 0 && hoursUntilStart <= 48) {
+                const timeText = hoursUntilStart < 24 ? 'today' : 'tomorrow';
 
                 return {
                     id: `upcoming-plan-${plan.id}`,
@@ -58,6 +62,27 @@ export class PlannedWeaveGenerator implements SuggestionGenerator {
                     category: 'plan',
                     title: 'Upcoming Plan',
                     subtitle: `You have a plan with ${friend.name} ${timeText}.`,
+                    actionLabel: 'View',
+                    icon: 'Calendar',
+                    action: {
+                        type: 'plan',
+                    },
+                    dismissible: true,
+                    createdAt: now,
+                    type: 'connect'
+                };
+            }
+
+            // Active range: plan started and has not ended yet.
+            if (planStart <= nowTime && planEnd >= nowTime) {
+                return {
+                    id: `active-plan-${plan.id}`,
+                    friendId: friend.id,
+                    friendName: friend.name,
+                    urgency: 'medium',
+                    category: 'plan',
+                    title: 'Plan in progress',
+                    subtitle: `Your plan with ${friend.name} is happening now.`,
                     actionLabel: 'View',
                     icon: 'Calendar',
                     action: {

@@ -16,6 +16,7 @@ export default class Interaction extends Model {
   @children('interaction_friends') interactionFriends!: Query<InteractionFriend>
 
   @date('interaction_date') interactionDate!: Date
+  @date('end_date') endDate?: Date
   @field('interaction_type') interactionType!: string
   @field('duration') duration?: string
   @field('vibe') vibe?: string

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { isFuture, isToday } from 'date-fns';
+import { isFuture, isToday, startOfDay } from 'date-fns';
 import { InteractionShape } from '@/shared/types/derived';
 
 export function useFriendTimeline(interactions: InteractionShape[] | undefined) {
@@ -22,8 +22,21 @@ export function useFriendTimeline(interactions: InteractionShape[] | undefined) 
 
         sortedInteractions.forEach(interaction => {
             const date = new Date(interaction.interactionDate);
-            if (isFuture(date)) sections.Seeds.push(interaction);
-            else if (isToday(date)) sections.Today.push(interaction);
+            const endDate = interaction.endDate ? new Date(interaction.endDate) : null;
+            const todayStart = startOfDay(new Date());
+
+            if (isFuture(date)) {
+                sections.Seeds.push(interaction);
+                return;
+            }
+
+            // Ongoing multi-day weave: started in the past, still active today.
+            if (endDate && endDate >= todayStart) {
+                sections.Today.push(interaction);
+                return;
+            }
+
+            if (isToday(date)) sections.Today.push(interaction);
             else sections['Woven Memories'].push(interaction);
         });
 

@@ -210,15 +210,16 @@ export async function generateICSFromInteraction(interaction: Interaction, invit
   // Determine if this is an all-day event
   // We check if time is midnight AND there's no specific time context
   const startDate = new Date(interaction.interactionDate);
+  const explicitEndDate = interaction.endDate ? new Date(interaction.endDate) : null;
   const hasTime = startDate.getHours() !== 0 || startDate.getMinutes() !== 0;
   const allDay = !hasTime;
 
   // Calculate end time
-  // - All-day: same day (the ICS generator will add 1 day for DTEND)
-  // - Timed: 2 hours later as a reasonable default
-  const endDate = allDay
-    ? new Date(startDate)
-    : new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+  // - All-day: preserve endDate when provided (inclusive in app model; ICS writer handles exclusivity)
+  // - Timed: preserve endDate when provided, otherwise default to 2 hours
+  const endDate = explicitEndDate
+    ? explicitEndDate
+    : (allDay ? new Date(startDate) : new Date(startDate.getTime() + 2 * 60 * 60 * 1000));
 
   // Build title - use custom title if available, otherwise generate one
   const activityLabel = interaction.activity || 'Hangout';

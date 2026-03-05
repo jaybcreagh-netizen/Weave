@@ -37,6 +37,7 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
 
         const newInteraction = database.get<Interaction>('interactions').prepareCreate((interaction: Interaction) => {
             interaction.interactionDate = data.date;
+            interaction.endDate = data.endDate;
             interaction.interactionType = 'log';
             interaction.status = 'completed';
             interaction.activity = data.activity;
@@ -151,6 +152,7 @@ export async function planWeave(data: InteractionFormData, options?: { skipToast
         // @ts-ignore
         const newInteraction = database.get<Interaction>('interactions').prepareCreate((interaction: Interaction) => {
             interaction.interactionDate = data.date;
+            interaction.endDate = data.endDate;
             interaction.interactionType = 'plan';
             interaction.status = 'planned';
             interaction.activity = data.activity;

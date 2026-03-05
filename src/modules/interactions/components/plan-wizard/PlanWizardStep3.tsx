@@ -52,7 +52,13 @@ export function PlanWizardStep3({
   const [showFriendSelection, setShowFriendSelection] = useState(false);
 
   const categoryLabel = formData.category ? CATEGORY_LABELS[formData.category] : 'Time together';
-  const dateText = formData.date ? format(formData.date, 'EEEE, MMM d') : '';
+  const dateText = formData.date
+    ? (
+      formData.endDate && formData.endDate.getTime() > formData.date.getTime()
+        ? `${format(formData.date, 'EEEE, MMM d')} - ${format(formData.endDate, 'EEEE, MMM d')}`
+        : format(formData.date, 'EEEE, MMM d')
+    )
+    : '';
 
   return (
     <View className="px-5 py-6">

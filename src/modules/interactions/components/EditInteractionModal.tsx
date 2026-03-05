@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, TouchableOpacity, ScrollView, Modal, StyleSheet, Platform } from 'react-native';
+import { View, TouchableOpacity, ScrollView, Modal, StyleSheet, Platform, Switch } from 'react-native';
 import { X, CalendarDays, Check, Clock } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -40,6 +40,7 @@ interface EditInteractionModalProps {
     reflection?: StructuredReflection;
     reflectionJSON?: string;
     interactionDate?: Date;
+    endDate?: Date | null;
     initiator?: InitiatorType;
     note?: string;
     location?: string;
@@ -62,6 +63,9 @@ export function EditInteractionModal({
   const [customNotes, setCustomNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [isRange, setIsRange] = useState(false);
+  const [datePickerTarget, setDatePickerTarget] = useState<'start' | 'end'>('start');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
@@ -88,6 +92,8 @@ export function EditInteractionModal({
       setSelectedVibe((interaction.vibe as Vibe) || null);
       setCustomNotes(interaction.reflection?.customNotes || interaction.note || '');
       setSelectedDate(interaction.interactionDate);
+      setEndDate(interaction.endDate || null);
+      setIsRange(!!interaction.endDate);
       setInitiator(interaction.initiator as InitiatorType | undefined);
       setLocation(interaction.location || '');
 
@@ -160,6 +166,16 @@ export function EditInteractionModal({
         updates.interactionDate = selectedDate;
       }
 
+      const currentEndTime = interaction.endDate
+        ? (interaction.endDate instanceof Date
+          ? interaction.endDate.getTime()
+          : new Date(interaction.endDate).getTime())
+        : null;
+      const nextEndTime = isRange && endDate ? endDate.getTime() : null;
+      if (currentEndTime !== nextEndTime) {
+        updates.endDate = isRange && endDate ? endDate : null;
+      }
+
       if (initiator !== interaction.initiator) {
         updates.initiator = initiator;
       }
@@ -198,10 +214,14 @@ export function EditInteractionModal({
     // Handle potential string dates if data isn't perfectly typed at runtime, though types say Date.
     // Handle potential string dates if data isn't perfectly typed at runtime, though types say Date.
     const initialDate = interaction.interactionDate instanceof Date ? interaction.interactionDate.getTime() : new Date(interaction.interactionDate).getTime();
+    const initialEndDate = interaction.endDate
+      ? (interaction.endDate instanceof Date ? interaction.endDate.getTime() : new Date(interaction.endDate).getTime())
+      : null;
     const initialInitiator = interaction.initiator as InitiatorType | undefined;
 
     // Current date comparison
     const currentDate = selectedDate ? selectedDate.getTime() : 0;
+    const currentEndDate = isRange && endDate ? endDate.getTime() : null;
 
     // Friends comparison
     const currentSelectedIds = selectedFriends.map(f => f.id);
@@ -216,10 +236,11 @@ export function EditInteractionModal({
       customNotes !== initialNotes ||
       location !== initialLocation ||
       currentDate !== initialDate ||
+      currentEndDate !== initialEndDate ||
       initiator !== initialInitiator ||
       friendsChanged
     );
-  }, [interaction, title, selectedCategory, selectedVibe, customNotes, location, selectedDate, initiator, selectedFriends, initialFriendIds]);
+  }, [interaction, title, selectedCategory, selectedVibe, customNotes, location, selectedDate, endDate, isRange, initiator, selectedFriends, initialFriendIds]);
 
   const footerComponent = React.useMemo(() => (
     <Button
@@ -290,11 +311,34 @@ export function EditInteractionModal({
 
         {/* Date Selection */}
         <View>
-          <Text variant="label" className="mb-2" style={{ color: colors.foreground }}>
-            Date
-          </Text>
+          <View className="flex-row items-center justify-between mb-2">
+            <Text variant="label" style={{ color: colors.foreground }}>
+              Date
+            </Text>
+            <View className="flex-row items-center gap-2">
+              <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                Multi-day
+              </Text>
+              <Switch
+                value={isRange}
+                onValueChange={(value) => {
+                  setIsRange(value);
+                  if (value) {
+                    setEndDate(prev => prev || selectedDate || new Date());
+                  } else {
+                    setEndDate(null);
+                  }
+                }}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor="white"
+              />
+            </View>
+          </View>
           <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
+            onPress={() => {
+              setDatePickerTarget('start');
+              setShowDatePicker(true);
+            }}
             activeOpacity={0.7}
           >
             <View className="flex-row items-center gap-3 p-4 border rounded-xl" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
@@ -304,6 +348,24 @@ export function EditInteractionModal({
               </Text>
             </View>
           </TouchableOpacity>
+
+          {isRange && (
+            <TouchableOpacity
+              onPress={() => {
+                setDatePickerTarget('end');
+                setShowDatePicker(true);
+              }}
+              activeOpacity={0.7}
+              className="mt-3"
+            >
+              <View className="flex-row items-center gap-3 p-4 border rounded-xl" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+                <CalendarDays size={20} color={colors.primary} />
+                <Text variant="body">
+                  {endDate ? `Ends ${format(endDate, 'EEEE, MMMM d, yyyy')}` : 'Select end date'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Time Selection (for planned interactions) */}
@@ -478,11 +540,19 @@ export function EditInteractionModal({
                 </View>
 
                 <CustomCalendar
-                  selectedDate={selectedDate || new Date()}
+                  selectedDate={datePickerTarget === 'end' ? (endDate || selectedDate || new Date()) : (selectedDate || new Date())}
                   onDateSelect={(date) => {
-                    setSelectedDate(date);
+                    if (datePickerTarget === 'end') {
+                      setEndDate(date);
+                    } else {
+                      setSelectedDate(date);
+                      if (isRange && endDate && date > endDate) {
+                        setEndDate(date);
+                      }
+                    }
                     setShowDatePicker(false);
                   }}
+                  minDate={datePickerTarget === 'end' ? (selectedDate || undefined) : undefined}
                 />
               </Animated.View>
             </TouchableOpacity>

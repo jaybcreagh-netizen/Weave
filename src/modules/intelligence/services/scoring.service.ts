@@ -9,8 +9,11 @@ import {
   VibeMultipliers,
   ArchetypeMatrixV2,
   MAX_INTERACTION_SCORE,
+  MAX_MULTIDAY_INTERACTION_SCORE,
   GROUP_DILUTION_RATE,
   GROUP_DILUTION_FLOOR,
+  MULTIDAY_DILUTION_K,
+  MULTIDAY_DILUTION_CAP,
   OLIVE_BRANCH_BONUS,
   OLIVE_BRANCH_ELIGIBLE_STATES,
   TierDriftingThresholds,
@@ -86,6 +89,17 @@ export function calculateEventMultiplier(
 }
 
 /**
+ * Calculates the effective multiplier for a multi-day weave.
+ * Uses diminishing returns so long ranges are meaningful but not linearly over-rewarded.
+ */
+export function calculateMultiDayMultiplier(days?: number): number {
+  if (!days || days <= 1) return 1.0;
+
+  const effectiveDays = 1 + (MULTIDAY_DILUTION_K * Math.sqrt(days - 1));
+  return Math.min(MULTIDAY_DILUTION_CAP, effectiveDays);
+}
+
+/**
  * Calculates the points for a new interaction.
  * Supports both old activity-based and new category-based systems.
  * Now includes quality-weighted scoring for more nuanced relationship health.
@@ -112,6 +126,7 @@ export function calculatePointsForWeave(
     reflectionJSON?: string | null;
     groupSize?: number;
     eventImportance?: 'low' | 'medium' | 'high' | 'critical';
+    rangeDays?: number;
     interactionHistoryCount?: number; // NEW: Count of prior interactions of this type/category
     ignoreMomentum?: boolean; // NEW: For deletion/reversion logic
   }
@@ -209,11 +224,13 @@ export function calculatePointsForWeave(
   }
 
   const adaptivePoints = qualityAdjustedPoints * effectivenessMultiplier;
+  const multidayMultiplier = calculateMultiDayMultiplier(weaveData.rangeDays);
 
   // Apply momentum bonus
-  let finalPoints = adaptivePoints;
+  let finalPoints = adaptivePoints * multidayMultiplier;
   if (!weaveData.ignoreMomentum && currentMomentumScore > 0) {
     finalPoints = adaptivePoints * 1.15;
+    finalPoints *= multidayMultiplier;
   }
 
   // NEW: Olive Branch Bonus
@@ -233,12 +250,18 @@ export function calculatePointsForWeave(
     // User request: "New score: 103" implies friend score, not interaction score.
     // User scenario B: "Total points earned: 75".
     // So we need to let it break the 50 cap.
-    return Math.min(finalPoints, MAX_INTERACTION_SCORE + OLIVE_BRANCH_BONUS);
+    const interactionCap = (weaveData.rangeDays || 1) > 1
+      ? MAX_MULTIDAY_INTERACTION_SCORE
+      : MAX_INTERACTION_SCORE;
+    return Math.min(finalPoints, interactionCap + OLIVE_BRANCH_BONUS);
   }
 
   // Apply score capping to prevent extreme outliers
   // This ensures that even with perfect conditions, scores remain balanced
-  return Math.min(finalPoints, MAX_INTERACTION_SCORE);
+  const interactionCap = (weaveData.rangeDays || 1) > 1
+    ? MAX_MULTIDAY_INTERACTION_SCORE
+    : MAX_INTERACTION_SCORE;
+  return Math.min(finalPoints, interactionCap);
 }
 
 /**

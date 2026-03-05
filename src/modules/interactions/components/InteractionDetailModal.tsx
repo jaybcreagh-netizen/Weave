@@ -65,11 +65,25 @@ type ReflectionChipData = {
   componentOverrides: Record<string, string>;
 };
 
-const formatDateTime = (date: Date | string): { date: string; time: string } => {
+const formatDateTime = (date: Date | string, endDate?: Date | string): { date: string; time: string } => {
   const d = typeof date === 'string' ? new Date(date) : date;
+  const end = endDate ? (typeof endDate === 'string' ? new Date(endDate) : endDate) : null;
+  const hasRange = !!end && end.toDateString() !== d.toDateString();
 
   return {
-    date: d.toLocaleDateString('en-US', {
+    date: hasRange
+      ? `${d.toLocaleDateString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })} - ${end!.toLocaleDateString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })}`
+      : d.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -266,7 +280,7 @@ export function InteractionDetailModal({
 
   if (!activeInteraction) return null;
 
-  const { date, time } = formatDateTime(activeInteraction.interactionDate);
+  const { date, time } = formatDateTime(activeInteraction.interactionDate, activeInteraction.endDate);
   const moonLevel = activeInteraction.vibe
     ? MOON_PHASE_LEVELS[activeInteraction.vibe as MoonPhase]
     : null;

@@ -178,6 +178,7 @@ export async function createWeaveCalendarEvent(params: {
   friendNames: string;
   category: string;
   date: Date;
+  endDate?: Date;
   location?: string;
   notes?: string;
 }): Promise<string | null> {
@@ -190,6 +191,7 @@ export async function createWeaveCalendarEventWithResult(params: {
   friendNames: string;
   category: string;
   date: Date;
+  endDate?: Date;
   location?: string;
   notes?: string;
 }): Promise<CreateEventResult> {
@@ -235,7 +237,9 @@ export async function createWeaveCalendarEventWithResult(params: {
     const eventDetails: Partial<Calendar.Event> = {
       title: eventTitle,
       startDate,
-      endDate: hasTime ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : startDate,
+      endDate: params.endDate
+        ? new Date(params.endDate)
+        : (hasTime ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : startDate),
       notes: eventNotes,
       location: params.location || '',
       allDay: !hasTime,
@@ -254,7 +258,7 @@ export async function createWeaveCalendarEventWithResult(params: {
   }
 }
 
-export async function updateWeaveCalendarEvent(eventId: string, params: { title?: string; date?: Date; location?: string; notes?: string; }): Promise<boolean> {
+export async function updateWeaveCalendarEvent(eventId: string, params: { title?: string; date?: Date; endDate?: Date | null; location?: string; notes?: string; }): Promise<boolean> {
   try {
     const settings = await getCalendarSettings();
     if (!settings.enabled) return false;
@@ -263,6 +267,7 @@ export async function updateWeaveCalendarEvent(eventId: string, params: { title?
     if (!hasPermission.granted) return false;
 
     const updateParams: Partial<Calendar.Event> = {};
+    let resolvedStartDate: Date | undefined;
 
     if (params.title !== undefined) {
       // Format title consistently with create
@@ -270,11 +275,36 @@ export async function updateWeaveCalendarEvent(eventId: string, params: { title?
     }
     if (params.date !== undefined) {
       const hasTime = params.date.getHours() !== 0 || params.date.getMinutes() !== 0;
+      resolvedStartDate = params.date;
       updateParams.startDate = params.date;
       updateParams.endDate = hasTime
         ? new Date(params.date.getTime() + 2 * 60 * 60 * 1000)
         : params.date;
       updateParams.allDay = !hasTime;
+    }
+    if (params.endDate !== undefined) {
+      if (params.endDate) {
+        updateParams.endDate = params.endDate;
+      } else {
+        // Explicit clear: collapse back to a single-day/default duration event.
+        let effectiveStart = resolvedStartDate;
+        if (!effectiveStart) {
+          const existingEvent = await Calendar.getEventAsync(eventId);
+          if (existingEvent?.startDate) {
+            effectiveStart = new Date(existingEvent.startDate);
+          }
+        }
+
+        if (effectiveStart) {
+          const hasTime = effectiveStart.getHours() !== 0 || effectiveStart.getMinutes() !== 0;
+          updateParams.endDate = hasTime
+            ? new Date(effectiveStart.getTime() + 2 * 60 * 60 * 1000)
+            : effectiveStart;
+          if (params.date === undefined) {
+            updateParams.allDay = !hasTime;
+          }
+        }
+      }
     }
     if (params.location !== undefined) {
       updateParams.location = params.location || '';

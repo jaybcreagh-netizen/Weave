@@ -96,7 +96,16 @@ export const GROUP_IMMUNE_ARCHETYPES: Archetype[] = ['Sun', 'Lovers', 'Magician'
  * event multiplier, momentum, etc.), scores are capped to maintain balance.
  */
 export const MAX_INTERACTION_SCORE = 50; // Cap for a single interaction
+export const MAX_MULTIDAY_INTERACTION_SCORE = 65; // Higher cap for multi-day experiences (still bounded)
 export const SCORE_BUFFER_CAP = 110; // Buffered cap for storage (allows for deletion headroom)
+
+/**
+ * Multi-day range scoring parameters.
+ * We use a square-root curve to reward longer experiences without linear inflation.
+ * effectiveDays = 1 + (k * sqrt(days - 1))
+ */
+export const MULTIDAY_DILUTION_K = 0.55;
+export const MULTIDAY_DILUTION_CAP = 2.5;
 
 /**
  * Group dilution curve parameters.

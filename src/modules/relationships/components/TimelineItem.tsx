@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { differenceInCalendarDays, format } from 'date-fns';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -65,11 +66,33 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
       : interaction.interactionDate,
     [interaction.interactionDate]
   );
+  const endDate = useMemo(() =>
+    interaction.endDate
+      ? (typeof interaction.endDate === 'string' ? new Date(interaction.endDate) : interaction.endDate)
+      : null,
+    [interaction.endDate]
+  );
+  const hasDateRange = useMemo(() => {
+    if (!endDate) return false;
+    return differenceInCalendarDays(endDate, date) >= 1;
+  }, [date, endDate]);
+  const rangeDays = useMemo(() => {
+    if (!endDate) return 1;
+    return Math.max(1, differenceInCalendarDays(endDate, date) + 1);
+  }, [date, endDate]);
 
   // Memoize expensive calculations
   const warmth = useMemo(() => calculateWeaveWarmth(date), [date]);
   const threadColors = useMemo(() => getThreadColors(warmth, isFuture), [warmth, isFuture]);
-  const poeticDate = useMemo(() => formatPoeticDate(date), [date]);
+  const poeticDate = useMemo(() => {
+    if (hasDateRange && endDate) {
+      return {
+        primary: format(date, 'MMM d'),
+        secondary: `→ ${format(endDate, 'MMM d')}`,
+      };
+    }
+    return formatPoeticDate(date);
+  }, [date, endDate, hasDateRange]);
   const { primary, secondary } = poeticDate;
 
   // All lines are dashed for a more subtle, lightweight appearance
@@ -742,6 +765,10 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
               },
               // Shared weave accent styling (takes priority over deepening)
               isSharedWeave && dynamicStyles.sharedWeaveAccent,
+              hasDateRange && {
+                borderLeftWidth: 3,
+                borderLeftColor: colors.primary + (isDarkMode ? 'AA' : '66'),
+              },
               // Scale-based border and shadow for deepened weaves (only if not shared)
               !isSharedWeave && deepeningMetrics.level !== 'none' && {
                 borderColor: colors.primary + deepeningVisuals.borderOpacity.toString(16).padStart(2, '0'),
@@ -821,9 +848,21 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
                   {interaction.title || displayLabel}
                 </Text>
                 {/* Show category as subtitle if custom title exists, otherwise show mode */}
-                <Text className="text-[13px] capitalize" style={dynamicStyles.cardSubtitle}>
-                  {interaction.title ? displayLabel : interaction.mode?.replace('-', ' ')}
-                </Text>
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-[13px] capitalize flex-1" style={dynamicStyles.cardSubtitle} numberOfLines={1}>
+                    {interaction.title ? displayLabel : interaction.mode?.replace('-', ' ')}
+                  </Text>
+                  {hasDateRange && (
+                    <View
+                      className="px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: colors.primary + '20' }}
+                    >
+                      <Text className="text-[10px] font-semibold" style={{ color: colors.primary }}>
+                        {rangeDays}d
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 {/* Pending status pill for outgoing shared weaves */}
                 {isPendingSent && (
                   <View className="mt-1.5">

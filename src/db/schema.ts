@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 75, // v75: Add insight receipt tracking to journal_entries
+  version: 76, // v76: Add end_date to interactions for multi-day weaves
   tables: [
     // ===== RELATIONSHIP INSIGHTS (Phase 3C) =====
     tableSchema({
@@ -324,6 +324,7 @@ export default appSchema({
       name: 'interactions',
       columns: [
         { name: 'interaction_date', type: 'number', isIndexed: true },
+        { name: 'end_date', type: 'number', isOptional: true, isIndexed: true },
         { name: 'interaction_type', type: 'string' },
         { name: 'duration', type: 'string', isOptional: true },
         { name: 'vibe', type: 'string', isOptional: true },

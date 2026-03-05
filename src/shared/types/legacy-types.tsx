@@ -52,6 +52,7 @@ export type Interaction = {
   friendIds?: string[];
   createdAt: Date;
   interactionDate: Date;
+  endDate?: Date;
   category?: InteractionCategory; // NEW: Simplified interaction category
   interactionType: InteractionType; // DEPRECATED: Old activity (kept for migration)
   duration: Duration | null;

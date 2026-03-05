@@ -5,7 +5,7 @@ import { type InteractionFormData } from '@/shared/types/scoring.types';
 import { type ScoreUpdate } from '../types';
 import { calculatePointsForWeave } from './scoring.service';
 import { applyDecay, calculateDecayAmount } from './decay.service';
-import { differenceInDays, isAfter } from 'date-fns';
+import { differenceInCalendarDays, differenceInDays, isAfter } from 'date-fns';
 import { calculateMomentumBonus, updateMomentum } from './momentum.service';
 import { updateResilience } from './resilience.service';
 import { applySeasonScoringBonus } from './social-season/season-scoring.service';
@@ -27,6 +27,7 @@ function toWeaveData(
   interaction: InteractionFormData,
   historyCount: number = 0
 ): Parameters<typeof calculatePointsForWeave>[1] {
+  const rangeDays = calculateRangeDays(interaction.date, interaction.endDate);
   return {
     interactionType: interaction.activity as InteractionType,
     category: interaction.category as InteractionCategory,
@@ -34,8 +35,15 @@ function toWeaveData(
     vibe: interaction.vibe as Vibe | null,
     note: interaction.notes,
     reflectionJSON: interaction.reflection ? JSON.stringify(interaction.reflection) : undefined,
+    rangeDays,
     interactionHistoryCount: historyCount,
   };
+}
+
+function calculateRangeDays(startDate?: Date | null, endDate?: Date | null): number {
+  if (!startDate || !endDate) return 1;
+  const days = differenceInCalendarDays(new Date(endDate), new Date(startDate)) + 1;
+  return Math.max(1, days);
 }
 
 /**
@@ -112,6 +120,7 @@ export async function recalculateScoreOnDelete(
         vibe: interaction.vibe as Vibe | null,
         note: interaction.note,
         reflectionJSON: interaction.reflectionJSON,
+        rangeDays: calculateRangeDays(interaction.interactionDate, interaction.endDate),
         interactionHistoryCount: 0,
         ignoreMomentum: true,
       };

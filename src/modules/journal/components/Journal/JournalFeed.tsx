@@ -299,7 +299,6 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
                 renderItem={({ item, index }) => renderEntryCard(item, index)}
                 contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
                 showsVerticalScrollIndicator={false}
-                estimatedItemSize={150}
                 refreshControl={
                     <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={colors.primary} />
                 }

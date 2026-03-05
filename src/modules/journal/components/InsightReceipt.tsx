@@ -159,7 +159,9 @@ export const InsightReceipt: React.FC<InsightReceiptProps> = ({
                         >
                             View full analysis
                         </Text>
-                        <Icon name="ArrowRight" size={12} color={colors.primary} style={{ marginLeft: 4 }} />
+                        <View style={{ marginLeft: 4 }}>
+                            <Icon name="ArrowRight" size={12} color={colors.primary} />
+                        </View>
                     </TouchableOpacity>
                 )}
 

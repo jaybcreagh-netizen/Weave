@@ -1646,5 +1646,18 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v75 to v76
+      // Add end_date to interactions for multi-day weaves
+      toVersion: 76,
+      steps: [
+        addColumns({
+          table: 'interactions',
+          columns: [
+            { name: 'end_date', type: 'number', isOptional: true, isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

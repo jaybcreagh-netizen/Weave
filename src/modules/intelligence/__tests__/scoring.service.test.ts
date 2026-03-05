@@ -1,5 +1,10 @@
-import { calculatePointsForWeave, calculateGroupDilution, calculateEventMultiplier } from '../services/scoring.service';
-import { MAX_INTERACTION_SCORE, GROUP_DILUTION_RATE, GROUP_DILUTION_FLOOR } from '../constants';
+import {
+  calculatePointsForWeave,
+  calculateGroupDilution,
+  calculateEventMultiplier,
+  calculateMultiDayMultiplier,
+} from '../services/scoring.service';
+import { MAX_INTERACTION_SCORE, MAX_MULTIDAY_INTERACTION_SCORE, GROUP_DILUTION_FLOOR } from '../constants';
 import FriendModel from '@/db/models/Friend';
 import { InteractionFormData } from '@/shared/types/scoring.types';
 import { Archetype, Duration, Vibe, InteractionCategory } from '@/shared/types/legacy-types';
@@ -174,6 +179,35 @@ describe('Scoring Service', () => {
       expect(points).toBeLessThanOrEqual(MAX_INTERACTION_SCORE);
       expect(points).toBe(MAX_INTERACTION_SCORE);
     });
+
+    it('applies multiday multiplier with diminishing returns', () => {
+      const singleDay = calculatePointsForWeave(mockFriend, {
+        category: 'meal-drink',
+        duration: 'Standard',
+        vibe: 'WaxingCrescent',
+        groupSize: 1,
+      } as any);
+
+      const sevenDay = calculatePointsForWeave(mockFriend, {
+        category: 'meal-drink',
+        duration: 'Standard',
+        vibe: 'WaxingCrescent',
+        groupSize: 1,
+        rangeDays: 7,
+      } as any);
+
+      const thirtyDay = calculatePointsForWeave(mockFriend, {
+        category: 'meal-drink',
+        duration: 'Standard',
+        vibe: 'WaxingCrescent',
+        groupSize: 1,
+        rangeDays: 30,
+      } as any);
+
+      expect(sevenDay).toBeGreaterThan(singleDay);
+      expect(thirtyDay).toBeGreaterThanOrEqual(sevenDay);
+      expect(thirtyDay).toBeLessThanOrEqual(MAX_MULTIDAY_INTERACTION_SCORE);
+    });
   });
 
   describe('calculateGroupDilution (smooth curve)', () => {
@@ -237,6 +271,27 @@ describe('Scoring Service', () => {
     });
     it('returns 1.2 for a deep talk during a high-importance event', () => {
       expect(calculateEventMultiplier('deep-talk', 'high')).toBe(1.2);
+    });
+  });
+
+  describe('calculateMultiDayMultiplier', () => {
+    it('returns 1.0 for single-day or invalid inputs', () => {
+      expect(calculateMultiDayMultiplier(1)).toBe(1.0);
+      expect(calculateMultiDayMultiplier(0)).toBe(1.0);
+      expect(calculateMultiDayMultiplier(undefined)).toBe(1.0);
+    });
+
+    it('grows with diminishing returns', () => {
+      const two = calculateMultiDayMultiplier(2);
+      const seven = calculateMultiDayMultiplier(7);
+      const fourteen = calculateMultiDayMultiplier(14);
+      const thirty = calculateMultiDayMultiplier(30);
+
+      expect(two).toBeGreaterThan(1);
+      expect(seven).toBeGreaterThan(two);
+      expect(fourteen).toBeGreaterThan(seven);
+      expect(thirty).toBeGreaterThanOrEqual(fourteen);
+      expect(thirty).toBeLessThanOrEqual(2.5);
     });
   });
 });

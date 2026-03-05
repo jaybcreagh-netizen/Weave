@@ -70,7 +70,13 @@ export function InteractionObservableProvider({ children }: { children: React.Re
     const { completedInteractions, plannedInteractions, recentInteractions, counts } = useMemo(() => {
         const completed = interactions.filter(i => i.status === 'completed');
         const planned = interactions.filter(
-            i => i.status === 'planned' && new Date(i.interactionDate) >= new Date()
+            i => {
+                if (i.status !== 'planned') return false;
+                const now = new Date();
+                const start = new Date(i.interactionDate);
+                const end = i.endDate ? new Date(i.endDate) : start;
+                return end >= now || start >= now;
+            }
         );
 
         // Last 30 days for "recent"

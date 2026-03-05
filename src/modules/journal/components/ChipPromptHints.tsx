@@ -30,12 +30,13 @@ export const ChipPromptHints: React.FC<ChipPromptHintsProps> = ({ selectedChipId
         <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(200)} className="py-2">
             {uniquePrompts.map((prompt, index) => (
                 <View key={prompt} className="flex-row items-start gap-2 mb-1.5">
-                    <Icon
-                        name="Lightbulb"
-                        size={12}
-                        color={colors.primary + '60'}
-                        style={{ marginTop: 2 }}
-                    />
+                    <View style={{ marginTop: 2 }}>
+                        <Icon
+                            name="Lightbulb"
+                            size={12}
+                            color={colors.primary + '60'}
+                        />
+                    </View>
                     <Text
                         variant="caption"
                         style={{

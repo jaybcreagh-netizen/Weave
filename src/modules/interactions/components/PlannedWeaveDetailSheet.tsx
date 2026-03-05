@@ -27,7 +27,7 @@ import {
     Sparkles,
 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
+import { format, differenceInCalendarDays, startOfDay } from 'date-fns';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -53,7 +53,10 @@ interface PlannedWeaveDetailSheetProps {
     onClose: () => void;
     interaction: Interaction | null;
     onDelete?: (id: string) => Promise<void>;
-    onUpdate?: (id: string, updates: Partial<Interaction>) => Promise<void>;
+    onUpdate?: (
+        id: string,
+        updates: (Omit<Partial<Interaction>, 'endDate'> & { endDate?: Date | null; note?: string; notes?: string })
+    ) => Promise<void>;
 }
 
 // Editable row component
@@ -108,13 +111,14 @@ export function PlannedWeaveDetailSheet({
     // Local state for edits
     const [date, setDate] = useState<Date>(new Date());
     const [time, setTime] = useState<Date>(new Date());
+    const [endDate, setEndDate] = useState<Date | undefined>(undefined);
     const [category, setCategory] = useState<InteractionCategory | null>(null);
     const [location, setLocation] = useState('');
     const [notes, setNotes] = useState('');
     const [participants, setParticipants] = useState<FriendModel[]>([]);
 
     // Inline editing state
-    const [editingField, setEditingField] = useState<'date' | 'time' | null>(null);
+    const [editingField, setEditingField] = useState<'date' | 'end-date' | 'time' | null>(null);
     const [tempDate, setTempDate] = useState<Date>(new Date());
 
     // Other pickers
@@ -133,8 +137,7 @@ export function PlannedWeaveDetailSheet({
             const interactionDate = new Date(interaction.interactionDate);
             setDate(interactionDate);
             setTime(interactionDate);
-            setDate(interactionDate);
-            setTime(interactionDate);
+            setEndDate(interaction.endDate ? new Date(interaction.endDate) : undefined);
             setEditingField(null);
             setCategory((interaction.interactionCategory || interaction.activity) as InteractionCategory);
             setLocation(interaction.location || '');
@@ -182,12 +185,34 @@ export function PlannedWeaveDetailSheet({
             const finalDate = new Date(date);
             finalDate.setHours(time.getHours(), time.getMinutes(), 0, 0);
 
+            let finalEndDate: Date | undefined;
+            if (endDate) {
+                const normalizedStart = startOfDay(finalDate);
+                const normalizedEnd = startOfDay(endDate);
+                const rangeDays = differenceInCalendarDays(normalizedEnd, normalizedStart) + 1;
+
+                if (rangeDays < 1) {
+                    Alert.alert('Invalid Date Range', 'End date must be on or after the start date.');
+                    setIsSaving(false);
+                    return;
+                }
+                if (rangeDays > 30) {
+                    Alert.alert('Range Too Long', 'Please keep multi-day plans to 30 days or less.');
+                    setIsSaving(false);
+                    return;
+                }
+
+                finalEndDate = new Date(normalizedEnd);
+                finalEndDate.setHours(time.getHours(), time.getMinutes(), 0, 0);
+            }
+
             await onUpdate(interaction.id, {
                 interactionDate: finalDate,
+                endDate: finalEndDate || null,
                 interactionCategory: category || undefined,
                 activity: category || undefined,
                 location: location.trim() || undefined,
-                notes: notes.trim() || undefined,
+                note: notes.trim() || undefined,
             });
 
             // Update calendar event if exists
@@ -219,6 +244,7 @@ export function PlannedWeaveDetailSheet({
                     await CalendarService.updateWeaveCalendarEvent(interaction.calendarEventId, {
                         title: eventTitle,
                         date: finalDate,
+                        endDate: finalEndDate || null,
                         location: location.trim(),
                         notes: eventNotes,
                     });
@@ -271,20 +297,22 @@ export function PlannedWeaveDetailSheet({
         setHasChanges(true);
     };
 
-    const toggleField = (field: 'date' | 'time') => {
+    const toggleField = (field: 'date' | 'end-date' | 'time') => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
         if (editingField === field) {
             setEditingField(null);
         } else {
             // Initialize temp date
-            setTempDate(field === 'date' ? date : time);
+            if (field === 'date') setTempDate(date);
+            else if (field === 'end-date') setTempDate(endDate || date);
+            else setTempDate(time);
             setEditingField(field);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
     };
 
-    const handleInlineSave = (field: 'date' | 'time') => {
+    const handleInlineSave = (field: 'date' | 'end-date' | 'time') => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
         if (field === 'date') {
@@ -293,6 +321,17 @@ export function PlannedWeaveDetailSheet({
             newDate.setHours(time.getHours(), time.getMinutes());
             setDate(newDate);
             setTime(newDate); // Sync them
+            if (endDate && startOfDay(endDate).getTime() < startOfDay(newDate).getTime()) {
+                setEndDate(undefined);
+            }
+        } else if (field === 'end-date') {
+            const normalizedStart = startOfDay(date);
+            const normalizedEnd = startOfDay(tempDate);
+            if (normalizedEnd.getTime() <= normalizedStart.getTime()) {
+                setEndDate(undefined);
+            } else {
+                setEndDate(normalizedEnd);
+            }
         } else {
             const newTime = new Date(tempDate);
             const newDate = new Date(date);
@@ -357,6 +396,66 @@ export function PlannedWeaveDetailSheet({
                                 <TouchableOpacity
                                     className="flex-1 p-3 items-center"
                                     onPress={() => handleInlineSave('date')}
+                                >
+                                    <Text style={{ color: colors.primary, fontWeight: '600' }}>Done</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
+
+                    {/* End Date Row */}
+                    <EditableRow
+                        icon={<Calendar size={20} color={tokens.primary} />}
+                        label="End Date"
+                        value={endDate ? format(endDate, 'EEEE, MMMM d, yyyy') : 'Same day'}
+                        onPress={() => toggleField('end-date')}
+                        colors={colors}
+                    />
+
+                    {/* Inline End Date Picker */}
+                    {editingField === 'end-date' && (
+                        <View className="mb-4 bg-muted/30 rounded-xl overflow-hidden border border-border">
+                            <DateTimePicker
+                                value={tempDate}
+                                mode="date"
+                                display="inline"
+                                minimumDate={date}
+                                onChange={(event, selectedDate) => {
+                                    if (selectedDate) setTempDate(selectedDate);
+                                }}
+                                accentColor={colors.primary}
+                                textColor={colors.foreground}
+                            />
+                            <View className="flex-row border-t border-border">
+                                {endDate ? (
+                                    <>
+                                        <TouchableOpacity
+                                            className="flex-1 p-3 items-center"
+                                            onPress={() => {
+                                                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                                setEndDate(undefined);
+                                                setEditingField(null);
+                                                handleFieldChange();
+                                            }}
+                                        >
+                                            <Text style={{ color: colors.destructive }}>Clear</Text>
+                                        </TouchableOpacity>
+                                        <View style={{ width: 1, backgroundColor: colors.border }} />
+                                    </>
+                                ) : null}
+                                <TouchableOpacity
+                                    className="flex-1 p-3 items-center"
+                                    onPress={() => {
+                                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                        setEditingField(null);
+                                    }}
+                                >
+                                    <Text style={{ color: colors['muted-foreground'] }}>Cancel</Text>
+                                </TouchableOpacity>
+                                <View style={{ width: 1, backgroundColor: colors.border }} />
+                                <TouchableOpacity
+                                    className="flex-1 p-3 items-center"
+                                    onPress={() => handleInlineSave('end-date')}
                                 >
                                     <Text style={{ color: colors.primary, fontWeight: '600' }}>Done</Text>
                                 </TouchableOpacity>
@@ -595,7 +694,7 @@ export function PlannedWeaveDetailSheet({
             {Platform.OS === 'android' && editingField && (
                 <DateTimePicker
                     value={tempDate}
-                    mode={editingField === 'date' ? 'date' : 'time'}
+                    mode={editingField === 'time' ? 'time' : 'date'}
                     display="default"
                     onChange={(event, selectedTime) => {
                         if (selectedTime) {
