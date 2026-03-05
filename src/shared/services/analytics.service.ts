@@ -28,6 +28,12 @@ export const AnalyticsEvents = {
   FRIEND_DELETED: 'friend_deleted',
   FRIEND_BATCH_ADDED: 'friend_batch_added',
   FRIEND_PROFILE_VIEWED: 'friend_profile_viewed',
+  GROUPS_OPENED: 'groups_opened',
+  GROUP_CREATED: 'group_created',
+  GROUP_UPDATED: 'group_updated',
+  GROUP_DELETED: 'group_deleted',
+  GROUP_SUGGESTION_ACCEPTED: 'group_suggestion_accepted',
+  GROUP_USED_FOR_SELECTION: 'group_used_for_selection',
 
   // Interactions
   INTERACTION_LOGGED: 'interaction_logged',

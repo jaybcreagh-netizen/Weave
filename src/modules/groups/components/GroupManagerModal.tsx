@@ -14,12 +14,14 @@ import { groupService } from '../services/group.service';
 import Group from '@/db/models/Group';
 import { uploadGroupPhoto } from '@/modules/relationships/services/image.service';
 import { resolveImageUri } from '@/modules/relationships/services/image.service';
+import { AnalyticsEvents, trackEvent } from '@/shared/services/analytics.service';
 
 interface GroupManagerModalProps {
     visible: boolean;
     onClose: () => void;
     groupToEdit?: Group; // If provided, we are editing
     initialData?: { name: string; memberIds: string[] }; // For pre-filling (e.g. from suggestions)
+    source?: 'settings' | 'circle_fab' | 'circle_surface' | 'friend_selector';
     onGroupSaved: () => void;
 }
 
@@ -28,6 +30,7 @@ export function GroupManagerModal({
     onClose,
     groupToEdit,
     initialData,
+    source = 'settings',
     onGroupSaved,
 }: GroupManagerModalProps) {
     const { colors } = useTheme();
@@ -224,8 +227,21 @@ export function GroupManagerModal({
 
             if (groupToEdit) {
                 await groupService.updateGroup(groupToEdit.id, name, selectedFriendIds, finalPhotoUrl);
+                trackEvent(AnalyticsEvents.GROUP_UPDATED, {
+                    group_id: groupToEdit.id,
+                    entry_point: source,
+                    member_count: selectedFriendIds.length,
+                    has_photo: !!finalPhotoUrl,
+                });
             } else {
-                await groupService.createGroup(name, selectedFriendIds, finalPhotoUrl);
+                const created = await groupService.createGroup(name, selectedFriendIds, finalPhotoUrl);
+                trackEvent(AnalyticsEvents.GROUP_CREATED, {
+                    group_id: created.id,
+                    entry_point: source,
+                    member_count: selectedFriendIds.length,
+                    has_photo: !!finalPhotoUrl,
+                    from_suggestion: !!initialData,
+                });
             }
             onGroupSaved();
             onClose();
@@ -251,6 +267,10 @@ export function GroupManagerModal({
                     onPress: async () => {
                         try {
                             await groupService.deleteGroup(groupToEdit.id);
+                            trackEvent(AnalyticsEvents.GROUP_DELETED, {
+                                group_id: groupToEdit.id,
+                                entry_point: source,
+                            });
                             onGroupSaved();
                             onClose();
                         } catch (error) {
@@ -410,5 +430,3 @@ export function GroupManagerModal({
         </Modal>
     );
 }
-
-

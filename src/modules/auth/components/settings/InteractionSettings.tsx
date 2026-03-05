@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Moon, Sun, Zap, Sparkles } from 'lucide-react-native';
+import { Moon, Sun, Zap, Sparkles, Users } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { SettingsItem } from './SettingsItem';
@@ -9,14 +9,22 @@ import { ModernSwitch } from '@/shared/ui/ModernSwitch';
 
 // Settings keys
 import { QUICK_WEAVE_ENABLED_KEY, QUICK_WEAVE_MODE_KEY } from '@/modules/interactions/utils/quick-weave-settings';
+import { SUGGESTION_NUDGES_ENABLED_KEY } from '@/modules/interactions/utils/suggestion-nudge-settings';
 
 export const InteractionSettings = () => {
     const { colors } = useTheme();
-    const { isDarkMode, toggleDarkMode, setQuickWeaveFeatureEnabled, setQuickWeaveMode } = useUIStore();
+    const {
+        isDarkMode,
+        toggleDarkMode,
+        setQuickWeaveFeatureEnabled,
+        setQuickWeaveMode,
+        setSuggestionNudgesEnabled,
+    } = useUIStore();
 
     const [smartDefaultsEnabled, setSmartDefaultsEnabled] = useState(true);
     const [quickWeaveEnabled, setQuickWeaveEnabled] = useState(true);
     const [quickWeaveMode, setQuickWeaveModeState] = useState<'gesture' | 'click'>('gesture');
+    const [suggestionNudgesEnabled, setSuggestionNudgesEnabledState] = useState(true);
 
     useEffect(() => {
         loadSettings();
@@ -31,6 +39,11 @@ export const InteractionSettings = () => {
 
         const quickWeaveModeStr = await AsyncStorage.getItem(QUICK_WEAVE_MODE_KEY);
         setQuickWeaveModeState((quickWeaveModeStr as 'gesture' | 'click') || 'gesture');
+
+        const suggestionNudgesStr = await AsyncStorage.getItem(SUGGESTION_NUDGES_ENABLED_KEY);
+        const nudgesEnabled = suggestionNudgesStr ? JSON.parse(suggestionNudgesStr) : true;
+        setSuggestionNudgesEnabledState(nudgesEnabled);
+        setSuggestionNudgesEnabled(nudgesEnabled);
     };
 
     const handleToggleSmartDefaults = async (enabled: boolean) => {
@@ -48,6 +61,12 @@ export const InteractionSettings = () => {
         setQuickWeaveModeState(mode);
         setQuickWeaveMode(mode);
         await AsyncStorage.setItem(QUICK_WEAVE_MODE_KEY, mode);
+    };
+
+    const handleToggleSuggestionNudges = async (enabled: boolean) => {
+        setSuggestionNudgesEnabledState(enabled);
+        setSuggestionNudgesEnabled(enabled);
+        await AsyncStorage.setItem(SUGGESTION_NUDGES_ENABLED_KEY, JSON.stringify(enabled));
     };
 
     return (
@@ -94,6 +113,20 @@ export const InteractionSettings = () => {
                     }
                 />
             )}
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <SettingsItem
+                icon={Users}
+                title="Circle Suggestion Nudges"
+                subtitle="Show subtle dots on friend cards with suggestions"
+                rightElement={
+                    <ModernSwitch
+                        value={suggestionNudgesEnabled}
+                        onValueChange={handleToggleSuggestionNudges}
+                    />
+                }
+            />
 
             <View className="border-t border-border" style={{ borderColor: colors.border }} />
 

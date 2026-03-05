@@ -160,6 +160,10 @@ interface UIStore {
   setQuickWeaveMode: (mode: 'gesture' | 'click') => void;
   isQuickWeaveInteractive: boolean; // True when waiting for tap in 'click' mode
   setQuickWeaveInteractive: (interactive: boolean) => void;
+
+  // Circle suggestion nudge settings
+  areSuggestionNudgesEnabled: boolean;
+  setSuggestionNudgesEnabled: (enabled: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -201,6 +205,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
   setQuickWeaveMode: (mode) => set({ quickWeaveMode: mode }),
   isQuickWeaveInteractive: false,
   setQuickWeaveInteractive: (interactive) => set({ isQuickWeaveInteractive: interactive }),
+  areSuggestionNudgesEnabled: true,
+  setSuggestionNudgesEnabled: (enabled) => set({ areSuggestionNudgesEnabled: enabled }),
 
   lastReflectionPromptDate: null,
   markReflectionPromptShown: () => set({ lastReflectionPromptDate: Date.now() }),

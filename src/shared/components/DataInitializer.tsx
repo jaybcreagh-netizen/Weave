@@ -48,6 +48,7 @@ interface DataInitializerProps {
 import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { QUICK_WEAVE_ENABLED_KEY } from '@/modules/interactions/utils/quick-weave-settings';
+import { SUGGESTION_NUDGES_ENABLED_KEY } from '@/modules/interactions/utils/suggestion-nudge-settings';
 
 // Startup/foreground timings tuned for faster reliability in short sessions.
 const STARTUP_CALENDAR_SYNC_DELAY_MS = 5000;
@@ -295,6 +296,11 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 const quickWeaveStr = await AsyncStorage.getItem(QUICK_WEAVE_ENABLED_KEY);
                 const isQuickWeaveEnabled = quickWeaveStr ? JSON.parse(quickWeaveStr) : true;
                 useUIStore.getState().setQuickWeaveFeatureEnabled(isQuickWeaveEnabled);
+
+                // Initialize Circle suggestion nudges state
+                const suggestionNudgesStr = await AsyncStorage.getItem(SUGGESTION_NUDGES_ENABLED_KEY);
+                const areSuggestionNudgesEnabled = suggestionNudgesStr ? JSON.parse(suggestionNudgesStr) : true;
+                useUIStore.getState().setSuggestionNudgesEnabled(areSuggestionNudgesEnabled);
             } catch (error) {
                 console.error('[App] Failed to initialize background sync or settings:', error);
             }

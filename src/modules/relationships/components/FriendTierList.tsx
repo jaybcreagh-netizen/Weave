@@ -42,11 +42,13 @@ const getTierBackground = (tier: Tier, isDarkMode: boolean) => {
 const AnimatedFriendCardItem = React.memo(({
     item,
     index,
+    hasSuggestionNudge,
     onOpenArchetypePicker,
     onOpenDetail,
 }: {
     item: FriendModel;
     index: number;
+    hasSuggestionNudge?: boolean;
     onOpenArchetypePicker?: (friend: FriendModel) => void;
     onOpenDetail?: (friend: FriendModel) => void;
 }) => {
@@ -94,13 +96,15 @@ const AnimatedFriendCardItem = React.memo(({
             <FriendListRow
                 friend={item}
                 animatedRef={animatedRef}
+                hasSuggestionNudge={hasSuggestionNudge}
                 onOpenArchetypePicker={onOpenArchetypePicker}
                 onOpenDetail={onOpenDetail}
             />
         </Animated.View>
     );
 }, (prevProps, nextProps) => {
-    return prevProps.item.id === nextProps.item.id;
+    return prevProps.item.id === nextProps.item.id
+        && prevProps.hasSuggestionNudge === nextProps.hasSuggestionNudge;
 });
 
 interface FriendTierListProps {
@@ -109,13 +113,14 @@ interface FriendTierListProps {
     isQuickWeaveOpen?: boolean;
     onOpenArchetypePicker?: (friend: FriendModel) => void;
     onOpenDetail?: (friend: FriendModel) => void;
+    suggestionFriendIdSet?: Set<string>;
 }
 
 /**
  * FriendTierList - Now uses centralized FriendsObservableContext
  * instead of per-tier withObservables subscriptions.
  */
-export const FriendTierList = React.memo(({ tier, scrollHandler, isQuickWeaveOpen, onOpenArchetypePicker, onOpenDetail }: FriendTierListProps) => {
+export const FriendTierList = React.memo(({ tier, scrollHandler, isQuickWeaveOpen, onOpenArchetypePicker, onOpenDetail, suggestionFriendIdSet }: FriendTierListProps) => {
     const { friends: allFriends } = useFriendsObservable();
 
     const { colors, isDarkMode } = useTheme();
@@ -144,6 +149,7 @@ export const FriendTierList = React.memo(({ tier, scrollHandler, isQuickWeaveOpe
         <AnimatedFriendCardItem
             item={item}
             index={index}
+            hasSuggestionNudge={Boolean(suggestionFriendIdSet?.has(item.id))}
             onOpenArchetypePicker={onOpenArchetypePicker}
             onOpenDetail={onOpenDetail}
         />

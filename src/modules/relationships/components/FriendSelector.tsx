@@ -11,6 +11,7 @@ import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { groupService } from '@/modules/groups';
 import { GroupManagerModal } from '@/modules/groups';
+import { AnalyticsEvents, trackEvent } from '@/shared/services/analytics.service';
 
 interface FriendSelectorProps {
     visible: boolean;
@@ -97,6 +98,7 @@ export function FriendSelector({
     const handleGroupSelect = async (group: Group) => {
         const members = await group.members.fetch();
         const memberIds = members.map((m: any) => m.friendId);
+        const selectionBefore = selectedFriends.length;
 
         // Find friend objects for these IDs
         const friendsToSelect = allFriends.filter(f => memberIds.includes(f.id));
@@ -110,6 +112,12 @@ export function FriendSelector({
         });
 
         onSelectionChange(newSelection);
+        trackEvent(AnalyticsEvents.GROUP_USED_FOR_SELECTION, {
+            group_id: group.id,
+            group_size: memberIds.length,
+            friends_added: Math.max(0, newSelection.length - selectionBefore),
+            context: 'friend_selector',
+        });
         // Optional: Switch back to friends tab to show selection
         setActiveTab('friends');
     };
@@ -381,6 +389,7 @@ export function FriendSelector({
                                 visible={isGroupModalVisible}
                                 onClose={() => setIsGroupModalVisible(false)}
                                 groupToEdit={editingGroup}
+                                source="friend_selector"
                                 onGroupSaved={loadGroups}
                             />
                         )}
@@ -424,6 +433,7 @@ export function FriendSelector({
                     visible={isGroupModalVisible}
                     onClose={() => setIsGroupModalVisible(false)}
                     groupToEdit={editingGroup}
+                    source="friend_selector"
                     onGroupSaved={loadGroups}
                 />
             )}

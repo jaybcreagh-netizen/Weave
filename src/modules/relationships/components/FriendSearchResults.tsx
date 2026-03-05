@@ -40,11 +40,13 @@ const SORT_LABELS: Record<SortOption, string> = {
 const AnimatedSearchResultItem = React.memo(({
   item,
   index,
+  hasSuggestionNudge,
   onOpenArchetypePicker,
   onOpenDetail,
 }: {
   item: FriendModel;
   index: number;
+  hasSuggestionNudge?: boolean;
   onOpenArchetypePicker?: (friend: FriendModel) => void;
   onOpenDetail?: (friend: FriendModel) => void;
 }) => {
@@ -69,13 +71,15 @@ const AnimatedSearchResultItem = React.memo(({
       <FriendListRow
         friend={item}
         animatedRef={animatedRef}
+        hasSuggestionNudge={hasSuggestionNudge}
         onOpenArchetypePicker={onOpenArchetypePicker}
         onOpenDetail={onOpenDetail}
       />
     </Animated.View>
   );
 }, (prevProps, nextProps) => {
-  return prevProps.item.id === nextProps.item.id;
+  return prevProps.item.id === nextProps.item.id
+    && prevProps.hasSuggestionNudge === nextProps.hasSuggestionNudge;
 });
 
 interface FriendSearchResultsProps {
@@ -87,6 +91,7 @@ interface FriendSearchResultsProps {
   isQuickWeaveOpen?: boolean;
   onOpenArchetypePicker?: (friend: FriendModel) => void;
   onOpenDetail?: (friend: FriendModel) => void;
+  suggestionFriendIdSet?: Set<string>;
 }
 
 const FriendSearchResultsContent = ({
@@ -98,6 +103,7 @@ const FriendSearchResultsContent = ({
   isQuickWeaveOpen,
   onOpenArchetypePicker,
   onOpenDetail,
+  suggestionFriendIdSet,
 }: FriendSearchResultsProps) => {
   const { colors } = useTheme();
 
@@ -231,6 +237,7 @@ const FriendSearchResultsContent = ({
     <AnimatedSearchResultItem
       item={item}
       index={index}
+      hasSuggestionNudge={Boolean(suggestionFriendIdSet?.has(item.id))}
       onOpenDetail={onOpenDetail}
       onOpenArchetypePicker={onOpenArchetypePicker}
     />

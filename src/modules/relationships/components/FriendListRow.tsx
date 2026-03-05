@@ -54,6 +54,7 @@ interface FriendListRowProps {
   friend: FriendModel | FriendShape;
   animatedRef?: AnimatedRef<Animated.View>;
   variant?: 'default' | 'full' | 'compact';
+  hasSuggestionNudge?: boolean;
   onPress?: (friend: FriendModel) => void;
   onLongPress?: (friend: FriendModel) => void;
   onOpenArchetypePicker?: (friend: FriendModel) => void;
@@ -65,6 +66,7 @@ export const FriendListRowContent = ({
   friend,
   animatedRef,
   variant = 'default',
+  hasSuggestionNudge = false,
   onPress,
   onLongPress,
   onOpenArchetypePicker,
@@ -376,6 +378,17 @@ export const FriendListRowContent = ({
                   </Text>
                 )}
               </View>
+              {hasSuggestionNudge && (
+                <View
+                  className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
+                  style={{
+                    backgroundColor: colors.primary,
+                    borderWidth: 1,
+                    borderColor: colors.card,
+                    opacity: 0.9,
+                  }}
+                />
+              )}
               {/* Linked Weave User Badge */}
               {linkStatus === 'linked' && linkedUserId && (
                 <View
@@ -505,5 +518,6 @@ export const FriendListRow = React.memo(FriendListRowContent, (prevProps, nextPr
   if (prevProps.friend.archetype !== nextProps.friend.archetype) return false;
   if (prevProps.friend.weaveScore !== nextProps.friend.weaveScore) return false;
   if (prevProps.friend.photoUrl !== nextProps.friend.photoUrl) return false;
+  if (prevProps.hasSuggestionNudge !== nextProps.hasSuggestionNudge) return false;
   return true;
 });

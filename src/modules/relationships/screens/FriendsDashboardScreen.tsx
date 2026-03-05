@@ -1,10 +1,9 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Dimensions, ScrollView, Text, TouchableOpacity } from 'react-native';
+import { View, Dimensions, ScrollView, Text } from 'react-native';
 import Animated, { FadeIn, FadeOut, useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
-import { Q } from '@nozbe/watermelondb';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MultiActionFAB, type FABAction } from '@/shared/components/MultiActionFAB';
@@ -54,7 +53,17 @@ const { width: screenWidth } = Dimensions.get('window');
 export function FriendsDashboardScreen() {
     const router = useRouter();
     const { colors } = useTheme();
-    const { isQuickWeaveOpen, showMicroReflectionSheet, isClaimInviteSheetOpen, closeClaimInviteSheet, pendingInviteCode, isAddUserSheetOpen, closeAddUserSheet, pendingAddUserId } = useUIStore();
+    const {
+        isQuickWeaveOpen,
+        showMicroReflectionSheet,
+        isClaimInviteSheetOpen,
+        closeClaimInviteSheet,
+        pendingInviteCode,
+        isAddUserSheetOpen,
+        closeAddUserSheet,
+        pendingAddUserId,
+        areSuggestionNudgesEnabled,
+    } = useUIStore();
     const { gesture, animatedScrollHandler, activeCardId, pendingCardId } = useCardGesture();
     const { suggestions, dismissSuggestion } = useSuggestions();
 
@@ -105,6 +114,17 @@ export function FriendsDashboardScreen() {
             searchFilters.tiers.length > 0 ||
             sortOption !== 'default';
     }, [searchQuery, searchFilters, sortOption]);
+
+    const suggestionFriendIds = useMemo(() => {
+        const uniqueFriendIds = new Set<string>();
+        suggestions.forEach((suggestion) => {
+            const friendId = suggestion.friendId;
+            if (!friendId || friendId === 'system') return;
+            uniqueFriendIds.add(friendId);
+        });
+        return Array.from(uniqueFriendIds);
+    }, [suggestions]);
+    const suggestionFriendIdSet = useMemo(() => new Set(suggestionFriendIds), [suggestionFriendIds]);
 
     // Use centralized observable for friend counts - no duplicate subscriptions
     const friendCounts = useFriendCounts();
@@ -394,6 +414,7 @@ export function FriendsDashboardScreen() {
                             isQuickWeaveOpen={isQuickWeaveOpen}
                             onOpenDetail={handleOpenDetail}
                             onOpenArchetypePicker={handleOpenArchetypePicker}
+                            suggestionFriendIdSet={areSuggestionNudgesEnabled ? suggestionFriendIdSet : undefined}
                         />
                     </GestureDetector>
                 </Animated.View>
@@ -429,6 +450,7 @@ export function FriendsDashboardScreen() {
                                 isQuickWeaveOpen={isQuickWeaveOpen}
                                 onOpenDetail={handleOpenDetail}
                                 onOpenArchetypePicker={handleOpenArchetypePicker}
+                                suggestionFriendIdSet={areSuggestionNudgesEnabled ? suggestionFriendIdSet : undefined}
                             />
                             <FriendTierList
                                 tier={getDbTier('close')}
@@ -436,6 +458,7 @@ export function FriendsDashboardScreen() {
                                 isQuickWeaveOpen={isQuickWeaveOpen}
                                 onOpenDetail={handleOpenDetail}
                                 onOpenArchetypePicker={handleOpenArchetypePicker}
+                                suggestionFriendIdSet={areSuggestionNudgesEnabled ? suggestionFriendIdSet : undefined}
                             />
                             <FriendTierList
                                 tier={getDbTier('community')}
@@ -443,6 +466,7 @@ export function FriendsDashboardScreen() {
                                 isQuickWeaveOpen={isQuickWeaveOpen}
                                 onOpenDetail={handleOpenDetail}
                                 onOpenArchetypePicker={handleOpenArchetypePicker}
+                                suggestionFriendIdSet={areSuggestionNudgesEnabled ? suggestionFriendIdSet : undefined}
                             />
                         </Animated.ScrollView>
                     </GestureDetector>

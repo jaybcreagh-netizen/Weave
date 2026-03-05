@@ -5,6 +5,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { Text } from '@/shared/ui/Text';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
+import { AnalyticsEvents, trackEvent } from '@/shared/services/analytics.service';
 import Group from '@/db/models/Group';
 import { groupService, GroupSuggestion } from '../services/group.service';
 import { GroupManagerModal } from './GroupManagerModal';
@@ -12,9 +13,10 @@ import { GroupManagerModal } from './GroupManagerModal';
 interface GroupListModalProps {
     visible: boolean;
     onClose: () => void;
+    entryPoint?: 'settings' | 'circle_fab' | 'circle_surface';
 }
 
-export function GroupListModal({ visible, onClose }: GroupListModalProps) {
+export function GroupListModal({ visible, onClose, entryPoint = 'settings' }: GroupListModalProps) {
     const { colors } = useTheme();
     const [groups, setGroups] = useState<Group[]>([]);
     const [suggestions, setSuggestions] = useState<GroupSuggestion[]>([]);
@@ -32,9 +34,10 @@ export function GroupListModal({ visible, onClose }: GroupListModalProps) {
 
     useEffect(() => {
         if (visible) {
+            trackEvent(AnalyticsEvents.GROUPS_OPENED, { entry_point: entryPoint });
             loadGroups();
         }
-    }, [visible]);
+    }, [visible, entryPoint]);
 
     const handleEditGroup = (group: Group) => {
         setEditingGroup(group);
@@ -48,6 +51,12 @@ export function GroupListModal({ visible, onClose }: GroupListModalProps) {
     };
 
     const handleCreateFromSuggestion = (suggestion: GroupSuggestion) => {
+        trackEvent(AnalyticsEvents.GROUP_SUGGESTION_ACCEPTED, {
+            entry_point: entryPoint,
+            friend_count: suggestion.friendIds.length,
+            interaction_count: suggestion.interactionCount,
+            confidence: suggestion.confidence,
+        });
         setEditingGroup(undefined);
         setInitialData({
             name: suggestion.suggestedName,
@@ -240,6 +249,7 @@ export function GroupListModal({ visible, onClose }: GroupListModalProps) {
                 onClose={() => setIsManagerVisible(false)}
                 groupToEdit={editingGroup}
                 initialData={initialData}
+                source={entryPoint}
                 onGroupSaved={loadGroups}
             />
         </>

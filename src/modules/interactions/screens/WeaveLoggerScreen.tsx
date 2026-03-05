@@ -27,7 +27,7 @@ import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
-import { ReciprocitySelector, InitiatorType, FriendPickerSheet } from '@/modules/relationships';
+import { ReciprocitySelector, InitiatorType, FriendSelector } from '@/modules/relationships';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { STORY_CHIPS } from '@/modules/reflection/services/story-chips.service';
@@ -925,12 +925,13 @@ export function WeaveLoggerScreen({
                             </TouchableWithoutFeedback>
 
                     {/* Friend Picker Sheet */}
-                    <FriendPickerSheet
+                    <FriendSelector
                         visible={showFriendPicker}
                         onClose={() => setShowFriendPicker(false)}
-                        onSelectFriend={(friend) => setSelectedFriends(prev => [...prev, friend])}
-                        title="Add to Weave"
-                        disabledIds={selectedFriends.map(f => f.id)}
+                        initialFriendId={friendId}
+                        selectedFriends={selectedFriends}
+                        onSelectionChange={setSelectedFriends}
+                        asModal={true}
                     />
 
                     <WeaveReflectPrompt

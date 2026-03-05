@@ -250,6 +250,7 @@ export function SettingsModal({
       <GroupListModal
         visible={showGroupList}
         onClose={() => setShowGroupList(false)}
+        entryPoint="settings"
       />
 
       <FriendManagementModal
