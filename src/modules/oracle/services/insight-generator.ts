@@ -10,6 +10,7 @@ import { InsightSignal } from './types'
 import UserProfile from '@/db/models/UserProfile'
 import SocialBatteryLog from '@/db/models/SocialBatteryLog'
 import { oracleService } from './oracle-service'
+import { intelligenceCapabilitiesService } from '@/modules/intelligence/services/intelligence-capabilities.service'
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
@@ -18,33 +19,26 @@ export class InsightGenerator {
     // === PUBLIC API ===
 
     static async generateDailyInsights(): Promise<void> {
-        // 0. Check Frequency & Cadence
-        const profiles = await database.get<UserProfile>('user_profile').query().fetch()
-        const userProfile = profiles[0]
-
+        const userProfile = await this.getCurrentProfile()
         if (!userProfile) return
+
+        const capabilities = await intelligenceCapabilitiesService.getCapabilities({
+            profile: userProfile,
+        })
+
+        if (!capabilities.proactiveInsightsEnabled) return
 
         const shouldGenerate = await this.shouldGenerateInsights(userProfile)
         if (!shouldGenerate) return
 
-        const signals: InsightSignal[] = []
+        const signals = await this.collectSignals()
+        const filteredSignals = this.filterSuppressedSignals(signals, userProfile)
 
-        // 1. Generate Friend Signals
-        const friendSignals = await this.generateFriendSignals()
-        signals.push(...friendSignals)
-
-        // 2. Generate Pattern Signals (Emergent)
-        const patternSignals = await this.generatePatternSignals()
-        signals.push(...patternSignals)
-
-        // 3. Generate User Signals (Battery, Activity)
-        const userSignals = await this.generateUserSignals()
-        signals.push(...userSignals)
-
-        // 3. Process via Oracle (LLM Polish)
-        if (signals.length > 0) {
-            // New Redesign: Synthesize all signals into one narrative
-            await oracleService.synthesizeInsights(signals)
+        if (filteredSignals.length > 0) {
+            await oracleService.synthesizeInsights(filteredSignals, {
+                useRemotePolish: capabilities.remoteInsightPolishEnabled,
+                allowFallback: true,
+            })
         }
     }
 
@@ -53,32 +47,58 @@ export class InsightGenerator {
      * Used when user explicitly taps "Give me an insight"
      */
     static async generateOnDemand(): Promise<void> {
+        const userProfile = await this.getCurrentProfile()
+        if (!userProfile) return
+
+        const capabilities = await intelligenceCapabilitiesService.getCapabilities({
+            profile: userProfile,
+        })
+
+        if (!capabilities.localProactiveInsightsEnabled) return
+
+        const signals = await this.collectSignals({
+            includeLifeEvents: true,
+            includeJournalSignals: true,
+        })
+        const filteredSignals = this.filterSuppressedSignals(signals, userProfile)
+
+        if (filteredSignals.length > 0) {
+            await oracleService.synthesizeInsights(filteredSignals, {
+                useRemotePolish: capabilities.remoteInsightPolishEnabled,
+                skipRecentCooldown: true,
+                allowFallback: true,
+            })
+        }
+    }
+
+    private static async collectSignals(
+        options: {
+            includeLifeEvents?: boolean
+            includeJournalSignals?: boolean
+        } = {}
+    ): Promise<InsightSignal[]> {
         const signals: InsightSignal[] = []
 
-        // 1. Generate Friend Signals
         const friendSignals = await this.generateFriendSignals()
         signals.push(...friendSignals)
 
-        // 2. Generate Pattern Signals
         const patternSignals = await this.generatePatternSignals()
         signals.push(...patternSignals)
 
-        // 3. Generate User Signals
         const userSignals = await this.generateUserSignals()
         signals.push(...userSignals)
 
-        // 4. Generate Life Event Signals (birthdays, anniversaries)
-        const lifeEventSignals = await this.generateLifeEventSignals()
-        signals.push(...lifeEventSignals)
-
-        // 5. Generate Journal Signals (sentiment patterns)
-        const journalSignals = await this.generateJournalBasedSignals()
-        signals.push(...journalSignals)
-
-        // 6. Process via Oracle (skip if no signals)
-        if (signals.length > 0) {
-            await oracleService.synthesizeInsights(signals)
+        if (options.includeLifeEvents) {
+            const lifeEventSignals = await this.generateLifeEventSignals()
+            signals.push(...lifeEventSignals)
         }
+
+        if (options.includeJournalSignals) {
+            const journalSignals = await this.generateJournalBasedSignals()
+            signals.push(...journalSignals)
+        }
+
+        return signals
     }
 
     private static async shouldGenerateInsights(userProfile: UserProfile): Promise<boolean> {
@@ -643,6 +663,52 @@ export class InsightGenerator {
 
     // === HELPERS ===
 
+    private static async getCurrentProfile(): Promise<UserProfile | null> {
+        const profiles = await database.get<UserProfile>('user_profile').query().fetch()
+        return profiles[0] ?? null
+    }
+
+    private static filterSuppressedSignals(signals: InsightSignal[], userProfile: UserProfile): InsightSignal[] {
+        const suppressedRules = this.getSuppressedRules(userProfile)
+        if (suppressedRules.size === 0) return signals
+
+        return signals.filter((signal) => {
+            const mappedRules = this.getRuleIdsForSignal(signal)
+            if (mappedRules.length === 0) return true
+            return mappedRules.every((ruleId) => !suppressedRules.has(ruleId))
+        })
+    }
+
+    private static getSuppressedRules(userProfile: UserProfile): Set<string> {
+        if (!userProfile.suppressedInsightRules) return new Set()
+
+        try {
+            const parsed = JSON.parse(userProfile.suppressedInsightRules)
+            if (!Array.isArray(parsed)) return new Set()
+            return new Set(parsed.filter((ruleId): ruleId is string => typeof ruleId === 'string'))
+        } catch {
+            return new Set()
+        }
+    }
+
+    private static getRuleIdsForSignal(signal: InsightSignal): string[] {
+        switch (signal.type) {
+            case 'drifting':
+                return [FRIEND_RULES.friend_drift.id]
+            case 'deepening':
+                return [FRIEND_RULES.friend_deepening.id]
+            case 'one_sided':
+                return [FRIEND_RULES.friend_one_sided.id]
+            case 'reconnection_win':
+                return [FRIEND_RULES.friend_reconnection.id]
+            case 'user_battery_low':
+            case 'user_battery_draining':
+                return [PATTERN_RULES.pattern_low_energy_socializing.id]
+            default:
+                return []
+        }
+    }
+
     private static getDaysSince(date: Date): number {
         return Math.floor((Date.now() - date.getTime()) / ONE_DAY_MS)
     }
@@ -692,4 +758,3 @@ export class InsightGenerator {
         return count
     }
 }
-

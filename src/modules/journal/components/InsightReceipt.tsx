@@ -33,7 +33,59 @@ export const InsightReceipt: React.FC<InsightReceiptProps> = ({
                 style={[{ backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border }, style]}
                 className="p-4"
             >
+                <View className="flex-row items-center justify-between mb-3">
+                    <View className="flex-row items-center gap-2.5">
+                        <View
+                            className="w-7 h-7 rounded-full items-center justify-center"
+                            style={{ backgroundColor: colors.primary + '12' }}
+                        >
+                            <Icon name="Sparkles" size={14} color={colors.primary} />
+                        </View>
+                        <View>
+                            <Text
+                                variant="body"
+                                weight="semibold"
+                                style={{ color: colors.foreground, fontSize: 15 }}
+                            >
+                                Journal entry saved
+                            </Text>
+                            <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                                Analysis is continuing in the background.
+                            </Text>
+                        </View>
+                    </View>
+                    <TouchableOpacity
+                        onPress={onDismiss}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                        className="p-1.5 rounded-full"
+                        style={{ backgroundColor: colors.muted }}
+                    >
+                        <Icon name="X" size={12} color={colors['muted-foreground']} />
+                    </TouchableOpacity>
+                </View>
+
                 <WeavingLoader />
+
+                <Text
+                    variant="caption"
+                    className="mt-3 text-center"
+                    style={{ color: colors['muted-foreground'] }}
+                >
+                    You can close this now and keep using Weave.
+                </Text>
+
+                <TouchableOpacity
+                    onPress={onDismiss}
+                    className="mt-3 py-2 flex-row items-center justify-center"
+                    activeOpacity={0.6}
+                >
+                    <Text
+                        variant="caption"
+                        style={{ color: colors['muted-foreground'], fontWeight: '500' }}
+                    >
+                        Done
+                    </Text>
+                </TouchableOpacity>
             </View>
         );
     }

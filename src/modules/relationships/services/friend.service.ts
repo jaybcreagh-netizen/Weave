@@ -153,7 +153,11 @@ export async function updateFriend(id: string, data: FriendFormData): Promise<Fr
       record.email = data.email;
       record.preferredMessagingApp = data.preferredMessagingApp;
 
-      record.lastUpdated = new Date();
+      // NOTE: Do NOT update lastUpdated here. That field is used by the decay
+      // engine to calculate time-based score decay. Resetting it on profile
+      // edits erases accumulated decay and causes an artificial score jump.
+      // lastUpdated should only be modified by the intelligence engine
+      // (scoring/orchestrator) when processing interactions.
     });
   });
 

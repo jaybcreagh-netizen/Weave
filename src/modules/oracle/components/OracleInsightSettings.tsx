@@ -121,7 +121,7 @@ function OracleInsightSettings({ userProfiles }: OracleInsightSettingsProps) {
                         />
                     </View>
                     <Text style={{ color: colors['muted-foreground'] }}>
-                        Allow Oracle to proactively generate insights about your friendships and patterns.
+                        Keep local relationship nudges on, and let Oracle optionally polish them when AI is enabled.
                     </Text>
                 </View>
 
@@ -142,6 +142,9 @@ function OracleInsightSettings({ userProfiles }: OracleInsightSettingsProps) {
 
                 <Text className="text-sm font-bold mt-8 mb-4 uppercase tracking-wider" style={{ color: colors['muted-foreground'] }}>
                     Insight Frequency
+                </Text>
+                <Text className="text-xs mb-4" style={{ color: colors['muted-foreground'] }}>
+                    These nudges can be generated locally. Oracle only adds extra phrasing when remote AI is available.
                 </Text>
                 <View className="mb-8">
                     {['weekly', 'biweekly', 'monthly', 'on_demand'].map((option) => {
@@ -191,7 +194,7 @@ function OracleInsightSettings({ userProfiles }: OracleInsightSettingsProps) {
                     Oracle Tone
                 </Text>
                 <Text className="text-xs mb-4" style={{ color: colors['muted-foreground'] }}>
-                    Choose how the Oracle communicates with you.
+                    Choose how Oracle sounds when remote AI polish is turned on.
                 </Text>
                 {TONE_OPTIONS.map(tone => {
                     const isSelected = (userProfile.oracleTonePreference || 'grounded') === tone.id

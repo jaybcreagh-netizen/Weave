@@ -2,6 +2,7 @@ import { llmService } from '@/shared/services/llm';
 import { getPrompt, interpolatePrompt } from '@/shared/services/llm/prompt-registry';
 import { logger } from '@/shared/services/logger.service';
 import { PromptEngineInput } from '@/modules/reflection/services/prompt-engine';
+import { intelligenceCapabilitiesService } from '@/modules/intelligence/services/intelligence-capabilities.service';
 
 const PROMPT_ID = 'weekly_reflection_draft';
 
@@ -25,16 +26,17 @@ export const ReflectionAssistant = {
         weekContext: WeekContext = {},
         options: ReflectionAssistantOptions = {}
     ): Promise<string> {
-        if (!llmService.isAvailable()) {
-            throw new Error('LLM service not available');
-        }
-
         const { timeoutMs = 45000, signal } = options;
+        const capabilities = await intelligenceCapabilitiesService.getCapabilitiesForCurrentProfile();
+
+        if (!capabilities.guidedReflectionEnabled || !llmService.isAvailable()) {
+            return this.generateFallbackDraft(input, promptQuestion, weekContext);
+        }
 
         try {
             const promptDef = getPrompt(PROMPT_ID);
             if (!promptDef) {
-                return this.generateFallbackDraft(input);
+                return this.generateFallbackDraft(input, promptQuestion, weekContext);
             }
 
             const context = {
@@ -69,7 +71,7 @@ export const ReflectionAssistant = {
             return response.text.trim().replace(/^["']|["']$/g, '');
         } catch (error) {
             logger.error('ReflectionAssistant', 'Error generating draft:', error);
-            throw error;
+            return this.generateFallbackDraft(input, promptQuestion, weekContext);
         }
     },
     /**
@@ -81,18 +83,18 @@ export const ReflectionAssistant = {
         vibe: string | null,
         options: ReflectionAssistantOptions = {}
     ): Promise<string> {
-        if (!llmService.isAvailable()) {
-            throw new Error('LLM service not available');
-        }
-
         const { timeoutMs = 30000, signal } = options;
         const PROMPT_ID = 'interaction_reflection_draft';
+        const capabilities = await intelligenceCapabilitiesService.getCapabilitiesForCurrentProfile();
+
+        if (!capabilities.guidedReflectionEnabled || !llmService.isAvailable()) {
+            return this.generateInteractionFallbackDraft(friendName, activity, vibe);
+        }
 
         try {
             const promptDef = getPrompt(PROMPT_ID);
             if (!promptDef) {
-                // Fallback
-                return `Caught up with ${friendName} for ${activity}. It was good to connect.`;
+                return this.generateInteractionFallbackDraft(friendName, activity, vibe);
             }
 
             const context = {
@@ -119,22 +121,54 @@ export const ReflectionAssistant = {
             return response.text.trim().replace(/^["']|["']$/g, '');
         } catch (error) {
             logger.error('ReflectionAssistant', 'Error generating interaction draft:', error);
-            throw error;
+            return this.generateInteractionFallbackDraft(friendName, activity, vibe);
         }
     },
 
     /**
      * Simple rule-based fallback if LLM fails
      */
-    generateFallbackDraft(input: PromptEngineInput): string {
+    generateFallbackDraft(
+        input: PromptEngineInput,
+        promptQuestion?: string,
+        weekContext: WeekContext = {}
+    ): string {
         if (input.totalWeaves === 0) {
-            return "It was a quiet week, which I probably needed. I'm looking forward to reconnecting with friends next week.";
+            return "This week felt quieter on the surface, and I think I may have needed some of that space. I'm noticing who I've been missing and what kind of connection I want to make room for next.";
+        }
+
+        if (input.reconnectedFriend) {
+            return `Reconnecting with ${input.reconnectedFriend.name} reminded me that even a small reach-out can reopen something meaningful. I want to hold onto that feeling as I move into next week.`;
         }
 
         if (input.topFriend) {
-            return `I'm really glad I got to spend so much time with ${input.topFriend.name} this week. It made me feel more connected.`;
+            return `Spending time with ${input.topFriend.name} reminded me how grounding it feels to return to certain people. Those moments helped me feel more connected and present this week.`;
+        }
+
+        if (weekContext.observations?.length) {
+            return `I'm noticing a pattern in how this week unfolded: ${weekContext.observations[0].replace(/\.$/, '')}. I want to stay curious about what that says about the kind of connection I need right now.`;
+        }
+
+        if (promptQuestion) {
+            return `When I sit with this question, ${promptQuestion.toLowerCase()} feels less like something to solve and more like something to notice. There was at least one real moment of connection here, even if it was easy to miss at the time.`;
         }
 
         return `I'm grateful for the ${input.totalWeaves} connections I had this week. It feels good to stay in touch.`;
-    }
+    },
+
+    generateInteractionFallbackDraft(
+        friendName: string,
+        activity: string,
+        vibe: string | null
+    ): string {
+        if (vibe === 'great' || vibe === 'energized' || vibe === 'joyful') {
+            return `Spending time with ${friendName} through ${activity} left me feeling genuinely lifted. It reminded me why this connection matters to me.`;
+        }
+
+        if (vibe === 'heavy' || vibe === 'tense' || vibe === 'drained') {
+            return `${activity} with ${friendName} brought up more for me than I expected. I want to be honest about what felt hard while also paying attention to what the moment was asking of me.`;
+        }
+
+        return `I spent time with ${friendName} through ${activity}, and it gave me a chance to notice how this connection feels right now. Even a simple moment can tell me something about what I want more of.`;
+    },
 };

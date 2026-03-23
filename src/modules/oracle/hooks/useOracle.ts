@@ -1,9 +1,10 @@
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { oracleService, OracleTurn } from '../services/oracle-service'
 import { logger } from '@/shared/services/logger.service'
 import { database } from '@/db'
 import JournalEntry from '@/db/models/JournalEntry'
+import { useUserProfile } from '@/modules/auth'
 
 export interface UseOracleResult {
     messages: OracleTurn[]
@@ -19,14 +20,32 @@ export interface UseOracleResult {
 }
 
 export function useOracle(): UseOracleResult {
+    const { intelligenceCapabilities } = useUserProfile()
     const [messages, setMessages] = useState<OracleTurn[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [remainingQuestions, setRemainingQuestions] = useState(oracleService.getRemainingQuestions())
     const [isSaved, setIsSaved] = useState(false)
+    const oracleUnavailableMessage = useMemo(() => {
+        switch (intelligenceCapabilities.remoteUnavailableReason) {
+            case 'offline':
+                return 'Oracle is offline right now. You can keep using Weave locally and try again once you reconnect.'
+            case 'provider_unavailable':
+                return 'Oracle is temporarily unavailable. Please try again in a little while.'
+            case 'disclosure_required':
+                return 'Read the AI disclosure in Settings to turn Oracle back on.'
+            case 'disabled_by_user':
+            default:
+                return 'Oracle is turned off in AI Settings.'
+        }
+    }, [intelligenceCapabilities.remoteUnavailableReason])
 
     const askQuestion = useCallback(async (text: string, context?: string, displayOverride?: string, friendIds: string[] = []) => {
         if (!text.trim()) return
+        if (!intelligenceCapabilities.oracleChatEnabled) {
+            setError(oracleUnavailableMessage)
+            return
+        }
 
         setIsLoading(true)
         setError(null)
@@ -63,9 +82,14 @@ export function useOracle(): UseOracleResult {
         } finally {
             setIsLoading(false)
         }
-    }, [])
+    }, [intelligenceCapabilities.oracleChatEnabled, oracleUnavailableMessage])
 
     const startWithContext = useCallback(async (instruction: string, context?: string, friendIds: string[] = []) => {
+        if (!intelligenceCapabilities.oracleChatEnabled) {
+            setError(oracleUnavailableMessage)
+            return
+        }
+
         setIsLoading(true)
         setError(null)
         setIsSaved(false)
@@ -88,7 +112,7 @@ export function useOracle(): UseOracleResult {
         } finally {
             setIsLoading(false)
         }
-    }, [])
+    }, [intelligenceCapabilities.oracleChatEnabled, oracleUnavailableMessage])
 
     const handleError = (err: any) => {
         logger.error('useOracle', 'Failed to ask Oracle', err)

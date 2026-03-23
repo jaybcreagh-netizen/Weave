@@ -63,6 +63,21 @@ export interface OracleResponse {
     action?: OracleAction
 }
 
+interface SynthesizeInsightsOptions {
+    useRemotePolish?: boolean
+    skipRecentCooldown?: boolean
+    allowFallback?: boolean
+}
+
+interface SynthesisSignalContext {
+    type: InsightSignal['type']
+    friendName: string
+    friendId?: string
+    relationshipType: string
+    data: Record<string, any>
+    priority: number
+}
+
 class OracleService {
     private currentSession: OracleSession | null = null
 
@@ -1568,7 +1583,15 @@ class OracleService {
     /**
      * Process raw signals into polished insights via LLM
      */
-    async synthesizeInsights(signals: InsightSignal[]): Promise<void> {
+    async synthesizeInsights(
+        signals: InsightSignal[],
+        options: SynthesizeInsightsOptions = {}
+    ): Promise<void> {
+        const {
+            useRemotePolish = true,
+            skipRecentCooldown = false,
+            allowFallback = true,
+        } = options
         const now = Date.now()
 
         // 1. Fetch active insights to prevent duplicates/spam
@@ -1584,9 +1607,12 @@ class OracleService {
         // But let's be safe.
 
         // If we have a very recent insight (last 24h), skip
-        const recent = activeInsights.find(i =>
-            i.generatedAt.getTime() > now - 24 * 60 * 60 * 1000
-        )
+        const recent = !skipRecentCooldown
+            ? activeInsights.find(i =>
+                i.generatedAt.getTime() > now - 24 * 60 * 60 * 1000
+            )
+            : undefined
+
         if (recent) {
             logger.info('OracleService', 'Skipping synthesis: Recent insight exists')
             return
@@ -1673,10 +1699,10 @@ class OracleService {
         })
 
         if (filteredSignals.length === 0) {
-            logger.info('OracleService', 'All signals on cooldown - generating fallback insight')
-
-            // Fallback: Pick a random active friend for a gentle check-in suggestion
-            await this.generateFallbackInsight()
+            logger.info('OracleService', 'All signals on cooldown after filtering')
+            if (allowFallback) {
+                await this.generateFallbackInsight()
+            }
             return
         }
 
@@ -1728,8 +1754,10 @@ class OracleService {
         }
 
         if (selectedSignals.length === 0) {
-            logger.info('OracleService', 'No eligible signals after rotation scoring - generating fallback insight')
-            await this.generateFallbackInsight()
+            logger.info('OracleService', 'No eligible signals after rotation scoring')
+            if (allowFallback) {
+                await this.generateFallbackInsight()
+            }
             return
         }
 
@@ -1754,7 +1782,17 @@ class OracleService {
             }
         }))
 
-        if (topSignals.length === 0) return
+        if (topSignals.length === 0) {
+            if (allowFallback) {
+                await this.generateFallbackInsight()
+            }
+            return
+        }
+
+        if (!useRemotePolish) {
+            await this.createLocalSynthesisInsight(selectedSignals, topSignals, 'local_template')
+            return
+        }
 
         try {
             const prompt = `
@@ -1792,45 +1830,24 @@ Output JSON: { "headline": "...", "body": "..." }
 
             const result = JSON.parse(response.text)
 
-            // 5. Save Insight
-            await writeScheduler.important('createProactiveInsight', async () => {
-                const newInsight = await database.get<ProactiveInsight>('proactive_insights').create(insight => {
-                    insight.ruleId = `synthesis_${Date.now()}`
-                    insight.type = 'pattern'
-                    insight.headline = result.headline || 'Quick heads up'
-                    insight.body = result.body
-                    insight.groundingDataJson = JSON.stringify({ signalCount: topSignals.length })
-                    insight.sourceSignalsJson = JSON.stringify(topSignals)
-
-                    // Action: Guided Reflection
-                    insight.actionType = 'guided_reflection'
-                    insight.actionLabel = 'Tell me more'
-
-                    // Link friend if applicable
-                    const primarySignal = topSignals[0]
-                    if (primarySignal?.friendId) {
-                        insight.friendId = primarySignal.friendId
-                        insight.actionParamsJson = JSON.stringify({ friendId: primarySignal.friendId })
-                    }
-
-                    insight.severity = Math.max(...selectedSignals.map(s => s.priority))
-                    insight.generatedAt = new Date()
-                    insight.expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days expiration
-                    insight.status = 'unseen'
-                })
-
-                // Track Event
-                trackEvent(AnalyticsEvents.INSIGHT_GENERATED, {
-                    insightId: newInsight.id,
-                    signalCount: selectedSignals.length,
-                    severity: newInsight.severity
-                })
+            await this.saveSynthesisInsight({
+                headline: result.headline || 'Quick heads up',
+                body: result.body,
+                selectedSignals,
+                topSignals,
+                groundingData: {
+                    signalCount: topSignals.length,
+                    source: 'remote_oracle',
+                },
             })
 
             logger.info('OracleService', `Generated Synthesis from ${selectedSignals.length} signals`)
 
         } catch (e) {
             logger.error('OracleService', 'Synthesis failed', e)
+            if (allowFallback) {
+                await this.createLocalSynthesisInsight(selectedSignals, topSignals, 'remote_fallback')
+            }
         }
     }
 
@@ -1867,6 +1884,186 @@ Output JSON: { "headline": "...", "body": "..." }
         }
 
         return []
+    }
+
+    private async createLocalSynthesisInsight(
+        selectedSignals: InsightSignal[],
+        topSignals: SynthesisSignalContext[],
+        source: 'local_template' | 'remote_fallback'
+    ): Promise<void> {
+        const primarySignal = topSignals[0]
+        if (!primarySignal) {
+            await this.generateFallbackInsight()
+            return
+        }
+
+        const secondarySignal = topSignals[1]
+        const localInsight = this.buildLocalInsightCopy(primarySignal, secondarySignal)
+
+        await this.saveSynthesisInsight({
+            headline: localInsight.headline,
+            body: localInsight.body,
+            selectedSignals,
+            topSignals,
+            groundingData: {
+                signalCount: topSignals.length,
+                source,
+            },
+        })
+    }
+
+    private buildLocalInsightCopy(
+        primarySignal: SynthesisSignalContext,
+        secondarySignal?: SynthesisSignalContext
+    ): { headline: string; body: string } {
+        const friendName = primarySignal.friendName !== 'Unknown'
+            ? primarySignal.friendName
+            : 'this connection'
+        const possessiveFriendName = primarySignal.friendName !== 'Unknown'
+            ? `${primarySignal.friendName}'s`
+            : 'Someone close to you'
+
+        switch (primarySignal.type) {
+            case 'drifting':
+                return {
+                    headline: 'A rhythm went quiet',
+                    body: `${friendName} has been quieter than usual. A small check-in could reopen the thread.`,
+                }
+            case 'deepening':
+                return {
+                    headline: 'This bond is growing',
+                    body: `You've been seeing ${friendName} more than usual lately. It may be worth tending that momentum on purpose.`,
+                }
+            case 'one_sided':
+                return {
+                    headline: 'You are carrying this',
+                    body: `You've been doing most of the reaching with ${friendName}. A pause could show whether they step toward you too.`,
+                }
+            case 'reconnection_win':
+                return {
+                    headline: 'A reconnection window',
+                    body: `${friendName} has been quiet for a while. A simple message could be enough to restart things.`,
+                }
+            case 'consistency_win':
+                return {
+                    headline: 'Steady connection',
+                    body: `You've shown up for ${friendName} regularly this month. There is something worth honoring in that consistency.`,
+                }
+            case 'high_quality_streak':
+                return {
+                    headline: 'Depth is building',
+                    body: `Recent time with ${friendName} looks especially nourishing. This may be a season to invest a little more there.`,
+                }
+            case 'location_pattern':
+                return {
+                    headline: 'A place keeps returning',
+                    body: `A lot of your recent connection has happened around ${primarySignal.data.location || 'the same place'}. It may be part of your social rhythm right now.`,
+                }
+            case 'activity_habit':
+                return {
+                    headline: 'A habit is forming',
+                    body: `${primarySignal.data.activity || 'A familiar activity'} keeps showing up in your recent life. It might be a good anchor for easy connection.`,
+                }
+            case 'vibe_trend':
+                return {
+                    headline: 'A mood is repeating',
+                    body: `Recent hangs have leaned ${primarySignal.data.vibe || 'a similar way'}. Notice what helps create more of that feeling.`,
+                }
+            case 'user_battery_low':
+            case 'user_battery_draining':
+                return {
+                    headline: 'Protect your energy',
+                    body: 'A lot of your recent social effort landed when your battery was low. Gentler plans might feel better right now.',
+                }
+            case 'user_battery_high':
+            case 'user_battery_recharging':
+                return {
+                    headline: 'Energy is available',
+                    body: secondarySignal?.friendId
+                        ? `Your social battery looks steadier lately. This could be a good window to reach toward ${secondarySignal.friendName}.`
+                        : 'Your social battery looks steadier lately. This could be a good window to reach toward someone you miss.',
+                }
+            case 'user_activity_spike':
+                return {
+                    headline: 'A fuller social season',
+                    body: 'Your activity has picked up noticeably. A little intention now can keep it nourishing instead of noisy.',
+                }
+            case 'user_activity_drop':
+                return {
+                    headline: 'A quieter stretch',
+                    body: 'Things have been quieter lately. That can be rest, or it can be drift. Choose which it is.',
+                }
+            case 'upcoming_birthday':
+                return {
+                    headline: 'A date worth honoring',
+                    body: `${possessiveFriendName} birthday is coming up soon. A small gesture now could feel surprisingly meaningful.`,
+                }
+            case 'upcoming_life_event':
+                return {
+                    headline: 'Something important is near',
+                    body: `${friendName} has an upcoming life event. A note of support could land well right now.`,
+                }
+            case 'journal_tension':
+                return {
+                    headline: 'There is some friction',
+                    body: `Your recent writing around ${friendName} carries some tension. It may be worth naming what feels unresolved.`,
+                }
+            case 'journal_positive':
+                return {
+                    headline: 'This connection feels warm',
+                    body: `Your recent writing around ${friendName} has a positive charge. It might be a good time to build on that warmth.`,
+                }
+            default:
+                return {
+                    headline: primarySignal.friendId ? 'A connection to notice' : 'A pattern to notice',
+                    body: primarySignal.friendId
+                        ? `${friendName} feels worth paying attention to right now. A small step could keep the thread alive.`
+                        : 'Something in your recent rhythm is asking to be noticed. A small intentional move could clarify it.',
+                }
+        }
+    }
+
+    private async saveSynthesisInsight(params: {
+        headline: string
+        body: string
+        selectedSignals: InsightSignal[]
+        topSignals: SynthesisSignalContext[]
+        groundingData: Record<string, unknown>
+    }): Promise<void> {
+        const { headline, body, selectedSignals, topSignals, groundingData } = params
+
+        await writeScheduler.important('createProactiveInsight', async () => {
+            const newInsight = await database.get<ProactiveInsight>('proactive_insights').create(insight => {
+                const primarySignal = topSignals[0]
+
+                insight.ruleId = `synthesis_${Date.now()}`
+                insight.type = primarySignal?.friendId ? 'friend' : 'pattern'
+                insight.headline = headline
+                insight.body = body
+                insight.groundingDataJson = JSON.stringify(groundingData)
+                insight.sourceSignalsJson = JSON.stringify(topSignals)
+                insight.actionType = 'guided_reflection'
+                insight.actionLabel = 'Tell me more'
+
+                if (primarySignal?.friendId) {
+                    insight.friendId = primarySignal.friendId
+                    insight.actionParamsJson = JSON.stringify({ friendId: primarySignal.friendId })
+                } else {
+                    insight.actionParamsJson = JSON.stringify({})
+                }
+
+                insight.severity = Math.max(...selectedSignals.map(s => s.priority))
+                insight.generatedAt = new Date()
+                insight.expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+                insight.status = 'unseen'
+            })
+
+            trackEvent(AnalyticsEvents.INSIGHT_GENERATED, {
+                insightId: newInsight.id,
+                signalCount: selectedSignals.length,
+                severity: newInsight.severity,
+            })
+        })
     }
 
     /**

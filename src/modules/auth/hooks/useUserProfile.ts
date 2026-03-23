@@ -2,38 +2,55 @@ import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
 import { useAuth } from '../context/AuthContext';
 import { useObservableState } from 'observable-hooks';
-import { of } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SocialBatteryService } from '../services/social-battery.service';
-import { Q } from '@nozbe/watermelondb';
+import {
+    intelligenceCapabilitiesService,
+    type IntelligenceCapabilities,
+} from '@/modules/intelligence/services/intelligence-capabilities.service';
 
 /**
  * Hook to get the current user profile reactively
  */
 export function useUserProfile() {
     const { user } = useAuth();
+    const [intelligenceCapabilities, setIntelligenceCapabilities] = useState<IntelligenceCapabilities>(
+        () => intelligenceCapabilitiesService.resolveCapabilities({
+            profile: null,
+            hasRemoteProvider: false,
+            isOnline: true,
+        })
+    );
 
-    // Query all profiles (it's a singleton) to avoid Q.where pitfalls or Auth dependency blocking
-    const profile$ = database.get<UserProfile>('user_profile')
-        .query()
-        .observe()
-        .pipe(
-            map(profiles => {
-                if (profiles.length === 0) return null;
+    // Observe relevant columns so profile field updates trigger a render immediately.
+    const profiles$ = useMemo(() => {
+        return database.get<UserProfile>('user_profile')
+            .query()
+            .observeWithColumns([
+                'user_id',
+                'ai_features_enabled',
+                'ai_journal_analysis_enabled',
+                'ai_oracle_enabled',
+                'ai_disclosure_acknowledged_at',
+                'proactive_insights_enabled',
+                'insight_frequency',
+                'reflection_last_snoozed',
+                'reflection_day',
+                'reflection_auto_show',
+            ]);
+    }, []);
 
-                // If we have a user, try to find their profile
-                if (user) {
-                    const match = profiles.find(p => p.userId === user.id);
-                    if (match) return match;
-                }
+    const profiles = useObservableState(profiles$, []);
+    const profile = useMemo(() => {
+        if (profiles.length === 0) return null;
 
-                // Fallback: Return the first profile (singleton local profile)
-                return profiles[0];
-            })
-        );
+        if (user) {
+            const match = profiles.find(p => p.userId === user.id);
+            if (match) return match;
+        }
 
-    const profile = useObservableState(profile$, null);
+        return profiles[0];
+    }, [profiles, user]);
 
     // Side effect: If we found a profile but it doesn't have the userId set yet, claim it.
     // This handles the first login after local-only usage.
@@ -48,6 +65,33 @@ export function useUserProfile() {
             }).catch(err => console.warn('[useUserProfile] Failed to claim profile:', err));
         }
     }, [user, profile]);
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        intelligenceCapabilitiesService.getCapabilities({ profile }).then(capabilities => {
+            if (!isCancelled) {
+                setIntelligenceCapabilities(capabilities);
+            }
+        }).catch(() => {
+            if (!isCancelled) {
+                setIntelligenceCapabilities(
+                    intelligenceCapabilitiesService.resolveCapabilities({ profile })
+                );
+            }
+        });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [
+        profile?.aiFeaturesEnabled,
+        profile?.aiJournalAnalysisEnabled,
+        profile?.aiOracleEnabled,
+        profile?.aiDisclosureAcknowledgedAt,
+        profile?.proactiveInsightsEnabled,
+        profile?.insightFrequency,
+    ]);
 
     const submitBatteryCheckin = useCallback(async (value: number, note?: string) => {
         if (!user) return;
@@ -72,5 +116,6 @@ export function useUserProfile() {
         isLoading: user && !profile,
         submitBatteryCheckin,
         updateProfile,
+        intelligenceCapabilities,
     };
 }

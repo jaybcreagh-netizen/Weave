@@ -38,7 +38,11 @@ import { ReflectionContext } from '@/modules/oracle';
 import { FriendSelector } from '@/modules/relationships';
 import { GuidedReflectionSheet } from './GuidedReflection/GuidedReflectionSheet';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
-import { journalIntelligenceService, ProcessingResult } from '../services/journal-intelligence.service';
+import {
+  EMPTY_PROCESSING_RESULT,
+  journalIntelligenceService,
+  ProcessingResult,
+} from '../services/journal-intelligence.service';
 import { InsightReceipt } from './InsightReceipt';
 import { InsightReceiptExpanded } from './InsightReceiptExpanded';
 
@@ -70,6 +74,7 @@ export function QuickCaptureSheet({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
+  const processingRequestRef = useRef(0);
 
   // State
   const [text, setText] = useState(prefilledText || '');
@@ -180,25 +185,10 @@ export function QuickCaptureSheet({
         content_length: text.trim().length
       });
 
-      // Await processing for the receipt
-      const result = await journalIntelligenceService.processEntry(savedEntry);
-
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      if (result) {
-        setProcessingResult(result);
-        setIsProcessing(false);
-        // Auto-dismiss logic handled by effects or user interaction, 
-        // but simple timer here if no actions generated?
-        if (result.actions.length === 0) {
-          setTimeout(() => {
-            handleDismissReceipt();
-          }, 2500);
-        }
-      } else {
-        // Fallback if no result (silent failure or bail out)
-        handleDismissReceipt();
-      }
+      const requestId = processingRequestRef.current + 1;
+      processingRequestRef.current = requestId;
+      processEntryInBackground(savedEntry, requestId);
 
     } catch (error) {
       console.error('[QuickCapture] Error saving/processing:', error);
@@ -209,7 +199,34 @@ export function QuickCaptureSheet({
     }
   };
 
+  const processEntryInBackground = (savedEntry: JournalEntry, requestId: number) => {
+    journalIntelligenceService.processEntry(savedEntry)
+      .then((result) => {
+        if (processingRequestRef.current !== requestId) return;
+
+        const finalResult = result ?? EMPTY_PROCESSING_RESULT;
+        setProcessingResult(finalResult);
+        setIsProcessing(false);
+
+        if (finalResult.actions.length === 0) {
+          setTimeout(() => {
+            if (processingRequestRef.current === requestId) {
+              handleDismissReceipt();
+            }
+          }, 2500);
+        }
+      })
+      .catch((error) => {
+        console.error('[QuickCapture] Background intelligence failed:', error);
+        if (processingRequestRef.current !== requestId) return;
+
+        setProcessingResult(EMPTY_PROCESSING_RESULT);
+        setIsProcessing(false);
+      });
+  };
+
   const handleDismissReceipt = () => {
+    processingRequestRef.current += 1;
     setShowReceipt(false);
     setShowExpandedReceipt(false);
     setIsProcessing(false);
@@ -408,6 +425,7 @@ export function QuickCaptureSheet({
                     placeholderTextColor={colors['muted-foreground'] + '80'}
                     multiline
                     numberOfLines={6}
+                    scrollEnabled={false}
                     textAlignVertical="top"
                     // Remove internal padding/styling since container handles it
                     containerClassName="w-full"

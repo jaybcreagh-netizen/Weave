@@ -3,6 +3,8 @@ import { database } from '@/db';
 import NarrativeMoment from '@/db/models/NarrativeMoment';
 import FriendshipNarrative from '@/db/models/FriendshipNarrative';
 import Friend from '@/db/models/Friend';
+import { intelligenceCapabilitiesService } from '../intelligence-capabilities.service';
+import { oracleService } from '@/modules/oracle/services/oracle-service';
 
 // Mock dependencies
 jest.mock('@/db', () => ({
@@ -18,11 +20,21 @@ jest.mock('@/modules/oracle/services/oracle-service', () => ({
     },
 }));
 
+jest.mock('../intelligence-capabilities.service', () => ({
+    intelligenceCapabilitiesService: {
+        getCapabilitiesForCurrentProfile: jest.fn(),
+    },
+}));
+
 describe('NarrativeService', () => {
     const mockFriendId = 'friend_123';
 
     beforeEach(() => {
+        jest.restoreAllMocks();
         jest.clearAllMocks();
+        (intelligenceCapabilitiesService.getCapabilitiesForCurrentProfile as jest.Mock).mockResolvedValue({
+            oracleChatEnabled: true,
+        });
     });
 
     describe('recordMoment', () => {
@@ -91,6 +103,99 @@ describe('NarrativeService', () => {
             await narrativeService.ensureNarrative(mockFriendId);
 
             expect(mockNarrativeCollection.create).toHaveBeenCalled();
+        });
+    });
+
+    describe('generateNarrativeText', () => {
+        it('should fall back to a local narrative when Oracle is disabled', async () => {
+            const update = jest.fn();
+            const narrativeRecord = { currentChapter: 'default', update };
+            const friendshipNarrativesCollection = {
+                query: jest.fn().mockReturnThis(),
+                fetch: jest.fn().mockResolvedValue([narrativeRecord]),
+                create: jest.fn().mockResolvedValue(narrativeRecord),
+            };
+
+            (database.get as jest.Mock).mockImplementation((table) => {
+                if (table === 'friendship_narratives') {
+                    return friendshipNarrativesCollection;
+                }
+
+                if (table === 'friends') {
+                    return {
+                        find: jest.fn().mockResolvedValue({
+                            id: mockFriendId,
+                            name: 'Alice',
+                            tier: 'InnerCircle',
+                            archetype: 'Sun',
+                            createdAt: new Date('2023-01-01'),
+                        }),
+                    };
+                }
+
+                if (table === 'narrative_moments') {
+                    return {
+                        query: jest.fn().mockReturnThis(),
+                        fetch: jest.fn().mockResolvedValue([{ momentType: 'first_weave' }]),
+                    };
+                }
+
+                if (table === 'interaction_friends') {
+                    return {
+                        query: jest.fn().mockReturnThis(),
+                        fetch: jest.fn().mockResolvedValue([
+                            { interactionId: 'i1' },
+                            { interactionId: 'i2' },
+                        ]),
+                    };
+                }
+
+                if (table === 'interactions') {
+                    return {
+                        query: jest.fn().mockReturnThis(),
+                        fetch: jest.fn().mockResolvedValue([
+                            {
+                                activity: 'coffee',
+                                vibe: 'warm',
+                                duration: '60',
+                                interactionDate: new Date('2026-03-20'),
+                            },
+                            {
+                                activity: 'walk',
+                                vibe: 'easy',
+                                duration: '45',
+                                interactionDate: new Date('2026-03-10'),
+                            },
+                        ]),
+                    };
+                }
+
+                if (table === 'journal_entries') {
+                    return {
+                        query: jest.fn().mockReturnThis(),
+                        fetch: jest.fn().mockResolvedValue([]),
+                    };
+                }
+
+                if (table === 'journal_entry_friends') {
+                    return {
+                        query: jest.fn().mockReturnThis(),
+                        fetch: jest.fn().mockResolvedValue([]),
+                    };
+                }
+
+                return {};
+            });
+
+            (intelligenceCapabilitiesService.getCapabilitiesForCurrentProfile as jest.Mock).mockResolvedValue({
+                oracleChatEnabled: false,
+            });
+
+            const result = await narrativeService.generateNarrativeText(mockFriendId);
+
+            expect(oracleService.generateFriendshipNarrative).not.toHaveBeenCalled();
+            expect(result).toContain('Alice');
+            expect(friendshipNarrativesCollection.fetch).toHaveBeenCalled();
         });
     });
 });

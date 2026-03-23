@@ -6,6 +6,7 @@ import Friend from '@/db/models/Friend';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import Interaction from '@/db/models/Interaction';
 import { oracleService } from '@/modules/oracle/services/oracle-service';
+import { intelligenceCapabilitiesService } from './intelligence-capabilities.service';
 // RelationshipQualityService import removed as it is not implemented yet.
 // Logic simplified to use basic stats for now.
 
@@ -95,15 +96,18 @@ class NarrativeService {
         const narrative = await this.getNarrative(friendId);
         const moments = await this.getMoments(friendId);
         const friend = await database.get<Friend>('friends').find(friendId);
+        const capabilities = await intelligenceCapabilitiesService.getCapabilitiesForCurrentProfile();
 
         // Fetch interaction history for pattern analysis
         const interactionFriends = await database.get<InteractionFriend>('interaction_friends')
             .query(Q.where('friend_id', friendId)).fetch();
 
         const interactionIds = interactionFriends.map(if_ => if_.interactionId);
-        const interactions = await database.get<Interaction>('interactions')
-            .query(Q.where('id', Q.oneOf(interactionIds)), Q.sortBy('interaction_date', Q.desc))
-            .fetch();
+        const interactions = interactionIds.length > 0
+            ? await database.get<Interaction>('interactions')
+                .query(Q.where('id', Q.oneOf(interactionIds)), Q.sortBy('interaction_date', Q.desc))
+                .fetch()
+            : [];
 
         // Calculate patterns from interactions
         const totalInteractions = interactions.length;
@@ -140,35 +144,119 @@ class NarrativeService {
             ? (Date.now() - friend.createdAt.getTime()) / (1000 * 60 * 60 * 24 * 365)
             : 0.1;
 
-        // Call Oracle Service with rich context
-        const text = await oracleService.generateFriendshipNarrative({
+        const narrativeInput = {
             friendName: friend.name,
             currentChapter: narrative?.currentChapter || 'default',
             moments: moments.map(m => m.momentType),
             yearsKnown,
-            // Interaction patterns
             totalInteractions,
             recentActivities: activities.slice(0, 5),
             commonVibes: vibes.slice(0, 5),
             avgDurationMinutes: Math.round(avgDuration),
             avgCadenceDays,
-            // Metadata
             tier: friend.tier,
             archetype: friend.archetype,
-            // Journal context
-            journalSnippets
-        });
+            journalSnippets,
+        };
+
+        let text: string;
+        let source: 'local' | 'oracle' = 'local';
+
+        if (capabilities.oracleChatEnabled) {
+            try {
+                text = await oracleService.generateFriendshipNarrative(narrativeInput);
+                source = 'oracle';
+            } catch (error) {
+                text = this.generateLocalNarrativeText(friend.name, {
+                    totalInteractions,
+                    recentActivities: activities.slice(0, 5),
+                    avgCadenceDays,
+                    journalSnippets,
+                    momentTypes: moments.map(m => m.momentType),
+                });
+            }
+        } else {
+            text = this.generateLocalNarrativeText(friend.name, {
+                totalInteractions,
+                recentActivities: activities.slice(0, 5),
+                avgCadenceDays,
+                journalSnippets,
+                momentTypes: moments.map(m => m.momentType),
+            });
+        }
 
         // Save to DB
         if (narrative) {
             await database.write(async () => {
                 await narrative.update(record => {
-                    record.generatedNarrativeJson = JSON.stringify({ text, generatedAt: new Date() });
+                    record.generatedNarrativeJson = JSON.stringify({ text, generatedAt: new Date(), source });
                 });
             });
         }
 
         return text;
+    }
+
+    private generateLocalNarrativeText(
+        friendName: string,
+        input: {
+            totalInteractions: number;
+            recentActivities: string[];
+            avgCadenceDays: number;
+            journalSnippets: string[];
+            momentTypes: string[];
+        }
+    ): string {
+        const parts: string[] = [];
+
+        if (input.totalInteractions === 0 && input.journalSnippets.length === 0) {
+            return `Your story with ${friendName} is still waiting to be written in Weave. One shared moment or one honest note could be the start of it.`;
+        }
+
+        if (input.totalInteractions <= 2) {
+            parts.push(`This connection with ${friendName} is still taking shape, but even a few moments can reveal what feels easy to return to.`)
+        } else if (input.avgCadenceDays > 0 && input.avgCadenceDays <= 14) {
+            parts.push(`You and ${friendName} have built a fairly steady rhythm, with contact roughly every ${input.avgCadenceDays} days.`)
+        } else if (input.totalInteractions >= 6) {
+            parts.push(`${friendName} has been a meaningful thread in your life, with ${input.totalInteractions} shared moments captured in Weave so far.`)
+        } else {
+            parts.push(`Your friendship with ${friendName} seems to move in a gentle, evolving rhythm rather than one fixed pattern.`)
+        }
+
+        const recentActivities = this.unique(input.recentActivities).slice(0, 2);
+        if (recentActivities.length > 0) {
+            parts.push(`Lately, the connection seems to open most naturally through ${this.formatList(recentActivities.map(activity => this.humanize(activity)))}.`)
+        } else if (input.journalSnippets.length > 0) {
+            parts.push(`You keep returning to this friendship in your journal, which suggests it carries real emotional weight for you.`)
+        } else if (input.momentTypes.length > 0) {
+            parts.push(`A few moments already stand out in the story: ${this.formatList(input.momentTypes.slice(0, 2).map(moment => this.humanize(moment)))}.`)
+        } else {
+            parts.push('There is enough here to keep noticing what feels reciprocal, easy, and worth returning to.')
+        }
+
+        return parts.slice(0, 2).join(' ');
+    }
+
+    private unique(values: string[]): string[] {
+        return Array.from(new Set(values.filter(Boolean)));
+    }
+
+    private formatList(values: string[]): string {
+        if (values.length <= 1) {
+            return values[0] || ''
+        }
+
+        if (values.length === 2) {
+            return `${values[0]} and ${values[1]}`
+        }
+
+        return `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`
+    }
+
+    private humanize(value: string): string {
+        return value
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, letter => letter.toUpperCase())
     }
 }
 

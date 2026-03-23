@@ -46,6 +46,7 @@ import { OracleEntryPoint } from '../hooks/useStarterPrompts'
 import { PerfLogger } from '@/shared/utils/performance-logger';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 import { useAuth } from '@/modules/auth/context/AuthContext';
+import { useUserProfile } from '@/modules/auth/hooks/useUserProfile';
 import { CachedImage } from '@/shared/ui/CachedImage';
 import { MessageItem } from './MessageItem';
 import { ThinkingBubble } from './ThinkingBubble';
@@ -77,6 +78,7 @@ export function OracleChat({ context = 'default', friendId, friendName, onClose,
     const { colors, typography } = useTheme()
     const { messages, isLoading, error, askQuestion, startWithContext, loadConversation, remainingQuestions, saveToJournal, isSaved } = useOracle()
     const { user } = useAuth()
+    const { intelligenceCapabilities } = useUserProfile()
     const [input, setInput] = useState('')
     const listRef = useRef<FlatList>(null)
     const progress = useSharedValue(0)
@@ -374,6 +376,8 @@ INSTRUCTIONS:
     const [isGeneratingInsight, setIsGeneratingInsight] = useState(false)
 
     const handleRequestInsight = async () => {
+        if (!intelligenceCapabilities.localProactiveInsightsEnabled) return
+
         setIsGeneratingInsight(true)
         try {
             await InsightGenerator.generateOnDemand()
@@ -431,10 +435,28 @@ INSTRUCTIONS:
                 What's on your mind?
             </Text>
 
-
-            <StarterPromptChips onSelect={handlePromptSelect} context={context} onRequestInsight={handleRequestInsight} isGeneratingInsight={isGeneratingInsight} />
+            <StarterPromptChips
+                onSelect={handlePromptSelect}
+                context={context}
+                onRequestInsight={
+                    intelligenceCapabilities.localProactiveInsightsEnabled
+                        ? handleRequestInsight
+                        : undefined
+                }
+                isGeneratingInsight={isGeneratingInsight}
+            />
         </View>
-    ), [animatedProps, colors, context, handlePromptSelect, handleRequestInsight, hasInsights, isGeneratingInsight, typography])
+    ), [
+        animatedProps,
+        colors,
+        context,
+        handlePromptSelect,
+        handleRequestInsight,
+        hasInsights,
+        intelligenceCapabilities.localProactiveInsightsEnabled,
+        isGeneratingInsight,
+        typography,
+    ])
 
     return (
         <>

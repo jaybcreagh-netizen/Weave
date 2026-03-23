@@ -9,12 +9,15 @@ import { database } from '@/db'
 import JournalEntry from '@/db/models/JournalEntry'
 import JournalSignals from '@/db/models/JournalSignals'
 import FriendModel from '@/db/models/Friend'
-import UserProfile from '@/db/models/UserProfile'
 import JournalEntryFriend from '@/db/models/JournalEntryFriend'
 import { Q } from '@nozbe/watermelondb'
 import { extractSignals, SignalExtractionResult } from './signal-extractor'
 import { extractThreads, ExtractedThread } from './thread-extractor'
-import { insightOrchestratorService } from '@/modules/intelligence'
+import {
+    insightOrchestratorService,
+    intelligenceCapabilitiesService,
+    type IntelligenceCapabilities,
+} from '@/modules/intelligence'
 import { memoryBridgeService } from './memory-bridge.service'
 import Logger from '@/shared/utils/Logger'
 import { writeScheduler } from '@/shared/services/write-scheduler'
@@ -28,6 +31,13 @@ export interface ProcessingResult {
     memoryCount: number;
 }
 
+export const EMPTY_PROCESSING_RESULT: ProcessingResult = {
+    signals: null,
+    threads: [],
+    actions: [],
+    memoryCount: 0,
+}
+
 class JournalIntelligenceService {
 
     /**
@@ -38,13 +48,13 @@ class JournalIntelligenceService {
         Logger.info('JournalIntelligence', `Processing entry ${entry.id} for signals`)
 
         try {
-            const resolvedAiEnabled = await this.resolveAiEnabled(aiEnabled)
+            const capabilities = await this.resolveCapabilities(aiEnabled)
             const resultThreads: ExtractedThread[] = []
             let resultMemoryCount = 0
             let resultActions: SmartAction[] = []
 
             // 1. Extract signals
-            const signals = await extractSignals(entry.content, resolvedAiEnabled)
+            const signals = await extractSignals(entry.content, capabilities.remoteJournalAnalysisEnabled)
 
             // 1b. Save LLM-generated title to entry if missing
             if (signals.title && (!entry.title || entry.title.trim().length === 0)) {
@@ -72,19 +82,28 @@ class JournalIntelligenceService {
 
                 await insightOrchestratorService.processJournalEntry(friends.map(friend => friend.id))
 
-                // 4. Extract conversation threads per friend (for follow-up prompts)
                 const extractedThreadsByFriend: Record<string, ExtractedThread[]> = {}
-                for (const friend of friends) {
-                    try {
-                        const extractedThreads = await extractThreads(entry.content, friend.id, friend.name, entry.id, resolvedAiEnabled)
-                        extractedThreadsByFriend[friend.id] = extractedThreads
-                        resultThreads.push(...extractedThreads)
-                    } catch (threadError) {
-                        extractedThreadsByFriend[friend.id] = []
-                        Logger.warn('JournalIntelligence', 'Thread extraction failed for friend', {
-                            friendId: friend.id,
-                            error: threadError
-                        })
+
+                // 4. Extract conversation threads per friend when remote enrichment is allowed
+                if (capabilities.threadExtractionEnabled) {
+                    for (const friend of friends) {
+                        try {
+                            const extractedThreads = await extractThreads(
+                                entry.content,
+                                friend.id,
+                                friend.name,
+                                entry.id,
+                                capabilities.threadExtractionEnabled
+                            )
+                            extractedThreadsByFriend[friend.id] = extractedThreads
+                            resultThreads.push(...extractedThreads)
+                        } catch (threadError) {
+                            extractedThreadsByFriend[friend.id] = []
+                            Logger.warn('JournalIntelligence', 'Thread extraction failed for friend', {
+                                friendId: friend.id,
+                                error: threadError
+                            })
+                        }
                     }
                 }
 
@@ -92,15 +111,17 @@ class JournalIntelligenceService {
                 resultMemoryCount = await memoryBridgeService.ingestSignalsAndThreads(entry, friends, signals, extractedThreadsByFriend)
             }
 
-            // 6. Extract Smart Actions (NEW JUX-A02)
-            try {
-                resultActions = await actionExtractionService.extractActions(entry.id)
-            } catch (actionError) {
-                Logger.warn('JournalIntelligence', 'Action extraction failed', actionError)
+            // 6. Extract Smart Actions only when remote journal AI is allowed
+            if (capabilities.actionExtractionEnabled) {
+                try {
+                    resultActions = await actionExtractionService.extractActions(entry.id, capabilities.actionExtractionEnabled)
+                } catch (actionError) {
+                    Logger.warn('JournalIntelligence', 'Action extraction failed', actionError)
+                }
             }
 
             // 7. Trigger style analysis (fire-and-forget, runs periodically)
-            this.maybeAnalyzeStyle()
+            this.maybeAnalyzeStyle(capabilities.backgroundAIEnabled)
 
             // Return the ProcessingResult
             return {
@@ -123,20 +144,19 @@ class JournalIntelligenceService {
      * Resolve journal AI analysis preference.
      * Falls back to profile settings when callers don't provide an explicit value.
      */
-    private async resolveAiEnabled(aiEnabled?: boolean): Promise<boolean> {
-        if (typeof aiEnabled === 'boolean') {
-            return aiEnabled
+    private async resolveCapabilities(aiEnabled?: boolean): Promise<IntelligenceCapabilities> {
+        const capabilities = await intelligenceCapabilitiesService.getCapabilitiesForCurrentProfile()
+
+        if (aiEnabled !== false) {
+            return capabilities
         }
 
-        try {
-            const profiles = await database
-                .get<UserProfile>('user_profile')
-                .query(Q.take(1))
-                .fetch()
-
-            return profiles[0]?.isJournalAnalysisEnabled ?? false
-        } catch {
-            return false
+        return {
+            ...capabilities,
+            journalRemoteOptInEnabled: false,
+            remoteJournalAnalysisEnabled: false,
+            actionExtractionEnabled: false,
+            threadExtractionEnabled: false,
         }
     }
 
@@ -146,7 +166,11 @@ class JournalIntelligenceService {
     /**
      * Trigger style analysis every N entries
      */
-    private maybeAnalyzeStyle(): void {
+    private maybeAnalyzeStyle(backgroundAIEnabled: boolean): void {
+        if (!backgroundAIEnabled) {
+            return
+        }
+
         this.entryCountSinceLastAnalysis++
         if (this.entryCountSinceLastAnalysis >= this.ANALYZE_EVERY_N_ENTRIES) {
             this.entryCountSinceLastAnalysis = 0

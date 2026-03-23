@@ -57,8 +57,6 @@ import {
   journalIntelligenceService,
 } from '@/modules/journal'
 
-import { useUserProfile } from '@/modules/auth/hooks/useUserProfile'
-
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -99,7 +97,6 @@ export function PromptedReflectionFlow({
   onDirtyChange,
 }: PromptedReflectionFlowProps) {
   const { colors } = useTheme()
-  const { profile } = useUserProfile()
 
   // Navigation
   const [step, setStep] = useState<Step>('context')
@@ -366,8 +363,7 @@ export function PromptedReflectionFlow({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
 
       if (savedEntry) {
-        const aiEnabled = profile?.isJournalAnalysisEnabled ?? false
-        journalIntelligenceService.processEntry(savedEntry, aiEnabled).catch(err => {
+        journalIntelligenceService.processEntry(savedEntry).catch(err => {
           console.error('[PromptedReflection] Failed to queue intelligence processing:', err)
         })
 

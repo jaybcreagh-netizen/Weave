@@ -43,12 +43,14 @@ export function ModernSwitch({
         });
     }, [value]);
 
-    const handlePress = async () => {
+    const handlePress = () => {
         if (disabled) return;
 
         // Haptic feedback
         if (process.env.EXPO_OS === 'ios') {
-            await Haptics.selectionAsync();
+            Haptics.selectionAsync().catch(() => {
+                // Haptics should never block the actual state change.
+            });
         }
 
         onValueChange(!value);
@@ -122,4 +124,3 @@ export function ModernSwitch({
         </Pressable>
     );
 }
-

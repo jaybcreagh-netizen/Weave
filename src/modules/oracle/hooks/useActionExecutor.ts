@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 import { useUIStore } from '@/shared/stores/uiStore';
-import { useOracleSheet } from './useOracleSheet';
+import { useOracleSheetStore } from './useOracleSheet';
 import { SmartAction } from '../services/types';
 
 /**
@@ -58,7 +58,7 @@ export function useActionExecutor() {
             has_friend_id: !!action.data?.friendId
         });
 
-        const oracleParams = useOracleSheet.getState().params;
+        const oracleParams = useOracleSheetStore.getState().params;
         const actionFriendId = action.data?.friendId?.trim();
         const shouldUseProfileFriend = oracleParams.context === 'friend'
             && !!oracleParams.friendId
@@ -73,7 +73,7 @@ export function useActionExecutor() {
             case 'schedule_event':
             case 'mimic_plan':
                 if (friendId) {
-                    useOracleSheet.getState().close();
+                    useOracleSheetStore.getState().close();
                     // Wait for Oracle modal to fully close before opening PlanWizard
                     waitForModalClose().then(() => {
                         useUIStore.getState().openPlanWizard({
@@ -91,7 +91,7 @@ export function useActionExecutor() {
 
             case 'create_intention':
                 if (friendId) {
-                    useOracleSheet.getState().close();
+                    useOracleSheetStore.getState().close();
                     // Wait for Oracle modal to fully close before opening IntentionForm
                     waitForModalClose().then(() => {
                         useUIStore.getState().openIntentionForm({
@@ -106,7 +106,7 @@ export function useActionExecutor() {
 
             case 'reach_out':
                 if (friendId) {
-                    useOracleSheet.getState().close();
+                    useOracleSheetStore.getState().close();
                     // Navigation doesn't need modal wait, just route change
                     router.push({
                         pathname: '/friend-profile',
@@ -121,7 +121,7 @@ export function useActionExecutor() {
             case 'update_profile':
                 if (friendId) {
                     const memoryParams = buildMemoryParams(action);
-                    useOracleSheet.getState().close();
+                    useOracleSheetStore.getState().close();
                     // Wait for Oracle modal to close before navigation with params
                     waitForModalClose().then(() => {
                         if (oracleParams.context === 'friend' && oracleParams.friendId === friendId) {

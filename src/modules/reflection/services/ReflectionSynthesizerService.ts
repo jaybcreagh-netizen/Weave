@@ -4,6 +4,16 @@ import Interaction from '@/db/models/Interaction';
 import Friend from '@/db/models/Friend';
 import { llmService, extractJson } from '@/shared/services/llm';
 import { logger } from '@/shared/services/logger.service';
+import { intelligenceCapabilitiesService } from '@/modules/intelligence/services/intelligence-capabilities.service';
+
+interface InteractionSummary {
+    date: string;
+    type: string;
+    friendIds: string[];
+    duration: string | number;
+    note: string;
+    category: string;
+}
 
 /**
  * Service to synthesize network observations for Weekly Reflections.
@@ -22,6 +32,8 @@ class ReflectionSynthesizerService {
         weekStart: number,
         weekEnd: number
     ): Promise<string[]> {
+        let localObservations = this.generateQuietWeekObservations();
+
         try {
             // 1. Fetch data for the week
             const interactions = await database.get<Interaction>('interactions').query(
@@ -40,7 +52,7 @@ class ReflectionSynthesizerService {
             // 2. Prepare context for LLM
             const friendIdsSet = new Set<string>();
 
-            const interactionSummaries = await Promise.all(interactions.map(async (i) => {
+            const interactionSummaries: InteractionSummary[] = await Promise.all(interactions.map(async (i) => {
                 const iFriends = await i.interactionFriends.fetch();
                 const names = iFriends.map(f => {
                     friendIdsSet.add(f.friendId);
@@ -66,6 +78,13 @@ class ReflectionSynthesizerService {
                 const names = s.friendIds.map(id => friendMap.get(id) || 'Unknown').join(', ');
                 return `- ${s.date}: ${s.type} with ${names} (${s.duration}). Note: ${s.note}. Category: ${s.category}.`;
             });
+
+            localObservations = this.generateLocalObservations(interactionSummaries, friendMap);
+            const capabilities = await intelligenceCapabilitiesService.getCapabilitiesForCurrentProfile();
+
+            if (!capabilities.oracleChatEnabled || !llmService.isAvailable()) {
+                return localObservations;
+            }
 
             // 3. Construct Prompt
             const prompt = `
@@ -104,13 +123,79 @@ Do not include markdown formatting. Just the raw JSON.
                 return observations.slice(0, 4); // Limit to 4
             } else {
                 logger.warn('ReflectionSynthesizer', 'LLM returned invalid format', observations);
-                return ["Your weave was active this week.", "Take a moment to cherish these connections."]; // Fallback
+                return localObservations;
             }
 
         } catch (error) {
             logger.error('ReflectionSynthesizer', 'Failed to generate observations', error);
-            return []; // Return empty on error to handle gracefully in UI
+            return localObservations;
         }
+    }
+
+    private generateLocalObservations(
+        interactionSummaries: InteractionSummary[],
+        friendMap: Map<string, string>
+    ): string[] {
+        if (interactionSummaries.length === 0) {
+            return this.generateQuietWeekObservations();
+        }
+
+        const friendCounts = new Map<string, number>();
+        const activityCounts = new Map<string, number>();
+
+        for (const summary of interactionSummaries) {
+            for (const friendId of summary.friendIds) {
+                friendCounts.set(friendId, (friendCounts.get(friendId) || 0) + 1);
+            }
+
+            const activityKey = this.humanizeLabel(
+                summary.category && summary.category !== 'N/A' ? summary.category : summary.type
+            );
+            activityCounts.set(activityKey, (activityCounts.get(activityKey) || 0) + 1);
+        }
+
+        const uniqueFriendCount = friendCounts.size;
+        const dominantFriend = Array.from(friendCounts.entries()).sort((a, b) => b[1] - a[1])[0];
+        const dominantActivity = Array.from(activityCounts.entries()).sort((a, b) => b[1] - a[1])[0];
+        const observations: string[] = [];
+
+        if (interactionSummaries.length >= 5) {
+            observations.push(`You had a fuller social week, with ${interactionSummaries.length} completed moments across ${uniqueFriendCount} ${uniqueFriendCount === 1 ? 'person' : 'people'}.`);
+        } else if (interactionSummaries.length >= 3) {
+            observations.push(`You kept a steady rhythm this week with ${interactionSummaries.length} completed moments.`);
+        } else {
+            observations.push('It was a lighter week, but you still made space for connection.');
+        }
+
+        if (dominantFriend && dominantFriend[1] >= 2) {
+            const friendName = friendMap.get(dominantFriend[0]) || 'one person';
+            observations.push(`${friendName} appeared more than once, suggesting a steady thread in your week.`);
+        } else if (uniqueFriendCount === 1 && dominantFriend) {
+            const friendName = friendMap.get(dominantFriend[0]) || 'one person';
+            observations.push(`Most of your attention stayed with ${friendName}, which may say more about depth than quantity right now.`);
+        } else if (uniqueFriendCount >= 4) {
+            observations.push('Your attention was spread across several relationships, which can be energizing when it stays balanced.');
+        }
+
+        if (dominantActivity && dominantActivity[1] >= 2) {
+            observations.push(`${dominantActivity[0]} was your most common way of connecting this week.`);
+        }
+
+        return observations.slice(0, 4);
+    }
+
+    private generateQuietWeekObservations(): string[] {
+        return [
+            'It looks like a quiet week for your social weave.',
+            'Rest is just as important as connection.',
+            'Consider reaching out to one person next week to spark the momentum.',
+        ];
+    }
+
+    private humanizeLabel(value: string): string {
+        return value
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, letter => letter.toUpperCase());
     }
 }
 

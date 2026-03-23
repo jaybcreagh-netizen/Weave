@@ -12,19 +12,23 @@ import { Q } from '@nozbe/watermelondb'
 import { Sparkles } from 'lucide-react-native'
 import { database } from '@/db'
 import ProactiveInsight from '@/db/models/ProactiveInsight'
+import UserProfile from '@/db/models/UserProfile'
 import { useTheme } from '@/shared/hooks/useTheme'
 import { Text } from '@/shared/ui/Text'
 
 interface InsightsChipProps {
     insights: ProactiveInsight[]
+    userProfiles: UserProfile[]
     onPress: () => void
 }
 
-function InsightsChipInner({ insights, onPress }: InsightsChipProps) {
+function InsightsChipInner({ insights, userProfiles, onPress }: InsightsChipProps) {
     const { colors, typography } = useTheme()
+    const userProfile = userProfiles[0]
     const count = insights.length
+    const proactiveInsightsEnabled = userProfile?.proactiveInsightsEnabled !== false
 
-    if (count === 0) return null
+    if (!proactiveInsightsEnabled || count === 0) return null
 
     return (
         <TouchableOpacity
@@ -53,6 +57,7 @@ function InsightsChipInner({ insights, onPress }: InsightsChipProps) {
 }
 
 const enhance = withObservables([], () => ({
+    userProfiles: database.get<UserProfile>('user_profile').query(),
     insights: database.get<ProactiveInsight>('proactive_insights').query(
         Q.where('status', Q.oneOf(['unseen', 'seen'])),
     )

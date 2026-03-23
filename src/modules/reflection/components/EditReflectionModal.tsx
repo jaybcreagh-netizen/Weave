@@ -17,6 +17,7 @@ import { Button } from '@/shared/ui/Button';
 import { GuidedReflectionSheet } from '@/modules/journal/components/GuidedReflection/GuidedReflectionSheet';
 
 import { MoonPhaseSelector } from '@/modules/intelligence/components/MoonPhaseSelector';
+import { useUserProfile } from '@/modules/auth';
 
 interface EditReflectionModalProps {
   interaction: Interaction | null;
@@ -38,6 +39,7 @@ export function EditReflectionModal({
   friendId,
 }: EditReflectionModalProps) {
   const { colors } = useTheme();
+  const { intelligenceCapabilities } = useUserProfile();
   const [reflection, setReflection] = useState<StructuredReflection>(interaction?.reflection || {});
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(interaction?.vibe as Vibe | null);
   const [isSaving, setIsSaving] = useState(false);
@@ -107,6 +109,10 @@ export function EditReflectionModal({
 
   const category = (interaction.interactionCategory || interaction.activity) as InteractionCategory;
   const deepeningMetrics = calculateDeepeningLevel(reflection);
+  const usesRemoteWriting = intelligenceCapabilities.guidedReflectionEnabled;
+  const autoDraftLabel = usesRemoteWriting ? 'Auto-draft' : 'Starter note';
+  const autoDraftLoadingLabel = usesRemoteWriting ? 'Writing...' : 'Drafting...';
+  const guidedLabel = usesRemoteWriting ? 'Guided Chat' : 'Guided Prompts';
 
   return (
     <StandardBottomSheet
@@ -167,7 +173,7 @@ export function EditReflectionModal({
                 <Sparkles size={16} color={colors.primary} />
               )}
               <Text variant="caption" className="font-semibold text-primary">
-                {isDrafting ? 'Writing...' : 'Auto-draft'}
+                {isDrafting ? autoDraftLoadingLabel : autoDraftLabel}
               </Text>
             </TouchableOpacity>
 
@@ -185,7 +191,7 @@ export function EditReflectionModal({
             >
               <MessageCircle size={16} color={colors.secondary} />
               <Text variant="caption" className="font-semibold" style={{ color: colors.secondary }}>
-                Guided Chat
+                {guidedLabel}
               </Text>
             </TouchableOpacity>
           </View>

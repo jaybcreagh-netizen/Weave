@@ -30,7 +30,7 @@ import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service
 
 export function OracleSheet() {
     const { colors, typography } = useTheme()
-    const { isOpen, activeMode, close, params, setMode } = useOracleSheet()
+    const { isOpen, activeMode, close, params, setMode, canOpen } = useOracleSheet()
 
     // NEW: Analytics Tracking
     const previousMode = React.useRef<OracleLensMode | null>(null);
@@ -66,6 +66,12 @@ export function OracleSheet() {
             setMode(null); // Reset mode on close
         }
     }, [isOpen]);
+
+    React.useEffect(() => {
+        if (isOpen && !canOpen) {
+            close()
+        }
+    }, [isOpen, canOpen, close])
 
     if (!isOpen) return null
 

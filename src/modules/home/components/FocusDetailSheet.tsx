@@ -25,11 +25,11 @@ import { Suggestion } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
 import Intention from '@/db/models/Intention';
 import { format } from 'date-fns';
-import { calculateWeeklySummary, generateContextualPrompts, selectBestPrompt, ContextualPrompt } from '@/modules/reflection';
 import { getCategoryLabel, InteractionActions } from '@/modules/interactions';
 import { IntentionsList } from '@/modules/relationships/components/IntentionsList';
-import { oracleService } from '@/modules/oracle';
-import { oracleContextBuilder, ContextTier } from '@/modules/oracle/services/context-builder';
+import { ContextTier } from '@/modules/oracle/services/context-builder';
+import { useUserProfile } from '@/modules/auth';
+import { getLocalFocusReflection, getRemoteFocusReflection, type FocusReflectionPrompt } from '@/modules/home/services/focus-reflection.service';
 
 interface UpcomingDate {
     friend?: FriendModel;
@@ -80,7 +80,8 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
 }) => {
     const { tokens, typography, spacing, isDarkMode } = useTheme();
     const [planFriendIds, setPlanFriendIds] = React.useState<Record<string, string[]>>({});
-    const [prompt, setPrompt] = React.useState<ContextualPrompt | null>(null);
+    const { intelligenceCapabilities } = useUserProfile();
+    const [prompt, setPrompt] = React.useState<FocusReflectionPrompt | null>(null);
 
     React.useEffect(() => {
         let isMounted = true;
@@ -127,31 +128,22 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
         let isMounted = true;
         const loadPrompt = async () => {
             try {
-                // Try Oracle-generated prompt first (more contextual and personalized)
-                try {
-                    const oracleContext = await oracleContextBuilder.buildContext([], ContextTier.PATTERN);
-                    const reflectionText = await Promise.race([
-                        oracleService.generateDailyReflection(oracleContext),
-                        new Promise<string>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
-                    ]);
+                const localPrompt = await getLocalFocusReflection();
+                if (!isMounted) return;
 
-                    if (reflectionText && isMounted) {
-                        setPrompt({
-                            prompt: reflectionText,
-                            context: 'Oracle Insight',
-                        });
-                        return; // Success! Skip rule-based fallback
-                    }
-                } catch (oracleError) {
-                    // Oracle failed, will fall back to rule-based
-                    console.log('[FocusDetailSheet] Oracle prompt failed, using fallback:', oracleError);
+                setPrompt(localPrompt);
+
+                if (!intelligenceCapabilities.oracleChatEnabled) {
+                    return;
                 }
 
-                // Fallback to rule-based prompts
-                const summary = await calculateWeeklySummary();
-                const prompts = generateContextualPrompts(summary);
-                const bestPrompt = selectBestPrompt(prompts);
-                if (isMounted) setPrompt(bestPrompt);
+                const remotePrompt = await getRemoteFocusReflection({
+                    contextTier: ContextTier.PATTERN,
+                });
+
+                if (remotePrompt && isMounted) {
+                    setPrompt(remotePrompt);
+                }
             } catch (error) {
                 console.error('Error loading reflection prompt:', error);
             }
@@ -161,9 +153,11 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
             InteractionManager.runAfterInteractions(() => {
                 loadPrompt();
             });
+        } else {
+            setPrompt(null);
         }
         return () => { isMounted = false; };
-    }, [isVisible]);
+    }, [isVisible, intelligenceCapabilities.oracleChatEnabled]);
 
     const renderSuggestionIcon = (iconName: string, category?: string) => {
         const size = 20;
@@ -596,4 +590,3 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
         </AnimatedBottomSheet>
     );
 };
-

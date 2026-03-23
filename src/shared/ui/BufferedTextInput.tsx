@@ -91,7 +91,7 @@ export const BufferedTextInput = React.forwardRef<TextInput, BufferedTextInputPr
 
             <TextInput
                 ref={ref}
-                className={`h-12 rounded-xl px-4 border text-base font-inter-regular ${inputClassName}`}
+                className={`${!props.multiline ? 'h-12' : 'min-h-[120px] py-4'} rounded-xl px-4 border text-base font-inter-regular ${inputClassName}`}
                 style={[
                     {
                         backgroundColor: tokens?.input.background || colors['input-background'] || colors.card,

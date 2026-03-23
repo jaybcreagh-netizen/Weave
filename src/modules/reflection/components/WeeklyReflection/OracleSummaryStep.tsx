@@ -7,14 +7,24 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 
 interface OracleSummaryStepProps {
     narrative: string | null;
+    mode?: 'oracle' | 'local';
     onContinue: () => void;
 }
 
-export const OracleSummaryStep: React.FC<OracleSummaryStepProps> = ({ narrative, onContinue }) => {
+export const OracleSummaryStep: React.FC<OracleSummaryStepProps> = ({
+    narrative,
+    mode = 'oracle',
+    onContinue,
+}) => {
     const { tokens, typography } = useTheme();
     const [displayedText, setDisplayedText] = useState('');
     const [isComplete, setIsComplete] = useState(false);
-    const [hasConsented, setHasConsented] = useState(false);
+    const [hasConsented, setHasConsented] = useState(mode !== 'oracle');
+    const requiresConsent = mode === 'oracle';
+
+    useEffect(() => {
+        setHasConsented(!requiresConsent);
+    }, [requiresConsent]);
 
     useEffect(() => {
         if (!hasConsented || !narrative) return;
@@ -36,7 +46,7 @@ export const OracleSummaryStep: React.FC<OracleSummaryStepProps> = ({ narrative,
         return () => clearInterval(interval);
     }, [narrative, hasConsented]);
 
-    if (!hasConsented) {
+    if (requiresConsent && !hasConsented) {
         return (
             <View className="flex-1 justify-center items-center px-6">
                 <Animated.View entering={FadeInUp.springify()}>
@@ -80,6 +90,15 @@ export const OracleSummaryStep: React.FC<OracleSummaryStepProps> = ({ narrative,
                 <Sparkles size={48} color={tokens.primary} style={{ marginBottom: 24, alignSelf: 'center' }} />
             </Animated.View>
 
+            {!requiresConsent && (
+                <Text
+                    className="text-center text-base font-medium mb-4"
+                    style={{ color: tokens.primary, fontFamily: typography.fonts.sans }}
+                >
+                    A note on your week
+                </Text>
+            )}
+
             <Text
                 className="text-center text-xl leading-8 mb-12"
                 style={{
@@ -87,7 +106,7 @@ export const OracleSummaryStep: React.FC<OracleSummaryStepProps> = ({ narrative,
                     fontFamily: typography.fonts.serif
                 }}
             >
-                {narrative ? displayedText : "Consulting the stars..."}
+                {narrative ? displayedText : requiresConsent ? "Consulting the stars..." : "Gathering a gentle read on your week..."}
             </Text>
 
             {isComplete && (

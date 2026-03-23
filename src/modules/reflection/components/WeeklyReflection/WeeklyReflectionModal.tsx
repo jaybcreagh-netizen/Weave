@@ -49,6 +49,8 @@ import { OracleSummaryStep } from './OracleSummaryStep';
 import { oracleService } from '@/modules/oracle/services/oracle-service';
 import { reflectionSynthesizer } from '../../services/ReflectionSynthesizerService';
 import { UIEventBus } from '@/shared/services/ui-event-bus';
+import { useUserProfile } from '@/modules/auth';
+import { generateLocalWeeklyNarrative } from '../../services/weekly-reflection-content.service';
 
 // ============================================================================
 // TYPES
@@ -119,6 +121,7 @@ function buildPromptEngineInput(summary: ExtendedWeeklySummary): PromptEngineInp
 export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModalProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { intelligenceCapabilities } = useUserProfile();
 
   // State
   const [currentStep, setCurrentStep] = useState<Step>('prompt');
@@ -142,6 +145,8 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       setReflectionData({ text: '', chipIds: [] });
       setSelectedEvents([]);
       setIsSaving(false);
+      setWeeklyNarrative(null);
+      setObservations([]);
     }
   }, [isOpen]);
 
@@ -167,14 +172,19 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
       // Fetch current season
       const season = await SocialSeasonService.getCurrentSeason();
+      const localNarrative = generateLocalWeeklyNarrative(summaryData, season);
 
       // Generate narrative (non-blocking)
-      oracleService.generateWeeklyNarrative(summaryData, season).then(narrative => {
-        setWeeklyNarrative(narrative);
-      }).catch(err => {
-        logger.warn('WeeklyReflection', 'Error generating narrative', err);
-        setWeeklyNarrative("The stars are quiet, but your journey continues.");
-      });
+      if (intelligenceCapabilities.oracleChatEnabled) {
+        oracleService.generateWeeklyNarrative(summaryData, season).then(narrative => {
+          setWeeklyNarrative(narrative);
+        }).catch(err => {
+          logger.warn('WeeklyReflection', 'Error generating narrative', err);
+          setWeeklyNarrative(localNarrative);
+        });
+      } else {
+        setWeeklyNarrative(localNarrative);
+      }
 
       // Generate observations (non-blocking)
       const weekStart = summaryData.weekStartDate.getTime();
@@ -333,7 +343,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
   const stepTitles: Record<Step, string> = {
     prompt: 'Check-in',
-    summary: 'Oracle Insight',
+    summary: intelligenceCapabilities.oracleChatEnabled ? 'Oracle Insight' : 'Weekly Insight',
     snapshot: 'Your Week',
     events: 'Calendar',
   };
@@ -406,6 +416,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
               <View style={{ flex: 1 }}>
                 <OracleSummaryStep
                   narrative={weeklyNarrative}
+                  mode={intelligenceCapabilities.oracleChatEnabled ? 'oracle' : 'local'}
                   onContinue={handleSummaryNext}
                 />
               </View>

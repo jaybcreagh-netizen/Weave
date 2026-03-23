@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { differenceInDays, format, isSameDay, addDays, startOfDay } from 'date-fns';
@@ -27,7 +27,7 @@ import { parseFlexibleDate } from '@/shared/utils/date-utils';
 import { useReachOut, ContactLinker } from '@/modules/messaging';
 import { SuggestionActionSheet } from '@/modules/interactions/components/SuggestionActionSheet';
 import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
-import { useOracleSheet, oracleService, oracleContextBuilder, ContextTier } from '@/modules/oracle';
+import { useOracleSheet, ContextTier } from '@/modules/oracle';
 import { hasCompletedReflectionForCurrentWeek } from '@/modules/reflection';
 import { usePendingWeaves, ActivityInboxSheet } from '@/modules/sync';
 import { getPendingIncomingRequests, LinkRequest } from '@/modules/relationships';
@@ -37,6 +37,8 @@ import { CachedImage } from '@/shared/ui/CachedImage';
 import { StreakService } from '@/modules/gamification/services/streak.service';
 import { resolveSuggestionInteractionCategory } from '@/modules/interactions/utils/suggestion-action-mapper';
 import { AnalyticsEvents, trackEvent } from '@/shared/services/analytics.service';
+import { useUserProfile } from '@/modules/auth';
+import { getLocalFocusReflection, getRemoteFocusReflection } from '@/modules/home';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -63,6 +65,10 @@ interface RestDayStateProps {
 
 const RestDayState: React.FC<RestDayStateProps> = ({ isLoading, dailyReflection }) => {
     const { tokens, typography } = useTheme();
+    const subtitle = dailyReflection
+        || (isLoading
+            ? 'Finding a gentle focus for today.'
+            : "It's a perfect time to recharge.");
 
     return (
         <View className="px-4 pb-4">
@@ -100,9 +106,10 @@ const RestDayState: React.FC<RestDayStateProps> = ({ isLoading, dailyReflection 
                         color: tokens.foregroundMuted,
                         fontFamily: typography.fonts.sans,
                         fontSize: 13,
-                        textAlign: 'left'
+                        textAlign: 'left',
+                        lineHeight: 18,
                     }}>
-                        It's a perfect time to recharge.
+                        {subtitle}
                     </Text>
                 </View>
             </View>
@@ -261,7 +268,15 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const { completePlan } = usePlans();
     const { openPostWeaveRating, openWeeklyReflection } = useUIStore();
     const { reachOut } = useReachOut();
+    const { intelligenceCapabilities } = useUserProfile();
     const oracleSheet = useOracleSheet();
+    const visibleSuggestions = useMemo(
+        () => oracleSheet.canOpen
+            ? suggestions
+            : suggestions.filter(suggestion => suggestion.action?.type !== 'oracle'),
+        [oracleSheet.canOpen, suggestions]
+    );
+    const reflectionRequestRef = useRef(0);
 
     // Pending Actions State
     const [linkRequests, setLinkRequests] = useState<LinkRequest[]>([]);
@@ -278,6 +293,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const [intentions, setIntentions] = useState<Intention[]>([]);
     const [dailyReflection, setDailyReflection] = useState<string | null>(null);
     const [isLoadingReflection, setIsLoadingReflection] = useState(false);
+    const todayKey = format(new Date(), 'yyyy-MM-dd');
     const [currentStreak, setCurrentStreak] = useState<number>(0);
 
     // Load active intentions
@@ -631,7 +647,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const hasCompleted = todaysCompleted.length > 0;
     const hasTomorrow = tomorrowsPlans.length > 0;
     const hasReviews = false; // Disabled in condensed widget
-    const hasSuggestions = suggestions.length > 0;
+    const hasSuggestions = visibleSuggestions.length > 0;
     const hasUpcomingDates = upcomingDates.length > 0;
     const hasIntentions = intentions.length > 0;
     const hasLinkRequests = linkRequests.length > 0;
@@ -649,24 +665,51 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
 
     // Load daily reflection when there are no calendar events
     useEffect(() => {
-        if (!hasNoCalendarEvents || dailyReflection || isLoadingReflection) return;
+        if (!hasNoCalendarEvents) {
+            reflectionRequestRef.current += 1;
+            setDailyReflection(null);
+            setIsLoadingReflection(false);
+            return;
+        }
+
+        const requestId = reflectionRequestRef.current + 1;
+        reflectionRequestRef.current = requestId;
 
         const loadReflection = async () => {
             setIsLoadingReflection(true);
             try {
-                const context = await oracleContextBuilder.buildContext([], ContextTier.ESSENTIAL);
-                const reflection = await oracleService.generateDailyReflection(context);
-                setDailyReflection(reflection);
+                const localReflection = await getLocalFocusReflection();
+                if (reflectionRequestRef.current !== requestId) return;
+
+                setDailyReflection(localReflection.prompt);
+
+                if (!intelligenceCapabilities.oracleChatEnabled) {
+                    setIsLoadingReflection(false);
+                    return;
+                }
+
+                const remoteReflection = await getRemoteFocusReflection({
+                    contextTier: ContextTier.ESSENTIAL,
+                });
+
+                if (reflectionRequestRef.current !== requestId) return;
+
+                if (remoteReflection) {
+                    setDailyReflection(remoteReflection.prompt);
+                }
             } catch (error) {
                 console.error('Error loading daily reflection:', error);
+                if (reflectionRequestRef.current !== requestId) return;
                 setDailyReflection(null);
             } finally {
-                setIsLoadingReflection(false);
+                if (reflectionRequestRef.current === requestId) {
+                    setIsLoadingReflection(false);
+                }
             }
         };
 
         loadReflection();
-    }, [hasNoCalendarEvents, dailyReflection, isLoadingReflection]);
+    }, [hasNoCalendarEvents, intelligenceCapabilities.oracleChatEnabled, todayKey]);
 
     const handleReflectSuggestion = (suggestion: Suggestion, friend: FriendModel) => {
         const interactionCategory = resolveSuggestionInteractionCategory(suggestion, 'deep-talk');
@@ -692,8 +735,8 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                         icon={<Calendar size={20} color={tokens.primary} />}
                         subtitle={todaysUpcoming.length > 0
                             ? `${todaysUpcoming.length} upcoming · ${tomorrowsPlans.length} tomorrow`
-                            : suggestions.length > 0
-                                ? `${suggestions.length} suggestions · ${intentions.length} intentions`
+                            : visibleSuggestions.length > 0
+                                ? `${visibleSuggestions.length} suggestions · ${intentions.length} intentions`
                                 : "No commitments today"}
                         trailing={currentStreak > 0 ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: tokens.backgroundSubtle, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
@@ -901,7 +944,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 upcomingPlans={todaysUpcoming}
                 tomorrowPlans={tomorrowsPlans}
                 completedPlans={todaysCompleted}
-                suggestions={suggestions}
+                suggestions={visibleSuggestions}
                 intentions={intentions}
                 upcomingDates={upcomingDates}
                 friends={friends}

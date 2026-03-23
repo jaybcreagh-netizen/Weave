@@ -13,6 +13,7 @@ import { useSuggestions } from '@/modules/interactions'
 import { database } from '@/db'
 import { Q } from '@nozbe/watermelondb'
 import Intention from '@/db/models/Intention'
+import { useUserProfile } from '@/modules/auth'
 
 // Simple in-memory cache
 let cachedPrompts: StarterPrompt[] | null = null
@@ -37,6 +38,7 @@ export type OracleEntryPoint = 'insights' | 'circle' | 'journal' | 'friend' | 'i
  */
 export function useStarterPrompts(context: OracleEntryPoint = 'default'): { prompts: StarterPrompt[], refresh: () => void, loading: boolean } {
     const { friends } = useFriendsObservable()
+    const { intelligenceCapabilities } = useUserProfile()
     const { suggestions } = useSuggestions()
     const [followUps, setFollowUps] = useState<FollowUpPrompt[]>([])
     const [activeIntentions, setActiveIntentions] = useState<any[]>([])
@@ -74,6 +76,14 @@ export function useStarterPrompts(context: OracleEntryPoint = 'default'): { prom
         let mounted = true
         const fetchPersonalized = async () => {
             if (context === 'default' || context === 'insights') {
+                if (!intelligenceCapabilities.oracleChatEnabled) {
+                    if (mounted) {
+                        setPersonalizedContextPrompts([])
+                        setIsLoading(false)
+                    }
+                    return
+                }
+
                 // Check cache first (ignore cache if refreshing explicitly)
                 if (refreshKey === 0 && cachedPrompts && (Date.now() - lastFetchTime < CACHE_TTL)) {
                     if (mounted) {
@@ -110,7 +120,7 @@ export function useStarterPrompts(context: OracleEntryPoint = 'default'): { prom
         }
         fetchPersonalized()
         return () => { mounted = false }
-    }, [context, refreshKey])
+    }, [context, intelligenceCapabilities.oracleChatEnabled, refreshKey])
 
     const result = useMemo(() => {
         const prompts: StarterPrompt[] = []

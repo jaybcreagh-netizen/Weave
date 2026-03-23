@@ -67,7 +67,7 @@ export function JournalHome({
 }: JournalHomeProps) {
   const { colors, typography, tokens } = useTheme();
   const insets = useSafeAreaInsets();
-  const { open } = useOracleSheet();
+  const { open, canOpen } = useOracleSheet();
 
   // State
   const [activeTab, setActiveTab] = useState<Tab>(initialTab || 'all');
@@ -175,16 +175,18 @@ export function JournalHome({
 
         {/* Actions */}
         <View className="flex-row gap-2 items-center">
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              open({ context: 'journal' });
-            }}
-            className="w-10 h-10 rounded-full items-center justify-center mr-2"
-            style={{ backgroundColor: colors.primary + '20' }}
-          >
-            <WeaveIcon size={20} color={colors.primary} />
-          </TouchableOpacity>
+          {canOpen && (
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                open({ context: 'journal' });
+              }}
+              className="w-10 h-10 rounded-full items-center justify-center mr-2"
+              style={{ backgroundColor: colors.primary + '20' }}
+            >
+              <WeaveIcon size={20} color={colors.primary} />
+            </TouchableOpacity>
+          )}
 
           {onClose && (
             <TouchableOpacity

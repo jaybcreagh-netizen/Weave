@@ -23,6 +23,7 @@ import {
 import { ReflectionAssistant } from '@/modules/journal/services/reflection-assistant.service';
 import { STORY_CHIPS } from '../../services/story-chips.service';
 import * as Haptics from 'expo-haptics';
+import { useUserProfile } from '@/modules/auth';
 
 interface ReflectionPromptStepProps {
   prompt: ReflectionPrompt;
@@ -35,6 +36,7 @@ interface ReflectionPromptStepProps {
 
 export function ReflectionPromptStep({ prompt, promptEngineInput, observations = [], narrative, weekSummaryLine, onNext }: ReflectionPromptStepProps) {
   const { colors } = useTheme();
+  const { intelligenceCapabilities } = useUserProfile();
   const inputRef = useRef<any>(null);
 
   const [text, setText] = useState('');
@@ -42,6 +44,13 @@ export function ReflectionPromptStep({ prompt, promptEngineInput, observations =
   const [detectedChips, setDetectedChips] = useState<DetectedChip[]>([]);
   const [showChips, setShowChips] = useState(false);
   const [isDrafting, setIsDrafting] = useState(false);
+
+  const helpMeWriteLabel = intelligenceCapabilities.guidedReflectionEnabled
+    ? 'Help me write'
+    : 'Get a starter reflection';
+  const helpMeWriteLoadingLabel = intelligenceCapabilities.guidedReflectionEnabled
+    ? 'Writing your reflection...'
+    : 'Drafting a starter reflection...';
 
   const handleHelpMeWrite = async () => {
     if (!promptEngineInput) return;
@@ -186,7 +195,7 @@ export function ReflectionPromptStep({ prompt, promptEngineInput, observations =
               <Sparkles size={14} color={colors.primary} />
             )}
             <Text variant="caption" weight="medium" style={{ color: colors.primary }}>
-              {isDrafting ? 'Writing your reflection...' : 'Help me write'}
+              {isDrafting ? helpMeWriteLoadingLabel : helpMeWriteLabel}
             </Text>
           </TouchableOpacity>
         </View>

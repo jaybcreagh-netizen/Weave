@@ -17,6 +17,7 @@ import { STORY_CHIPS } from '@/modules/reflection';
 import { logger } from '@/shared/services/logger.service';
 import { useUIStore } from '@/shared/stores/uiStore';
 import * as Haptics from 'expo-haptics';
+import { useOracleSheet } from '@/modules/oracle';
 
 /**
  * Wait for modal/sheet close animations to complete before opening another modal.
@@ -62,6 +63,7 @@ export function JournalEntryDetailSheet({
 }: JournalEntryDetailSheetProps) {
     const { colors, typography } = useTheme();
     const router = useRouter();
+    const { canOpen: canOpenOracle } = useOracleSheet();
 
     const [friends, setFriends] = useState<FriendModel[]>([]);
     const [linkedWeaveInfo, setLinkedWeaveInfo] = useState<{
@@ -356,7 +358,9 @@ export function JournalEntryDetailSheet({
             });
         }
     } else {
-        actionItems.push({ icon: 'Sparkles', label: 'Ask Oracle', onPress: handleAskOracle });
+        if (canOpenOracle) {
+            actionItems.push({ icon: 'Sparkles', label: 'Ask Oracle', onPress: handleAskOracle });
+        }
         if (friends.length > 0 || linkedWeaveInfo) {
             actionItems.push({ icon: 'Repeat', label: 'Do again', onPress: handleMimic });
         }

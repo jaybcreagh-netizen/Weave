@@ -7,6 +7,7 @@ import FriendModel from '@/db/models/Friend';
 import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import { Q } from '@nozbe/watermelondb';
 import { memoryBridgeService } from '@/modules/journal/services/memory-bridge.service';
+import { intelligenceCapabilitiesService } from '@/modules/intelligence/services/intelligence-capabilities.service';
 
 import { SmartAction } from './types';
 
@@ -51,14 +52,23 @@ class ActionExtractionService {
     /**
      * Run the "Silent Audit" on a journal entry and return actions.
      */
-    public async extractActions(entryId: string): Promise<SmartAction[]> {
-        return this.analyzeEntry(entryId);
+    public async extractActions(entryId: string, remoteEnabled?: boolean): Promise<SmartAction[]> {
+        return this.analyzeEntry(entryId, remoteEnabled);
     }
 
-    private async analyzeEntry(entryId: string): Promise<SmartAction[]> {
+    private async analyzeEntry(entryId: string, remoteEnabled?: boolean): Promise<SmartAction[]> {
         logger.info('ActionExtractionService', 'Starting analysis', { entryId });
 
         try {
+            const capabilities = await intelligenceCapabilitiesService.getCapabilitiesForCurrentProfile();
+            const canUseRemoteActions =
+                typeof remoteEnabled === 'boolean' ? remoteEnabled : capabilities.actionExtractionEnabled;
+
+            if (!canUseRemoteActions) {
+                logger.info('ActionExtractionService', 'Skipping action extraction because remote AI is unavailable');
+                return [];
+            }
+
             const entry = await database.get<JournalEntry>('journal_entries').find(entryId);
 
             // Skip if too short

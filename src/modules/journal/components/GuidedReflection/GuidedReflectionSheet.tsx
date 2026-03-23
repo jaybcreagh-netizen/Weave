@@ -24,7 +24,7 @@ import { Button } from '@/shared/ui/Button'
 import { Icon } from '@/shared/ui/Icon'
 import { useTheme } from '@/shared/hooks/useTheme'
 import { useGuidedReflection, GuidedReflectionState } from '../../hooks/useGuidedReflection'
-import { ReflectionContext, actionExtractionService } from '@/modules/oracle'
+import { ReflectionContext } from '@/modules/oracle'
 import { TopicSelectionStep } from './TopicSelectionStep'
 import { FreeformGatherStep, FreeformContext } from './FreeformGatherStep'
 import { PromptedReflectionFlow, SavedEntry } from './PromptedReflectionFlow'
@@ -40,9 +40,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from 'lucide-react-native'
 import { InsightReceipt } from '../InsightReceipt'
 import { InsightReceiptExpanded } from '../InsightReceiptExpanded'
-import { journalIntelligenceService, ProcessingResult } from '@/modules/journal/services/journal-intelligence.service'
+import {
+    EMPTY_PROCESSING_RESULT,
+    journalIntelligenceService,
+    ProcessingResult,
+} from '@/modules/journal/services/journal-intelligence.service'
 import { database } from '@/db'
 import JournalEntry from '@/db/models/JournalEntry'
+import { useUserProfile } from '@/modules/auth/hooks/useUserProfile'
 
 interface GuidedReflectionSheetProps {
     isOpen: boolean
@@ -69,6 +74,23 @@ export function GuidedReflectionSheet({
 }: GuidedReflectionSheetProps) {
     const { colors } = useTheme()
     const insets = useSafeAreaInsets()
+    const { intelligenceCapabilities } = useUserProfile()
+    const oracleGuidedReflectionEnabled = intelligenceCapabilities.guidedReflectionEnabled
+    const effectivePrefilledText = prefilledText ?? preSelectedContext?.quickCaptureText
+    const effectivePrefilledFriendIds = prefilledFriendIds ?? preSelectedContext?.friendIds
+    const effectivePrefilledWeaveId = prefilledWeaveId ?? preSelectedContext?.interactionId
+    const getPreferredFlowMode = (): 'oracle' | 'prompted' | null => {
+        if (preSelectedContext) {
+            return oracleGuidedReflectionEnabled ? 'oracle' : 'prompted'
+        }
+
+        if (defaultMode === 'oracle' && !oracleGuidedReflectionEnabled) {
+            return 'prompted'
+        }
+
+        return defaultMode || null
+    }
+
     const {
         state,
         startSession,
@@ -78,15 +100,16 @@ export function GuidedReflectionSheet({
         reset
     } = useGuidedReflection()
 
-    const [flowMode, setFlowMode] = useState<'oracle' | 'prompted' | null>(preSelectedContext ? 'oracle' : (defaultMode || null))
+    const [flowMode, setFlowMode] = useState<'oracle' | 'prompted' | null>(getPreferredFlowMode())
     const [promptedDirty, setPromptedDirty] = useState(false)
     const [inputValue, setInputValue] = useState('')
     const [selectedContext, setSelectedContext] = useState<ReflectionContext | null>(preSelectedContext || null)
-    const [showTopicSelection, setShowTopicSelection] = useState(!preSelectedContext)
+    const [showTopicSelection, setShowTopicSelection] = useState(!preSelectedContext && getPreferredFlowMode() === 'oracle')
     const [showFreeformGather, setShowFreeformGather] = useState(false)
     const [freeformDraft, setFreeformDraft] = useState<string | null>(null)
     const [isGeneratingFreeform, setIsGeneratingFreeform] = useState(false)
     const inputRef = useRef<TextInput>(null)
+    const processingRequestRef = useRef(0)
 
     // Receipt State
     const [showReceipt, setShowReceipt] = useState(false)
@@ -97,10 +120,10 @@ export function GuidedReflectionSheet({
     // Reset state when sheet closes
     useEffect(() => {
         if (!isOpen) {
-            setFlowMode(preSelectedContext ? 'oracle' : (defaultMode || null))
+            setFlowMode(getPreferredFlowMode())
             setPromptedDirty(false)
-            setSelectedContext(preSelectedContext || null)
-            setShowTopicSelection(!preSelectedContext)
+            setSelectedContext(oracleGuidedReflectionEnabled ? (preSelectedContext || null) : null)
+            setShowTopicSelection(!preSelectedContext && getPreferredFlowMode() === 'oracle')
             setShowFreeformGather(false)
             setFreeformDraft(null)
             setIsGeneratingFreeform(false)
@@ -110,24 +133,24 @@ export function GuidedReflectionSheet({
             setIsProcessing(false)
             reset()
         }
-    }, [isOpen, preSelectedContext, defaultMode])
+    }, [isOpen, preSelectedContext, defaultMode, oracleGuidedReflectionEnabled])
 
     // Ensure oracle mode is selected when context is pre-specified
     useEffect(() => {
         if (isOpen && preSelectedContext) {
-            setFlowMode('oracle')
-            setSelectedContext(preSelectedContext)
+            setFlowMode(oracleGuidedReflectionEnabled ? 'oracle' : 'prompted')
+            setSelectedContext(oracleGuidedReflectionEnabled ? preSelectedContext : null)
             setShowTopicSelection(false)
         }
-    }, [isOpen, preSelectedContext])
+    }, [isOpen, preSelectedContext, oracleGuidedReflectionEnabled])
 
     // If we have prefills but no context, default to prompted flow
     useEffect(() => {
         if (!isOpen || preSelectedContext || flowMode) return
-        if (prefilledText || prefilledWeaveId || (prefilledFriendIds && prefilledFriendIds.length > 0)) {
+        if (effectivePrefilledText || effectivePrefilledWeaveId || (effectivePrefilledFriendIds && effectivePrefilledFriendIds.length > 0)) {
             setFlowMode('prompted')
         }
-    }, [isOpen, preSelectedContext, flowMode, prefilledText, prefilledWeaveId, prefilledFriendIds])
+    }, [isOpen, preSelectedContext, flowMode, effectivePrefilledText, effectivePrefilledWeaveId, effectivePrefilledFriendIds])
 
     // Start session when context is selected
     useEffect(() => {
@@ -208,26 +231,46 @@ export function GuidedReflectionSheet({
         setProcessingResult(null)
 
         try {
-            actionExtractionService.queueEntry(entryId)
-
             const entry = await database.get<JournalEntry>('journal_entries').find(entryId)
-            const result = await journalIntelligenceService.processEntry(entry)
+            const requestId = processingRequestRef.current + 1
+            processingRequestRef.current = requestId
 
-            if (result) {
-                setProcessingResult(result)
-                setIsProcessing(false)
-            } else {
-                handleDismissReceipt()
-            }
+            journalIntelligenceService.processEntry(entry)
+                .then((result) => {
+                    if (processingRequestRef.current !== requestId) return
+
+                    const finalResult = result ?? EMPTY_PROCESSING_RESULT
+                    setProcessingResult(finalResult)
+                    setIsProcessing(false)
+
+                    if (finalResult.actions.length === 0) {
+                        setTimeout(() => {
+                            if (processingRequestRef.current === requestId) {
+                                handleDismissReceipt()
+                            }
+                        }, 2500)
+                    }
+                })
+                .catch((err) => {
+                    console.error('Receipt processing failed', err)
+                    if (processingRequestRef.current !== requestId) return
+
+                    setProcessingResult(EMPTY_PROCESSING_RESULT)
+                    setIsProcessing(false)
+                })
         } catch (err) {
             console.error('Receipt processing failed', err)
-            handleDismissReceipt()
+            setProcessingResult(EMPTY_PROCESSING_RESULT)
+            setIsProcessing(false)
         }
     }
 
     const handleDismissReceipt = () => {
+        processingRequestRef.current += 1
         setShowReceipt(false)
         setShowExpandedReceipt(false)
+        setIsProcessing(false)
+        setProcessingResult(null)
         onClose()
     }
 
@@ -317,6 +360,11 @@ export function GuidedReflectionSheet({
     }
 
     const handleModeSelect = (mode: 'oracle' | 'prompted') => {
+        if (mode === 'oracle' && !oracleGuidedReflectionEnabled) {
+            setFlowMode('prompted')
+            return
+        }
+
         setFlowMode(mode)
         if (mode === 'oracle') {
             setShowTopicSelection(!preSelectedContext)
@@ -376,9 +424,9 @@ export function GuidedReflectionSheet({
                     >
                         {flowMode === 'prompted' ? (
                             <PromptedReflectionFlow
-                                prefilledText={prefilledText}
-                                prefilledFriendIds={prefilledFriendIds}
-                                prefilledWeaveId={prefilledWeaveId}
+                                prefilledText={effectivePrefilledText}
+                                prefilledFriendIds={effectivePrefilledFriendIds}
+                                prefilledWeaveId={effectivePrefilledWeaveId}
                                 onSave={handleSavePrompted}
                                 onClose={onClose}
                                 onDirtyChange={setPromptedDirty}
@@ -392,6 +440,7 @@ export function GuidedReflectionSheet({
                             >
                                 {!flowMode && !preSelectedContext && (
                                     <ModeSelectionStep
+                                        oracleEnabled={oracleGuidedReflectionEnabled}
                                         onSelectOracle={() => handleModeSelect('oracle')}
                                         onSelectPrompted={() => handleModeSelect('prompted')}
                                     />
@@ -513,11 +562,12 @@ export function GuidedReflectionSheet({
 }
 
 interface ModeSelectionStepProps {
+    oracleEnabled: boolean
     onSelectOracle: () => void
     onSelectPrompted: () => void
 }
 
-function ModeSelectionStep({ onSelectOracle, onSelectPrompted }: ModeSelectionStepProps) {
+function ModeSelectionStep({ oracleEnabled, onSelectOracle, onSelectPrompted }: ModeSelectionStepProps) {
     const { colors } = useTheme()
 
     return (
@@ -571,7 +621,12 @@ function ModeSelectionStep({ onSelectOracle, onSelectPrompted }: ModeSelectionSt
                 <TouchableOpacity
                     onPress={onSelectOracle}
                     className="p-4 rounded-xl"
-                    style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary + '40' }}
+                    style={{
+                        backgroundColor: colors.card,
+                        borderWidth: 1,
+                        borderColor: colors.primary + '40',
+                        opacity: oracleEnabled ? 1 : 0.6,
+                    }}
                 >
                     <View className="flex-row items-start gap-3">
                         <View
@@ -592,7 +647,9 @@ function ModeSelectionStep({ onSelectOracle, onSelectPrompted }: ModeSelectionSt
                                 className="mt-1"
                                 style={{ color: colors['muted-foreground'] }}
                             >
-                                Answer a few questions and we'll capture it.
+                                {oracleEnabled
+                                    ? "Answer a few questions and we'll capture it."
+                                    : 'Remote Oracle is unavailable right now, so prompted writing stays available.'}
                             </Text>
                         </View>
                     </View>

@@ -3,7 +3,7 @@
  * Create or edit ad-hoc journal entries
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -32,9 +32,12 @@ import * as Haptics from 'expo-haptics';
 import { logger } from '@/shared/services/logger.service';
 import { YourPatternsSection } from '@/modules/insights';
 import { useRouter } from 'expo-router';
-import { actionExtractionService } from '@/modules/oracle';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
-import { journalIntelligenceService, ProcessingResult } from '../services/journal-intelligence.service';
+import {
+  EMPTY_PROCESSING_RESULT,
+  journalIntelligenceService,
+  ProcessingResult,
+} from '../services/journal-intelligence.service';
 import { InsightReceipt } from './InsightReceipt';
 import { InsightReceiptExpanded } from './InsightReceiptExpanded';
 import { ChipPromptHints } from './ChipPromptHints';
@@ -53,6 +56,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
   const { colors } = useTheme();
   const router = useRouter();
   const isEditMode = !!entry;
+  const processingRequestRef = useRef(0);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -244,26 +248,10 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
 
       // TRIGGER INTELLIGENCE
       if (targetId) {
-        actionExtractionService.queueEntry(targetId);
-
         const savedEntry = await database.get<JournalEntry>('journal_entries').find(targetId);
-
-        // Wait for processing for receipt
-        const result = await journalIntelligenceService.processEntry(savedEntry);
-
-        if (result) {
-          setProcessingResult(result);
-          setIsProcessing(false);
-
-          // Auto-dismiss if no actions
-          if (result.actions.length === 0) {
-            setTimeout(() => {
-              handleDismissReceipt();
-            }, 2500);
-          }
-        } else {
-          handleDismissReceipt();
-        }
+        const requestId = processingRequestRef.current + 1;
+        processingRequestRef.current = requestId;
+        processEntryInBackground(savedEntry, requestId);
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -291,9 +279,38 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
     }
   };
 
+  const processEntryInBackground = (savedEntry: JournalEntry, requestId: number) => {
+    journalIntelligenceService.processEntry(savedEntry)
+      .then((result) => {
+        if (processingRequestRef.current !== requestId) return;
+
+        const finalResult = result ?? EMPTY_PROCESSING_RESULT;
+        setProcessingResult(finalResult);
+        setIsProcessing(false);
+
+        if (finalResult.actions.length === 0) {
+          setTimeout(() => {
+            if (processingRequestRef.current === requestId) {
+              handleDismissReceipt();
+            }
+          }, 2500);
+        }
+      })
+      .catch((error) => {
+        logger.error('JournalEntry', 'Background intelligence failed', error);
+        if (processingRequestRef.current !== requestId) return;
+
+        setProcessingResult(EMPTY_PROCESSING_RESULT);
+        setIsProcessing(false);
+      });
+  };
+
   const handleDismissReceipt = () => {
+    processingRequestRef.current += 1;
     setShowReceipt(false);
     setShowExpandedReceipt(false);
+    setIsProcessing(false);
+    setProcessingResult(null);
     onClose();
   };
 

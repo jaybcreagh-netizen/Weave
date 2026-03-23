@@ -7,7 +7,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { SettingsModal } from '@/modules/auth/components/settings-modal';
 import { SocialBatterySheet } from '@/modules/home/components/widgets/SocialBatterySheet';
 import { BadgeUnlockModal } from '@/modules/gamification';
-import { useUserProfileStore } from '@/modules/auth';
+import { useUserProfile, useUserProfileStore } from '@/modules/auth';
 import { useUIStore } from '@/shared/stores/uiStore';
 import HomeScreen from './_home';
 import FriendsScreen from './_friends';
@@ -51,6 +51,7 @@ export default function Dashboard() {
     } = useUIStore();
 
     const { submitBatteryCheckin, profile, observeProfile } = useUserProfileStore();
+    const { intelligenceCapabilities } = useUserProfile();
 
     // Tutorial Store
     const {
@@ -78,7 +79,12 @@ export default function Dashboard() {
 
     // Show Oracle tooltip AFTER Add Friend is seen AND a friend has been added
     // This prevents it from appearing immediately when opening the FAB
-    const showOracleTooltip = !hasSeenOracleTooltip && hasSeenAddFriendPrompt && hasAddedFirstFriend && isMountedRef.current;
+    const showOracleTooltip =
+        intelligenceCapabilities.showOracleEntryPoints
+        && !hasSeenOracleTooltip
+        && hasSeenAddFriendPrompt
+        && hasAddedFirstFriend
+        && isMountedRef.current;
 
     // Pulse animation for loading state
     const pulseScale = useSharedValue(1);

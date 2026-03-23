@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { router } from 'expo-router';
-import { Battery, Trophy, BookOpen, Users, Palette, Bell, Database, Wrench, Inbox } from 'lucide-react-native';
+import { Battery, Trophy, BookOpen, Users, Palette, Bell, Database, Wrench, Inbox, Sparkles, MessageCircle } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { CollapsibleSection } from '@/shared/ui/CollapsibleSection';
@@ -100,6 +100,37 @@ export function SettingsModal({
               <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
             </>
           )}
+
+          <CollapsibleSection
+            title="AI & Oracle"
+            subtitle="Remote AI privacy, prompts, and oracle behavior"
+            icon={Sparkles}
+            defaultExpanded={true}
+          >
+            <SettingsItem
+              icon={Sparkles}
+              title="AI Features"
+              subtitle="Turn remote journal analysis and Oracle on or off"
+              onPress={() => {
+                onClose();
+                setTimeout(() => router.push('/ai-settings'), 300);
+              }}
+            />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <SettingsItem
+              icon={MessageCircle}
+              title="Oracle Preferences"
+              subtitle="Tune insight frequency and tone"
+              onPress={() => {
+                onClose();
+                setTimeout(() => router.push('/oracle-settings'), 300);
+              }}
+            />
+          </CollapsibleSection>
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
           {/* ═══════════════════════════════════════════════════════════════
               UI & INTERACTION

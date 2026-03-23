@@ -15,7 +15,7 @@ import { useOracleSheet } from '@/modules/oracle/hooks/useOracleSheet';
 
 export const InsightModeView = () => {
     const { colors } = useTheme()
-    const { params } = useOracleSheet()
+    const { params, open, setMode } = useOracleSheet()
 
     // Pre-populate with journal content if available
     const hasJournalContext = Boolean(params.journalContent)
@@ -160,7 +160,6 @@ export const InsightModeView = () => {
                             variant="primary"
                             icon="arrow-right"
                             onPress={() => {
-                                const { open, setMode } = require('@/modules/oracle/hooks/useOracleSheet').useOracleSheet.getState();
                                 open({
                                     context: 'insights',
                                     insightContext: {

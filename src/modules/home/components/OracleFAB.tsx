@@ -1,6 +1,5 @@
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import * as Haptics from 'expo-haptics';
@@ -15,10 +14,13 @@ interface OracleFABProps {
 }
 
 export function OracleFAB({ context = 'circle', params }: OracleFABProps) {
-    const router = useRouter();
     const insets = useSafeAreaInsets();
     const { colors, isDarkMode } = useTheme();
-    const { open } = useOracleSheet();
+    const { open, canOpen } = useOracleSheet();
+
+    if (!canOpen) {
+        return null;
+    }
 
     return (
         <TouchableOpacity
