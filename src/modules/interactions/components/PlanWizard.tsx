@@ -32,6 +32,9 @@ import { startOfDay, addDays, getDay, differenceInCalendarDays } from 'date-fns'
 import { Q } from '@nozbe/watermelondb';
 import { InitiatorType } from '@/modules/relationships';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
+import * as SuggestionTrackerService from '../services/suggestion-tracker.service';
+import { UIEventBus } from '@/shared/services/ui-event-bus';
+import type { SuggestionActionSource } from '../types';
 
 const CATEGORIES: Array<{
   value: InteractionCategory;
@@ -65,6 +68,8 @@ interface PlanWizardProps {
   replaceInteractionId?: string;
   // Optional: Starting step (1-3), defaults to 1
   initialStep?: number;
+  // Optional: original suggestion that opened the wizard
+  sourceSuggestion?: SuggestionActionSource;
 }
 
 export interface PlanFormData {
@@ -79,7 +84,15 @@ export interface PlanFormData {
   shouldShare?: boolean;
 }
 
-export function PlanWizard({ visible, onClose, initialFriend, prefillData, replaceInteractionId, initialStep = 1 }: PlanWizardProps) {
+export function PlanWizard({
+  visible,
+  onClose,
+  initialFriend,
+  prefillData,
+  replaceInteractionId,
+  initialStep = 1,
+  sourceSuggestion,
+}: PlanWizardProps) {
   const { colors, isDarkMode } = useTheme();
   const { planWeave, deleteWeave } = usePlans();
   const suggestion = usePlanSuggestion(initialFriend);
@@ -369,6 +382,24 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
           location: validLocation,
           initiator: validInitiator,
         }, { skipToast: true });
+
+        if (sourceSuggestion?.suggestionId) {
+          try {
+            await SuggestionTrackerService.trackSuggestionActed(sourceSuggestion.suggestionId, newPlan.id);
+            UIEventBus.emit({
+              type: 'SUGGESTION_HANDLED',
+              suggestionId: sourceSuggestion.suggestionId,
+              suggestionTitle: sourceSuggestion.suggestionTitle,
+              friendId: sourceSuggestion.friendId || initialFriend.id,
+              friendName: sourceSuggestion.friendName || selectedFriends[0]?.name || initialFriend.name,
+              interactionId: newPlan.id,
+              scheduledFor: finalDate.toISOString(),
+              actionType: 'plan',
+            });
+          } catch (trackingError) {
+            console.warn('Failed to record handled suggestion state:', trackingError);
+          }
+        }
 
         // Run secondary operations in background
         // Try to create calendar event if settings enabled

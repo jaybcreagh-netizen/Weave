@@ -6,7 +6,7 @@ import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2, Coffee, M
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
-import { useSuggestions, useInteractions, usePlans, getSuggestionCooldownDays } from '@/modules/interactions';
+import { useSuggestions, useInteractions, usePlans, getSuggestionCooldownDays, SuggestionTrackerService } from '@/modules/interactions';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';
@@ -17,6 +17,7 @@ import Intention from '@/db/models/Intention';
 import { Card } from '@/shared/ui/Card';
 import { WidgetHeader } from '@/shared/ui/WidgetHeader';
 import { ListItem } from '@/shared/ui/ListItem';
+import { Button } from '@/shared/ui/Button';
 import { FocusDetailSheet } from '@/modules/home/components/FocusDetailSheet';
 import { FocusPlanItem } from './components/FocusPlanItem';
 import FriendModel from '@/db/models/Friend';
@@ -39,6 +40,12 @@ import { resolveSuggestionInteractionCategory } from '@/modules/interactions/uti
 import { AnalyticsEvents, trackEvent } from '@/shared/services/analytics.service';
 import { useUserProfile } from '@/modules/auth';
 import { getLocalFocusReflection, getRemoteFocusReflection } from '@/modules/home';
+import {
+    buildFocusSuggestionSurfaceFingerprint,
+    buildFocusSuggestionSurfacePayload,
+    recordRecentlySurfacedFocusSuggestions,
+} from '@/modules/home/services/focus-suggestion-telemetry.service';
+import { UIEventBus } from '@/shared/services/ui-event-bus';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -61,6 +68,14 @@ interface TodaysFocusWidgetProps { }
 interface RestDayStateProps {
     isLoading?: boolean;
     dailyReflection?: string | null;
+}
+
+interface RecentHandledSuggestion {
+    suggestionId: string;
+    suggestionTitle: string;
+    friendName?: string;
+    interactionId?: string;
+    scheduledFor: Date;
 }
 
 const RestDayState: React.FC<RestDayStateProps> = ({ isLoading, dailyReflection }) => {
@@ -263,25 +278,34 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const { friends, isLoading: isFriendsLoading } = useFriendsObservable();
     const { tokens, typography, spacing } = useTheme();
     const router = useRouter();
-    const { suggestions, dismissSuggestion, isLoading: isSuggestionsLoading } = useSuggestions();
+    const {
+        suggestions,
+        selectorSuggestions,
+        surfaceSource,
+        selectionReason,
+        selectorOpportunitySource,
+        selectorSuggestionMetadata,
+        pacing,
+        quietReason,
+        surfaceRequestKind,
+        canRequestAnotherSuggestion,
+        dismissSuggestion,
+        isRequestingAnotherSuggestion,
+        invalidateSuggestions,
+        requestAnotherSuggestion,
+    } = useSuggestions({ trackFetchedSuggestions: false });
     const { allInteractions: interactions, isLoading: isInteractionsLoading } = useInteractions();
     const { completePlan } = usePlans();
-    const { openPostWeaveRating, openWeeklyReflection } = useUIStore();
+    const { openPostWeaveRating, openWeeklyReflection, openPlanWizard } = useUIStore();
     const { reachOut } = useReachOut();
     const { intelligenceCapabilities } = useUserProfile();
     const oracleSheet = useOracleSheet();
-    const visibleSuggestions = useMemo(
-        () => oracleSheet.canOpen
-            ? suggestions
-            : suggestions.filter(suggestion => suggestion.action?.type !== 'oracle'),
-        [oracleSheet.canOpen, suggestions]
-    );
     const reflectionRequestRef = useRef(0);
+    const trackedQuietDecisionFingerprintRef = useRef<string | null>(null);
 
     // Pending Actions State
     const [linkRequests, setLinkRequests] = useState<LinkRequest[]>([]);
-    const [isLoadingLinkRequests, setIsLoadingLinkRequests] = useState(true);
-    const { pendingWeaves, isLoading: isPendingWeavesLoading } = usePendingWeaves();
+    const { pendingWeaves } = usePendingWeaves();
     // Filter strictly for pending status to match widget logic
     const pendingWeaveInvites = useMemo(() => pendingWeaves.filter(w => w.status === 'pending'), [pendingWeaves]);
 
@@ -295,6 +319,54 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const [isLoadingReflection, setIsLoadingReflection] = useState(false);
     const todayKey = format(new Date(), 'yyyy-MM-dd');
     const [currentStreak, setCurrentStreak] = useState<number>(0);
+    const [handledSuggestionIds, setHandledSuggestionIds] = useState<string[]>([]);
+    const [recentHandledSuggestion, setRecentHandledSuggestion] = useState<RecentHandledSuggestion | null>(null);
+    const trackedSuggestionSurfaceFingerprintRef = useRef<string | null>(null);
+    const pendingSuggestionSheetRef = useRef<Suggestion | null>(null);
+    const visibleSuggestions = useMemo(
+        () => oracleSheet.canOpen
+            ? suggestions
+            : suggestions.filter(suggestion => suggestion.action?.type !== 'oracle'),
+        [oracleSheet.canOpen, suggestions]
+    );
+    const surfacedSuggestions = useMemo(
+        () => visibleSuggestions.filter(suggestion => !handledSuggestionIds.includes(suggestion.id)),
+        [handledSuggestionIds, visibleSuggestions]
+    );
+
+    useEffect(() => {
+        const unsubscribe = UIEventBus.subscribe((event) => {
+            if (event.type !== 'SUGGESTION_HANDLED') {
+                return;
+            }
+
+            setHandledSuggestionIds((prev) => (
+                prev.includes(event.suggestionId) ? prev : [...prev, event.suggestionId]
+            ));
+
+            if (event.actionType !== 'plan' || !event.scheduledFor) {
+                return;
+            }
+
+            const scheduledFor = new Date(event.scheduledFor);
+            const daysUntil = differenceInDays(startOfDay(scheduledFor), startOfDay(new Date()));
+            if (daysUntil <= 1) {
+                setRecentHandledSuggestion(null);
+            } else {
+                setRecentHandledSuggestion({
+                    suggestionId: event.suggestionId,
+                    suggestionTitle: event.suggestionTitle,
+                    friendName: event.friendName,
+                    interactionId: event.interactionId,
+                    scheduledFor,
+                });
+            }
+
+            invalidateSuggestions();
+        });
+
+        return unsubscribe;
+    }, [invalidateSuggestions]);
 
     // Load active intentions
     useEffect(() => {
@@ -329,8 +401,6 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 setLinkRequests(pending);
             } catch (e) {
                 console.error('Error loading pending requests:', e);
-            } finally {
-                setIsLoadingLinkRequests(false);
             }
         };
         loadRequests();
@@ -450,21 +520,108 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
             }, 300);
         }
 
-    };
+};
+
+const RecentHandledSuggestionCard: React.FC<{
+    handled: RecentHandledSuggestion;
+    canRequestAnotherSuggestion?: boolean;
+    isRequestingAnotherSuggestion?: boolean;
+    onRequestAnotherSuggestion?: () => void;
+}> = ({
+    handled,
+    canRequestAnotherSuggestion = true,
+    isRequestingAnotherSuggestion = false,
+    onRequestAnotherSuggestion,
+}) => {
+    const { tokens, typography } = useTheme();
+    const scheduledDayLabel = isSameDay(handled.scheduledFor, new Date())
+        ? 'today'
+        : isSameDay(handled.scheduledFor, addDays(new Date(), 1))
+            ? 'tomorrow'
+            : format(handled.scheduledFor, 'EEEE');
+    const hasExplicitTime = handled.scheduledFor.getHours() !== 0 || handled.scheduledFor.getMinutes() !== 0;
+    const scheduledTimeLabel = hasExplicitTime ? format(handled.scheduledFor, 'h:mm a') : null;
+
+    return (
+        <View className="px-4 pb-4">
+            <View
+                style={{
+                    backgroundColor: tokens.backgroundSubtle,
+                    borderRadius: 12,
+                    padding: 16,
+                    gap: 14,
+                    borderWidth: 1,
+                    borderColor: `${tokens.success}22`,
+                }}
+            >
+                <View
+                    style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 14,
+                    }}
+                >
+                <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: `${tokens.success}18`,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <CheckCircle2 size={20} color={tokens.success} />
+                </View>
+
+                <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{
+                        color: tokens.foreground,
+                        fontFamily: typography.fonts.serif,
+                        fontSize: 16,
+                        textAlign: 'left'
+                    }}>
+                        Planned ahead
+                    </Text>
+                    <Text style={{
+                        color: tokens.foregroundMuted,
+                        fontFamily: typography.fonts.sans,
+                        fontSize: 13,
+                        textAlign: 'left',
+                        lineHeight: 18,
+                    }}>
+                        {handled.friendName
+                            ? `${handled.friendName} is scheduled for ${scheduledDayLabel}${scheduledTimeLabel ? ` at ${scheduledTimeLabel}` : ''}.`
+                            : `Scheduled for ${scheduledDayLabel}${scheduledTimeLabel ? ` at ${scheduledTimeLabel}` : ''}.`}
+                    </Text>
+                </View>
+                </View>
+
+                {onRequestAnotherSuggestion && canRequestAnotherSuggestion ? (
+                    <View style={{ alignItems: 'flex-start' }}>
+                        <Button
+                            label="Show another idea"
+                            variant="secondary"
+                            size="sm"
+                            loading={isRequestingAnotherSuggestion}
+                            onPress={onRequestAnotherSuggestion}
+                            className="px-3 min-h-[34px] py-1"
+                        />
+                    </View>
+                ) : null}
+            </View>
+        </View>
+    );
+};
 
     const handleReviewPlan = (id?: string) => {
         openPostWeaveRating(id); // Pass ID if available, otherwise opens queue
     };
 
     const handleIntentionPress = (intention: Intention, friend: FriendModel) => {
-        // Navigate to weave logger to plan an interaction with this friend
-        router.push({
-            pathname: '/weave-logger',
-            params: {
-                friendId: friend.id,
-                initialCategory: intention.interactionCategory || undefined,
-                mode: 'plan',
-                intentionId: intention.id,
+        openPlanWizard({
+            friendId: friend.id,
+            prefillData: {
+                category: intention.interactionCategory || undefined,
+                title: intention.description || undefined,
             }
         });
     };
@@ -507,33 +664,34 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         }
 
         // Show choice sheet for all friend-related suggestions
-        // Close the detail sheet first to avoid modal stacking issues
+        // Queue the sheet open until the detail sheet has fully finished closing.
+        pendingSuggestionSheetRef.current = suggestion;
         setShowDetailSheet(false);
-
-        // Wait for sheet to close before showing action sheet
-        setTimeout(() => {
-            setSelectedSuggestion(suggestion);
-        }, 500);
     };
 
     const handlePlanSuggestion = (suggestion: Suggestion, friend: FriendModel) => {
         const interactionCategory = resolveSuggestionInteractionCategory(suggestion, 'hangout');
 
-        // Navigate to weave logger (Plan mode)
-        router.push({
-            pathname: '/weave-logger',
-            params: {
+        openPlanWizard({
+            friendId: friend.id,
+            prefillData: {
+                category: interactionCategory,
+            },
+            sourceSuggestion: {
+                suggestionId: suggestion.id,
+                suggestionTitle: suggestion.title,
                 friendId: friend.id,
-                initialCategory: interactionCategory,
-                mode: 'plan'
-            }
+                friendName: friend.name,
+                actionType: suggestion.action?.type,
+            },
         });
 
         // ANALYTICS: Track acceptance
         SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
     };
 
-    const handleLifeEventSuggestion = (suggestion: Suggestion, friend: FriendModel) => {
+    const handleLifeEventSuggestion = async (suggestion: Suggestion, friend: FriendModel) => {
+        await SuggestionTrackerService.trackSuggestionActed(suggestion.id).catch(console.error);
         trackEvent(AnalyticsEvents.MEMORY_LIFE_EVENT_SUGGESTION_ACTED, {
             suggestion_id: suggestion.id,
             friend_id: friend.id,
@@ -558,7 +716,8 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
     };
 
-    const handleReachOutSuccess = (suggestion: Suggestion) => {
+    const handleReachOutSuccess = async (suggestion: Suggestion) => {
+        await SuggestionTrackerService.trackSuggestionActed(suggestion.id).catch(console.error);
         // ANALYTICS: Track acceptance
         SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
     };
@@ -647,7 +806,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const hasCompleted = todaysCompleted.length > 0;
     const hasTomorrow = tomorrowsPlans.length > 0;
     const hasReviews = false; // Disabled in condensed widget
-    const hasSuggestions = visibleSuggestions.length > 0;
+    const hasSuggestions = surfacedSuggestions.length > 0;
     const hasUpcomingDates = upcomingDates.length > 0;
     const hasIntentions = intentions.length > 0;
     const hasLinkRequests = linkRequests.length > 0;
@@ -656,12 +815,33 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
 
     const hasNoCalendarEvents = !hasUpcoming && !hasCompleted && !hasTomorrow && !hasPendingActions;
     const isAllClear = hasNoCalendarEvents && !hasSuggestions && !hasUpcomingDates && !hasIntentions;
+    // Only block first paint on core local observables.
+    // Suggestions and pending-action fetches can hydrate progressively without
+    // blanking the whole widget behind a spinner.
     const isWidgetLoading =
         isFriendsLoading ||
-        isInteractionsLoading ||
-        isSuggestionsLoading ||
-        isPendingWeavesLoading ||
-        isLoadingLinkRequests;
+        isInteractionsLoading;
+
+    const focusSuggestionSurfaceFingerprint = useMemo(
+        () => buildFocusSuggestionSurfaceFingerprint({
+            suggestions: surfacedSuggestions,
+            selectorSuggestions,
+            surfaceSource,
+            selectionReason,
+            selectorOpportunitySource,
+            hasIntentions,
+            hasUpcomingDates,
+        }),
+        [
+            surfacedSuggestions,
+            selectorSuggestions,
+            surfaceSource,
+            selectionReason,
+            selectorOpportunitySource,
+            hasIntentions,
+            hasUpcomingDates,
+        ]
+    );
 
     // Load daily reflection when there are no calendar events
     useEffect(() => {
@@ -711,6 +891,150 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         loadReflection();
     }, [hasNoCalendarEvents, intelligenceCapabilities.oracleChatEnabled, todayKey]);
 
+    useEffect(() => {
+        if (!showDetailSheet) {
+            trackedSuggestionSurfaceFingerprintRef.current = null;
+            trackedQuietDecisionFingerprintRef.current = null;
+            return;
+        }
+
+        if (surfacedSuggestions.length === 0) {
+            return;
+        }
+
+        if (trackedSuggestionSurfaceFingerprintRef.current === focusSuggestionSurfaceFingerprint) {
+            return;
+        }
+
+        trackEvent(
+            AnalyticsEvents.FOCUS_SUGGESTIONS_SURFACED,
+            buildFocusSuggestionSurfacePayload({
+                suggestions: surfacedSuggestions,
+                selectorSuggestions,
+                surfaceSource,
+                selectionReason,
+                selectorOpportunitySource,
+                hasIntentions,
+                hasUpcomingDates,
+            })
+        );
+        void SeasonAnalyticsService.trackSuggestionsShown(surfacedSuggestions.length).catch(console.error);
+        void Promise.all(
+            surfacedSuggestions
+                .filter(suggestion => suggestion.friendId && suggestion.trackingContext)
+                .map(suggestion =>
+                    SuggestionTrackerService.trackSuggestionShown(
+                        suggestion,
+                        suggestion.trackingContext!,
+                        {
+                            compositeScore: selectorSuggestionMetadata?.[suggestion.id]?.compositeScore,
+                            scoreBreakdown: selectorSuggestionMetadata?.[suggestion.id]?.scoreBreakdown,
+                            surfaceSource,
+                            selectionReason,
+                            surfaceSlot: selectorSuggestionMetadata?.[suggestion.id]?.surfaceSlot,
+                            opportunitySource: selectorOpportunitySource,
+                            surfaceRequestKind,
+                        }
+                    )
+                )
+        ).catch(console.error);
+        void recordRecentlySurfacedFocusSuggestions(surfacedSuggestions).catch(console.error);
+        trackedSuggestionSurfaceFingerprintRef.current = focusSuggestionSurfaceFingerprint;
+    }, [
+        showDetailSheet,
+        surfacedSuggestions,
+        selectorSuggestions,
+        surfaceSource,
+        selectionReason,
+        selectorOpportunitySource,
+        selectorSuggestionMetadata,
+        hasIntentions,
+        hasUpcomingDates,
+        focusSuggestionSurfaceFingerprint,
+        surfaceRequestKind,
+    ]);
+
+    const focusQuietDecisionFingerprint = useMemo(
+        () => JSON.stringify({
+            showDetailSheet,
+            surfaceSource,
+            selectionReason,
+            quietReason,
+            surfaceRequestKind,
+            season: pacing?.season,
+            suggestionFrequency: pacing?.suggestionFrequency,
+            dailyFreshBudget: pacing?.dailyFreshBudget,
+            budgetRemaining: pacing?.budgetRemaining,
+            adaptiveBudgetAdjustment: pacing?.adaptiveBudgetAdjustment,
+            adaptiveReplacementDelayMinutes: pacing?.adaptiveReplacementDelayMinutes,
+            adaptiveReasons: pacing?.adaptiveReasons,
+            surfacedPrimaryToday: pacing?.surfacedPrimaryToday,
+            actedToday: pacing?.actedToday,
+        }),
+        [
+            showDetailSheet,
+            surfaceSource,
+            selectionReason,
+            quietReason,
+            surfaceRequestKind,
+            pacing?.season,
+            pacing?.suggestionFrequency,
+            pacing?.dailyFreshBudget,
+            pacing?.budgetRemaining,
+            pacing?.adaptiveBudgetAdjustment,
+            pacing?.adaptiveReplacementDelayMinutes,
+            pacing?.adaptiveReasons,
+            pacing?.surfacedPrimaryToday,
+            pacing?.actedToday,
+        ]
+    );
+
+    useEffect(() => {
+        if (!showDetailSheet || surfaceSource !== 'selector' || surfacedSuggestions.length > 0 || !quietReason) {
+            return;
+        }
+
+        if (trackedQuietDecisionFingerprintRef.current === focusQuietDecisionFingerprint) {
+            return;
+        }
+
+        void SuggestionTrackerService.trackSelectorQuietDisplayed({
+            quietReason,
+            selectionReason,
+            surfaceRequestKind,
+            pacingSnapshot: pacing
+                ? {
+                    season: pacing.season,
+                    suggestionFrequency: pacing.suggestionFrequency,
+                    batteryLevel: pacing.batteryLevel,
+                    dailyFreshBudget: pacing.dailyFreshBudget,
+                    budgetRemaining: pacing.budgetRemaining,
+                    replacementDelayMinutes: pacing.replacementDelayMinutes,
+                    adaptiveBudgetAdjustment: pacing.adaptiveBudgetAdjustment,
+                    adaptiveReplacementDelayMinutes: pacing.adaptiveReplacementDelayMinutes,
+                    adaptiveReasons: pacing.adaptiveReasons,
+                    surfacedPrimaryToday: pacing.surfacedPrimaryToday,
+                    actedToday: pacing.actedToday,
+                    lastActedAt: pacing.lastActedAt,
+                    allowAutoSuggestions: pacing.allowAutoSuggestions,
+                    allowManualMore: pacing.allowManualMore,
+                    quietReason: pacing.quietReason,
+                }
+                : undefined,
+        }).catch(console.error);
+
+        trackedQuietDecisionFingerprintRef.current = focusQuietDecisionFingerprint;
+    }, [
+        showDetailSheet,
+        surfaceSource,
+        surfacedSuggestions,
+        quietReason,
+        selectionReason,
+        surfaceRequestKind,
+        pacing,
+        focusQuietDecisionFingerprint,
+    ]);
+
     const handleReflectSuggestion = (suggestion: Suggestion, friend: FriendModel) => {
         const interactionCategory = resolveSuggestionInteractionCategory(suggestion, 'deep-talk');
         showMicroReflectionSheet({
@@ -726,6 +1050,12 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
     };
 
+    const handleRequestAnotherSuggestion = async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+        await requestAnotherSuggestion();
+        setShowDetailSheet(true);
+    };
+
     return (
         <>
             <HomeWidgetBase config={WIDGET_CONFIG} padding="none" isLoading={isWidgetLoading}>
@@ -735,8 +1065,8 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                         icon={<Calendar size={20} color={tokens.primary} />}
                         subtitle={todaysUpcoming.length > 0
                             ? `${todaysUpcoming.length} upcoming · ${tomorrowsPlans.length} tomorrow`
-                            : visibleSuggestions.length > 0
-                                ? `${visibleSuggestions.length} suggestions · ${intentions.length} intentions`
+                            : surfacedSuggestions.length > 0
+                                ? `${surfacedSuggestions.length} suggestions · ${intentions.length} intentions`
                                 : "No commitments today"}
                         trailing={currentStreak > 0 ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: tokens.backgroundSubtle, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
@@ -891,6 +1221,15 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                     </View>
                 )}
 
+                {recentHandledSuggestion && (
+                    <RecentHandledSuggestionCard
+                        handled={recentHandledSuggestion}
+                        canRequestAnotherSuggestion={canRequestAnotherSuggestion}
+                        isRequestingAnotherSuggestion={isRequestingAnotherSuggestion}
+                        onRequestAnotherSuggestion={handleRequestAnotherSuggestion}
+                    />
+                )}
+
                 {/* Show Oracle reflection when no calendar events, or "all caught up" if truly empty */}
                 {/* Show Oracle reflection when no calendar events, regardless of suggestions */}
                 {hasNoCalendarEvents ? (
@@ -941,10 +1280,21 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
             <FocusDetailSheet
                 isVisible={showDetailSheet}
                 onClose={() => setShowDetailSheet(false)}
+                onCloseComplete={() => {
+                    if (pendingSuggestionSheetRef.current) {
+                        setSelectedSuggestion(pendingSuggestionSheetRef.current);
+                        pendingSuggestionSheetRef.current = null;
+                    }
+                }}
                 upcomingPlans={todaysUpcoming}
                 tomorrowPlans={tomorrowsPlans}
                 completedPlans={todaysCompleted}
-                suggestions={visibleSuggestions}
+                suggestions={surfacedSuggestions}
+                suggestionSurfaceSource={surfaceSource}
+                suggestionQuietReason={quietReason}
+                suggestionPacing={pacing}
+                suggestionCanRequestMore={canRequestAnotherSuggestion}
+                suggestionIsRequestingMore={isRequestingAnotherSuggestion}
                 intentions={intentions}
                 upcomingDates={upcomingDates}
                 friends={friends}
@@ -952,6 +1302,8 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 onDeepenPlan={handleDeepenWeave}
                 onReschedulePlan={handleReschedulePlan}
                 onSuggestionAction={handleSuggestionAction}
+                onSuggestionDismiss={handleSuggestionDismiss}
+                onRequestAnotherSuggestion={handleRequestAnotherSuggestion}
                 onIntentionPress={handleIntentionPress}
                 onOpenActivityInbox={handleOpenActivityInbox}
                 linkRequests={linkRequests}

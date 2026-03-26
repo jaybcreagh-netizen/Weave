@@ -4,7 +4,7 @@ import Interaction from '@/db/models/Interaction';
 import LifeEvent from '@/db/models/LifeEvent';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
-import { fetchSuggestions } from '@/modules/interactions/services/suggestion-provider.service';
+import { fetchSuggestions } from '@/modules/interactions/services/SuggestionFacade';
 import type { SocialSeason } from '@/db/models/UserProfile';
 import { differenceInDays, isSameDay, startOfDay } from 'date-fns';
 import { HOLIDAYS, DYNAMIC_DATE_CALCULATORS, Holiday } from './calendar-season/holidays';
@@ -208,7 +208,10 @@ export const FocusGenerator = {
      * Get suggestions with optional season-aware filtering
      */
     async getSuggestions(limit: number = 10, season?: SocialSeason | null): Promise<Suggestion[]> {
-        const suggestions = await fetchSuggestions(limit, season);
+        const suggestions = await fetchSuggestions(Math.min(limit, 2), season, undefined, {
+            forceSelector: true,
+            trackAnalytics: false,
+        });
         return this.enrichWithContext(suggestions);
     },
 

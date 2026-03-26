@@ -4,12 +4,12 @@ import Logger from '@/shared/utils/Logger';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import FriendMemory from '@/db/models/FriendMemory';
-import LifeEvent from '@/db/models/LifeEvent';
 import SuggestionEvent from '@/db/models/SuggestionEvent';
+import UserProfile from '@/db/models/UserProfile';
 import { generateSuggestion } from './suggestion-engine';
 import { generateGuaranteedSuggestions } from './guaranteed-suggestions.service';
 import * as SuggestionStorageService from './suggestion-storage.service';
-import { Suggestion, InteractionCategory } from '@/shared/types/common';
+import { Suggestion, InteractionCategory, type Tier } from '@/shared/types/common';
 import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import {
     filterSuggestionsBySeason,
@@ -19,8 +19,6 @@ import { SeasonAnalyticsService } from '@/modules/intelligence/services/social-s
 import type { SocialSeason } from '@/db/models/UserProfile';
 import { filterSuggestionsByTime } from '@/shared/utils/time-aware-filter';
 import {
-    generatePortfolioInsights,
-    analyzeArchetypeBalance,
     type PortfolioAnalysisStats,
 } from '@/modules/insights/services/portfolio.service';
 import { generateProactiveSuggestions } from '@/modules/insights/services/prediction.service';
@@ -35,30 +33,165 @@ import { selectDiverseSuggestions } from './suggestion-system/SuggestionDiversif
 import { TriageGenerator } from './suggestion-engine/generators/TriageGenerator';
 import { WeeklyReflectionGenerator } from './suggestion-engine/generators/WeeklyReflectionGenerator';
 import { SignalDrivenGenerator } from './suggestion-engine/generators/SignalDrivenGenerator';
+import { buildProactiveSuggestion } from './suggestion-engine/generators/proactive.shared';
 import {
-    archiveExpiredFriendMemories,
-    buildLifeEventPrefillFromMemory,
-} from '@/modules/relationships/services/memory-life-event.service';
+    buildPortfolioAnalysis,
+    buildPortfolioSuggestion,
+} from './suggestion-engine/generators/portfolio.shared';
+import { generateMemoryLifeEventOpportunities } from './suggestion-engine/generators/memory-life-event.shared';
+import {
+    evaluateLegacySuggestionShadow,
+    type LegacySuggestionShadowResult,
+} from './opportunity-system/LegacySuggestionShadowService';
+import { resolvePreferredSuggestionWindows } from './opportunity-system/personal-timing';
+import {
+    isFocusSelectorEnabled,
+    isOpportunityPoolEnabled,
+    isOpportunitySystemShadowModeEnabled,
+} from './opportunity-system/flags';
+import { resolveSelectorOpportunities } from './opportunity-system/OpportunitySynthesisService';
+import { SelectorTuningService } from './opportunity-system/SelectorTuningService';
+import {
+    SelectorExperimentService,
+    applySelectorExperimentToOptions,
+} from './opportunity-system/SelectorExperimentService';
+import { OpportunityPremiumCopyService } from './opportunity-system/OpportunityPremiumCopyService';
+import {
+    SuggestionPacingService,
+    type SuggestionPacingState,
+    type SuggestionQuietReason,
+} from './opportunity-system/SuggestionPacingService';
+import type {
+    SelectionResult,
+    SelectorSurfaceRequestKind,
+} from './opportunity-system/types';
+import type { SelectorSignals } from './opportunity-system/scoring/score-types';
+import { opportunityToSuggestion } from './opportunity-system/OpportunityAdapter';
+import { getOptionalQueryCollection } from '@/shared/utils/optional-query-collection';
 
-/**
- * Maps proactive suggestion types to appropriate icons
- */
-function getProactiveIcon(type: string): string {
-    const icons: Record<string, string> = {
-        'upcoming-drift': 'TrendingDown',
-        'optimal-timing': 'Clock',
-        'pattern-break': 'AlertCircle',
-        'momentum-opportunity': 'Zap',
-        'reciprocity-imbalance': 'Scale',
-        'best-day-scheduling': 'Calendar',
+export interface SuggestionFetchResult {
+    suggestions: Suggestion[];
+    selectorSuggestions: Suggestion[];
+    surfaceSource: 'legacy-list' | 'selector';
+    selectionReason?: SelectionResult['reason'];
+    selectorOpportunitySource?: 'synthesized' | 'pool';
+    selectorSuggestionMetadata?: Record<string, SelectorSuggestionMetadata>;
+    pacing?: SuggestionPacingState;
+    quietReason?: SuggestionQuietReason;
+    surfaceRequestKind?: SelectorSurfaceRequestKind;
+}
+
+export interface SelectorSuggestionMetadata {
+    compositeScore: number;
+    scoreBreakdown: Record<string, number>;
+    surfaceSlot: 'primary' | 'secondary';
+}
+
+export interface SuggestionSurfaceOptions {
+    forceSelector?: boolean;
+    trackAnalytics?: boolean;
+    respectPacing?: boolean;
+    manualPull?: boolean;
+}
+
+function buildSelectorSuggestionMetadata(
+    shadow: LegacySuggestionShadowResult
+): Record<string, SelectorSuggestionMetadata> {
+    const metadata: Record<string, SelectorSuggestionMetadata> = {};
+    const slots: Array<['primary' | 'secondary', Suggestion | null, typeof shadow.evaluation.selection.primary]> = [
+        ['primary', shadow.selectedSuggestions.primary, shadow.evaluation.selection.primary],
+        ['secondary', shadow.selectedSuggestions.secondary, shadow.evaluation.selection.secondary],
+    ];
+
+    for (const [surfaceSlot, suggestion, scoredOpportunity] of slots) {
+        if (!suggestion || !scoredOpportunity) {
+            continue;
+        }
+
+        metadata[suggestion.id] = {
+            compositeScore: scoredOpportunity.totalScore,
+            scoreBreakdown: { ...scoredOpportunity.scoreBreakdown },
+            surfaceSlot,
+        };
+    }
+
+    return metadata;
+}
+
+async function maybeApplyPremiumSelectorCopy(
+    shadow: LegacySuggestionShadowResult,
+    selectorSuggestions: Suggestion[],
+    copyVariant?: 'control' | 'concise' | 'why-now' | 'premium'
+): Promise<Suggestion[]> {
+    if (copyVariant !== 'premium' || selectorSuggestions.length === 0) {
+        return selectorSuggestions;
+    }
+
+    const premiumInputs = [
+        {
+            opportunity: shadow.evaluation.selection.primary,
+            suggestion: shadow.selectedSuggestions.primary,
+        },
+        {
+            opportunity: shadow.evaluation.selection.secondary,
+            suggestion: shadow.selectedSuggestions.secondary,
+        },
+    ].filter((
+        entry
+    ): entry is {
+        opportunity: NonNullable<typeof shadow.evaluation.selection.primary>;
+        suggestion: Suggestion;
+    } => !!entry.opportunity && !!entry.suggestion);
+
+    if (premiumInputs.length === 0) {
+        return selectorSuggestions;
+    }
+
+    const premiumSuggestions = await OpportunityPremiumCopyService.enhanceSuggestions(
+        premiumInputs
+    );
+    const premiumById = new Map(premiumSuggestions.map(suggestion => [suggestion.id, suggestion]));
+
+    return selectorSuggestions.map(suggestion => premiumById.get(suggestion.id) || suggestion);
+}
+
+function doesSuggestionBypassAutomaticPacing(suggestion?: Suggestion | null): boolean {
+    if (!suggestion) {
+        return false;
+    }
+
+    return suggestion.urgency === 'critical'
+        || suggestion.category === 'life-event'
+        || suggestion.category === 'critical-drift';
+}
+
+async function loadSelectorSignalOverrides(_now: Date = new Date()): Promise<Partial<SelectorSignals>> {
+    const userProfileCollection = getOptionalQueryCollection<UserProfile>('user_profile');
+    if (!userProfileCollection) {
+        return {};
+    }
+
+    const profiles = await userProfileCollection.query().fetch();
+    const profile = profiles[0];
+
+    if (!profile) {
+        return {};
+    }
+
+    const batteryPercent = typeof profile.socialBatteryCurrent === 'number'
+        ? Math.max(0, Math.min(100, ((profile.socialBatteryCurrent - 1) / 4) * 100))
+        : undefined;
+
+    return {
+        calendarPermissionGranted: profile.calendarPermissionGranted ?? false,
+        batteryPercent,
+        preferredWindows: resolvePreferredSuggestionWindows(profile),
     };
-    return icons[type] || 'Sparkles';
 }
 
 const ADAPTIVE_WINDOW_DAYS = 30;
 const FRIEND_SUPPRESSION_DISMISSAL_THRESHOLD = 3;
 const TYPE_PENALTY_DISMISSAL_THRESHOLD = 3;
-const LIFE_EVENT_DATE_DUPLICATE_WINDOW_DAYS = 14;
 
 type SuggestionUrgency = NonNullable<Suggestion['urgency']>;
 
@@ -121,38 +254,28 @@ function appendSubtitle(base: string, addition: string): string {
     return combined.length > 180 ? `${combined.slice(0, 177)}...` : combined;
 }
 
-function normalizeText(value: string): string {
-    return value
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-function tokenSimilarity(a: string, b: string): number {
-    const aTokens = new Set(normalizeText(a).split(' ').filter(Boolean));
-    const bTokens = new Set(normalizeText(b).split(' ').filter(Boolean));
-    if (aTokens.size === 0 || bTokens.size === 0) return 0;
-
-    let overlap = 0;
-    aTokens.forEach(token => {
-        if (bTokens.has(token)) overlap += 1;
-    });
-
-    return overlap / Math.max(aTokens.size, bTokens.size);
-}
-
 export async function loadFriendMemoryProfiles(friendIds: string[]): Promise<Map<string, FriendMemoryProfile>> {
     const profiles = new Map<string, FriendMemoryProfile>();
     if (friendIds.length === 0) return profiles;
 
-    const memories = await database.get<FriendMemory>('friend_memories')
-        .query(
-            Q.where('friend_id', Q.oneOf(friendIds)),
-            Q.where('is_archived', false),
-            Q.sortBy('updated_at', Q.desc)
-        )
-        .fetch();
+    let memories: FriendMemory[] = [];
+    try {
+        const collection = getOptionalQueryCollection<FriendMemory>('friend_memories');
+        if (!collection) {
+            return profiles;
+        }
+
+        memories = await collection
+            .query(
+                Q.where('friend_id', Q.oneOf(friendIds)),
+                Q.where('is_archived', false),
+                Q.sortBy('updated_at', Q.desc)
+            )
+            .fetch();
+    } catch (error) {
+        Logger.warn('[Suggestions] Friend memory profiles unavailable, continuing without memory context', error);
+        return profiles;
+    }
 
     for (const memory of memories) {
         const profile = profiles.get(memory.friendId) || {
@@ -242,167 +365,6 @@ export function applyMemoryAwareScoring(
     });
 }
 
-function getLifeEventUrgency(eventDate?: string): SuggestionUrgency {
-    if (!eventDate) return 'medium';
-    const parsed = new Date(eventDate);
-    if (Number.isNaN(parsed.getTime())) return 'medium';
-
-    const daysUntil = Math.floor((parsed.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    if (daysUntil <= 1) return 'high';
-    if (daysUntil <= 10) return 'medium';
-    return 'low';
-}
-
-function buildLifeEventPrompt(friendName: string, prefill: ReturnType<typeof buildLifeEventPrefillFromMemory>): string {
-    if (!prefill) return `Help me add a life event for ${friendName}.`;
-    const parts = [
-        `Help me add a life event for ${friendName}.`,
-        prefill.title ? `Title: ${prefill.title}.` : '',
-        prefill.notes ? `Notes: ${prefill.notes}.` : '',
-        prefill.eventDate ? `Date: ${prefill.eventDate}.` : '',
-    ].filter(Boolean);
-    return parts.join(' ');
-}
-
-async function generateMemoryLifeEventSuggestions(friends: FriendModel[]): Promise<Suggestion[]> {
-    if (!friends.length) return [];
-
-    const friendIds = friends.map(friend => friend.id);
-    const friendLookup = new Map(friends.map(friend => [friend.id, friend]));
-    const [memories, existingLifeEvents] = await Promise.all([
-        database.get<FriendMemory>('friend_memories')
-            .query(
-                Q.where('friend_id', Q.oneOf(friendIds)),
-                Q.where('is_archived', false),
-                Q.where('type', Q.oneOf(['upcoming', 'milestone'])),
-                Q.sortBy('updated_at', Q.desc),
-            )
-            .fetch(),
-        database.get<LifeEvent>('life_events')
-            .query(
-                Q.where('friend_id', Q.oneOf(friendIds)),
-                Q.sortBy('event_date', Q.desc),
-                Q.take(400),
-            )
-            .fetch(),
-    ]);
-
-    const existingLifeEventsByFriend = new Map<string, LifeEvent[]>();
-    existingLifeEvents.forEach(event => {
-        const friendEvents = existingLifeEventsByFriend.get(event.friendId) || [];
-        friendEvents.push(event);
-        existingLifeEventsByFriend.set(event.friendId, friendEvents);
-    });
-
-    const suggestions: Suggestion[] = [];
-    const seenFriendIds = new Set<string>();
-
-    for (const memory of memories) {
-        if (seenFriendIds.has(memory.friendId)) continue;
-
-        const friend = friendLookup.get(memory.friendId);
-        if (!friend) continue;
-
-        const prefill = buildLifeEventPrefillFromMemory({
-            type: memory.type,
-            title: memory.title,
-            content: memory.content,
-            effectiveDate: memory.effectiveDate,
-        });
-        if (!prefill) continue;
-
-        const candidateDateMs = prefill.eventDate ? new Date(prefill.eventDate).getTime() : NaN;
-        const friendLifeEvents = existingLifeEventsByFriend.get(memory.friendId) || [];
-        const duplicateLifeEvent = friendLifeEvents.find(existing => {
-            const typeMatch = !prefill.eventType || existing.eventType === prefill.eventType;
-            if (!typeMatch) return false;
-
-            const titleSimilarity = tokenSimilarity(existing.title || '', prefill.title || memory.title || '');
-            const notesSimilarity = tokenSimilarity(existing.notes || '', prefill.notes || memory.content || '');
-
-            if (!Number.isNaN(candidateDateMs)) {
-                const existingDateMs = existing.eventDate?.getTime?.() || NaN;
-                if (!Number.isNaN(existingDateMs)) {
-                    const deltaDays = Math.abs(existingDateMs - candidateDateMs) / (1000 * 60 * 60 * 24);
-                    if (deltaDays <= LIFE_EVENT_DATE_DUPLICATE_WINDOW_DAYS && (titleSimilarity >= 0.55 || notesSimilarity >= 0.62)) {
-                        return true;
-                    }
-                }
-            }
-
-            return titleSimilarity >= 0.82 || (titleSimilarity >= 0.55 && notesSimilarity >= 0.7);
-        });
-        if (duplicateLifeEvent) {
-            suggestions.push({
-                id: `memory-life-event-review-${memory.id}-${duplicateLifeEvent.id}`,
-                type: 'celebrate',
-                friendId: friend.id,
-                friendName: friend.name,
-                title: `Review ${friend.name}'s life event`,
-                subtitle: `You already logged "${duplicateLifeEvent.title}". Update it if this note adds new details.`,
-                icon: 'ClipboardCheck',
-                category: 'life-event',
-                urgency: getLifeEventUrgency(
-                    duplicateLifeEvent.eventDate ? duplicateLifeEvent.eventDate.toISOString() : undefined,
-                ),
-                actionLabel: 'Review Life Event',
-                action: {
-                    type: 'life-event',
-                    prefillPrompt: `Review the life event for ${friend.name} and update anything that changed.`,
-                    lifeEventId: duplicateLifeEvent.id,
-                    lifeEventType: duplicateLifeEvent.eventType,
-                    lifeEventTitle: duplicateLifeEvent.title,
-                    lifeEventNotes: duplicateLifeEvent.notes || prefill.notes,
-                    lifeEventDate: duplicateLifeEvent.eventDate
-                        ? duplicateLifeEvent.eventDate.toISOString()
-                        : prefill.eventDate,
-                },
-                dismissible: true,
-                createdAt: new Date(),
-            });
-
-            seenFriendIds.add(friend.id);
-            if (suggestions.length >= 2) break;
-            continue;
-        }
-
-        const dateLabel = prefill.eventDate
-            ? new Date(prefill.eventDate).toLocaleDateString()
-            : null;
-        const subtitle = dateLabel
-            ? `You noted "${memory.title}" for ${dateLabel}. Save it as a life event so it stays visible.`
-            : `You noted "${memory.title}". Save it as a life event so it stays visible.`;
-
-        suggestions.push({
-            id: `memory-life-event-${memory.id}`,
-            type: 'celebrate',
-            friendId: friend.id,
-            friendName: friend.name,
-            title: `Capture a milestone for ${friend.name}`,
-            subtitle,
-            icon: 'Gift',
-            category: 'life-event',
-            urgency: getLifeEventUrgency(prefill.eventDate),
-            actionLabel: 'Add Life Event',
-            action: {
-                type: 'life-event',
-                prefillPrompt: buildLifeEventPrompt(friend.name, prefill),
-                lifeEventType: prefill.eventType,
-                lifeEventTitle: prefill.title,
-                lifeEventNotes: prefill.notes,
-                lifeEventDate: prefill.eventDate,
-            },
-            dismissible: true,
-            createdAt: new Date(),
-        });
-
-        seenFriendIds.add(friend.id);
-        if (suggestions.length >= 2) break;
-    }
-
-    return suggestions;
-}
-
 function getSuggestionTypeKey(suggestion: Suggestion): string {
     return suggestion.category || suggestion.type || 'Connection';
 }
@@ -415,9 +377,15 @@ function getTypePenaltySteps(count: number): number {
 
 async function buildDismissalLearningProfile(): Promise<DismissalLearningProfile> {
     const windowStart = Date.now() - ADAPTIVE_WINDOW_DAYS * 86400000;
+    const eventsCollection = getOptionalQueryCollection<SuggestionEvent>('suggestion_events');
+    if (!eventsCollection) {
+        return {
+            suppressedFriendIds: new Set<string>(),
+            typeDismissalCounts: new Map<string, number>(),
+        };
+    }
 
-    const recentDismissals = await database
-        .get<SuggestionEvent>('suggestion_events')
+    const recentDismissals = await eventsCollection
         .query(
             Q.where('event_type', 'dismissed'),
             Q.where('event_timestamp', Q.gte(windowStart)),
@@ -497,12 +465,24 @@ function applyDismissalLearning(
  * @param season - Current social season for season-aware filtering (optional)
  * @returns Filtered, diversified list of suggestions
  */
-export async function fetchSuggestions(
+export async function fetchSuggestionSurface(
     limit: number = 3,
     season?: SocialSeason | null,
-    userCap?: number
-): Promise<Suggestion[]> {
+    userCap?: number,
+    options: SuggestionSurfaceOptions = {}
+): Promise<SuggestionFetchResult> {
     try {
+        const forceSelector = options.forceSelector === true;
+        const trackAnalytics = options.trackAnalytics === true;
+        const respectPacing = options.respectPacing !== false;
+        const manualPull = options.manualPull === true;
+        const shadowModeEnabled = isOpportunitySystemShadowModeEnabled();
+        const focusSelectorEnabled = forceSelector || isFocusSelectorEnabled();
+        const opportunityPoolEnabled = isOpportunityPoolEnabled();
+        const selectorNow = new Date();
+        let pacing: SuggestionPacingState | undefined;
+        let quietReason: SuggestionQuietReason | undefined;
+        const surfaceRequestKind: SelectorSurfaceRequestKind = manualPull ? 'manual_pull' : 'automatic';
 
 
         // 1. Candidate Selection: Identify WHO needs suggestions (limit to Top 50 candidates)
@@ -514,11 +494,114 @@ export async function fetchSuggestions(
         // 2. Data Loading: Fetch Context (Friend + Interactions) only for candidates
         const contextMap = await SuggestionDataLoader.loadContextForCandidates(candidateIds);
         const friends = Array.from(contextMap.values()).map(c => c.friend);
-        await archiveExpiredFriendMemories();
+        let selectorSuggestions: Suggestion[] = [];
+        let selectionReason: SuggestionFetchResult['selectionReason'];
+        let surfaceSource: SuggestionFetchResult['surfaceSource'] = 'legacy-list';
+        let selectorOpportunitySource: SuggestionFetchResult['selectorOpportunitySource'];
+        let selectorSuggestionMetadata: SuggestionFetchResult['selectorSuggestionMetadata'];
+        const needsSelectorSignals = focusSelectorEnabled || shadowModeEnabled;
+        const selectorSignalOverrides = needsSelectorSignals
+            ? await loadSelectorSignalOverrides(selectorNow)
+            : {};
+        const selectorExperimentConfig = needsSelectorSignals
+            ? await SelectorExperimentService.getConfig()
+            : undefined;
+        const selectorOptions = needsSelectorSignals
+            ? applySelectorExperimentToOptions(
+                await SelectorTuningService.getSelectorOptions(selectorNow.getTime()),
+                selectorExperimentConfig
+            )
+            : undefined;
+        if (focusSelectorEnabled && respectPacing) {
+            pacing = await SuggestionPacingService.getAutomaticPacing({
+                now: selectorNow.getTime(),
+                season,
+            });
+            quietReason = pacing.quietReason;
+        }
+
+        if (focusSelectorEnabled && opportunityPoolEnabled) {
+            const resolvedSelectorSet = await resolveSelectorOpportunities({
+                suggestions: [],
+                friendIds: friends.map(friend => friend.id),
+                contextMap,
+                now: selectorNow,
+                preferNative: true,
+            });
+            const shadow = evaluateLegacySuggestionShadow({
+                opportunities: resolvedSelectorSet.opportunities,
+                suggestions: [],
+                contextMap,
+                season,
+                now: selectorNow.getTime(),
+                signalOverrides: selectorSignalOverrides,
+                selectorOptions,
+                adapterOptions: {
+                    copyVariant: selectorExperimentConfig?.copyVariant,
+                },
+            });
+
+            selectorSuggestions = [
+                shadow.selectedSuggestions.primary,
+                shadow.selectedSuggestions.secondary,
+            ].filter((suggestion): suggestion is Suggestion => !!suggestion);
+            selectorSuggestions = await maybeApplyPremiumSelectorCopy(
+                shadow,
+                selectorSuggestions,
+                selectorExperimentConfig?.copyVariant
+            );
+            selectionReason = shadow.selectedSuggestions.reason;
+            surfaceSource = 'selector';
+            selectorOpportunitySource = resolvedSelectorSet.source;
+            selectorSuggestionMetadata = buildSelectorSuggestionMetadata(shadow);
+
+            const primarySuggestion = selectorSuggestions[0];
+            if (
+                pacing
+                && !manualPull
+                && selectorSuggestions.length > 0
+                && !doesSuggestionBypassAutomaticPacing(primarySuggestion)
+                && !pacing.allowAutoSuggestions
+            ) {
+                selectorSuggestions = [];
+                selectionReason = 'empty';
+                selectorSuggestionMetadata = undefined;
+            }
+
+            if (shadowModeEnabled) {
+                Logger.info('[OpportunityShadow] Native selector surface evaluation', {
+                    candidateCount: resolvedSelectorSet.opportunities.length,
+                    legacyCandidateCount: 0,
+                    legacyTopIds: [],
+                    selectorTopIds: selectorSuggestions.map(suggestion => suggestion.id),
+                    selectorReason: shadow.selectedSuggestions.reason,
+                    selectorOpportunitySource: resolvedSelectorSet.source,
+                    suppressedCount: shadow.evaluation.suppressed.filter(result => result.reasons.length > 0).length,
+                    focusSelectorEnabled,
+                    opportunityPoolEnabled,
+                });
+            }
+
+            if (trackAnalytics && selectorSuggestions.length > 0) {
+                SeasonAnalyticsService.trackSuggestionsShown(selectorSuggestions.length).catch(e => {
+                    Logger.error('[Analytics] Failed to track suggestions shown', e);
+                });
+            }
+
+            return {
+                suggestions: selectorSuggestions,
+                selectorSuggestions,
+                surfaceSource,
+                selectionReason,
+                selectorOpportunitySource,
+                selectorSuggestionMetadata,
+                pacing,
+                quietReason,
+                surfaceRequestKind,
+            };
+        }
+
         const memoryProfiles = await loadFriendMemoryProfiles(friends.map(friend => friend.id));
-
-
-
         const dismissedMap = await SuggestionStorageService.getDismissedSuggestions();
         const dismissalLearningProfile = await buildDismissalLearningProfile();
 
@@ -567,6 +650,15 @@ export async function fetchSuggestions(
                         birthday: friend.birthday,
                         anniversary: friend.anniversary,
                         relationshipType: friend.relationshipType,
+                        initiationRatio: friend.initiationRatio,
+                        consecutiveUserInitiations: friend.consecutiveUserInitiations,
+                        totalUserInitiations: friend.totalUserInitiations,
+                        totalFriendInitiations: friend.totalFriendInitiations,
+                        tierFitScore: friend.tierFitScore,
+                        suggestedTier: friend.suggestedTier,
+                        tierSuggestionDismissedAt: friend.tierSuggestionDismissedAt,
+                        outcomeCount: friend.outcomeCount,
+                        categoryEffectiveness: friend.categoryEffectiveness,
                     } as any,
                     currentScore,
                     lastInteractionDate: context.interactions[0]?.interactionDate, // Data Loader sorts this
@@ -655,34 +747,17 @@ export async function fetchSuggestions(
                     includeSmartScheduling: false,
                 });
 
-                // Calculate tracking context for proactive suggestions
-                const proactiveScore = calculateCurrentScore(friend);
-                const proactiveDaysSince = context?.lastDate
-                    ? Math.round((Date.now() - context.lastDate) / 86400000)
-                    : 999;
-
                 for (const p of proactive) {
                     if (proactiveSuggestions.length >= MAX_PROACTIVE) break;
 
-                    proactiveSuggestions.push({
-                        id: `proactive-${p.type}-${p.friendId}`,
-                        friendId: p.friendId,
-                        friendName: p.friendName,
-                        urgency: p.urgency as 'low' | 'medium' | 'high' | 'critical',
-                        category: p.type === 'reciprocity-imbalance' ? 'insight' : 'maintain',
-                        title: p.title,
-                        subtitle: p.message,
-                        actionLabel: p.type.includes('reciprocity') ? 'Consider' : 'Plan',
-                        icon: getProactiveIcon(p.type),
-                        action: { type: 'plan' as const },
-                        dismissible: true,
-                        createdAt: new Date(),
-                        type: p.type.includes('momentum') ? 'deepen' : 'connect',
-                        trackingContext: {
-                            friendScore: proactiveScore,
-                            daysSinceLastInteraction: proactiveDaysSince,
-                        },
-                    });
+                    proactiveSuggestions.push(buildProactiveSuggestion(p, {
+                        friendId: friend.id,
+                        friendName: friend.name,
+                        friendTier: friend.dunbarTier as any,
+                        currentScore: calculateCurrentScore(friend),
+                        lastInteractionDate: context?.interactions[0]?.interactionDate || null,
+                        now: new Date(),
+                    }));
                 }
             } catch (error) {
                 Logger.error(`Error generating proactive suggestions for friend ${friend.id}`, error);
@@ -703,8 +778,16 @@ export async function fetchSuggestions(
         }
 
         try {
-            const memoryLifeEventSuggestions = await generateMemoryLifeEventSuggestions(friends);
-            allSuggestions.push(...memoryLifeEventSuggestions);
+            const memoryLifeEventOpportunities = await generateMemoryLifeEventOpportunities(
+                friends.map(friend => ({
+                    id: friend.id,
+                    name: friend.name,
+                    dunbarTier: friend.dunbarTier as Tier,
+                }))
+            );
+            allSuggestions.push(
+                ...memoryLifeEventOpportunities.map(opportunity => opportunityToSuggestion(opportunity))
+            );
         } catch (error) {
             Logger.error('[Suggestions] Error generating memory life-event suggestions', error);
         }
@@ -716,38 +799,9 @@ export async function fetchSuggestions(
         }
 
         // 6. Portfolio Insights
-        const uniqueFriendStats = Array.from(new Map(friendStats.map(f => [f.id, f])).values());
-        if (uniqueFriendStats.length >= 3) {
-            // ... (Existing Portfolio Calculation Logic can remain essentially same, but operating on candidates)
-            // Limitation: Portfolio stats are now only drawn from "Candidates", not ALL friends.
-            // This is a trade-off for performance. Ideally Portfolio Analysis should have its own dedicated "Stats Loader" 
-            // that aggregates efficiently without loading models, but for now working on the active set is acceptable 
-            // or we accept it catches drift among the "active/drifting" population we just queried.
-
-            const tierScores = {
-                inner: {
-                    avg: uniqueFriendStats.filter(f => f.tier === 'InnerCircle').reduce((sum, f, _, arr) => sum + f.score / arr.length, 0) || 0,
-                    count: uniqueFriendStats.filter(f => f.tier === 'InnerCircle').length,
-                    drifting: uniqueFriendStats.filter(f => f.tier === 'InnerCircle' && f.score < 50).length,
-                },
-                close: {
-                    avg: uniqueFriendStats.filter(f => f.tier === 'CloseFriends').reduce((sum, f, _, arr) => sum + f.score / arr.length, 0) || 0,
-                    count: uniqueFriendStats.filter(f => f.tier === 'CloseFriends').length,
-                    drifting: uniqueFriendStats.filter(f => f.tier === 'CloseFriends' && f.score < 40).length,
-                },
-                community: {
-                    avg: uniqueFriendStats.filter(f => f.tier === 'Community').reduce((sum, f, _, arr) => sum + f.score / arr.length, 0) || 0,
-                    count: uniqueFriendStats.filter(f => f.tier === 'Community').length,
-                    drifting: uniqueFriendStats.filter(f => f.tier === 'Community' && f.score < 30).length,
-                },
-            };
-
-            const portfolioInsight = generatePortfolioInsights({
-                friends: uniqueFriendStats,
-                tierScores,
-                archetypeBalance: analyzeArchetypeBalance(uniqueFriendStats),
-            });
-
+        const portfolioAnalysis = buildPortfolioAnalysis(friendStats);
+        if (portfolioAnalysis) {
+            const portfolioInsight = buildPortfolioSuggestion(portfolioAnalysis, new Date());
             if (portfolioInsight) {
                 allSuggestions.push(portfolioInsight);
             }
@@ -763,29 +817,35 @@ export async function fetchSuggestions(
 
         const timeAppropriate = filterSuggestionsByTime(active);
         const seasonFiltered = filterSuggestionsBySeason(timeAppropriate, season);
+        const selectorSeasonFiltered = focusSelectorEnabled
+            ? filterSuggestionsBySeason(active, season)
+            : seasonFiltered;
 
 
 
         const MIN_SUGGESTIONS = 3;
-        let finalPool = seasonFiltered;
+        const selectorCandidatePool = await TriageGenerator.apply(
+            applyDismissalLearning(selectorSeasonFiltered, dismissalLearningProfile)
+        );
+        let legacyPool = seasonFiltered;
 
         // 7. Guaranteed Suggestions (Wildcards, etc.)
         // CRITICAL FIX: Generate guaranteed suggestions even if friends array is empty.
         // Non-friend-dependent suggestions (daily-reflect, generic wildcards) should always be available.
         // This ensures users ALWAYS see at least some suggestions, even new users with no friends.
-        const guaranteed = generateGuaranteedSuggestions(friends, finalPool, season);
+        const guaranteed = generateGuaranteedSuggestions(friends, legacyPool, season);
         const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
-        finalPool = [...finalPool, ...freshGuaranteed];
+        legacyPool = [...legacyPool, ...freshGuaranteed];
 
         // Adaptive filtering based on recent dismissal patterns:
         // - Suppress suggestions for friends dismissed repeatedly
         // - De-prioritize frequently dismissed suggestion types
-        finalPool = applyDismissalLearning(finalPool, dismissalLearningProfile);
+        legacyPool = applyDismissalLearning(legacyPool, dismissalLearningProfile);
 
 
 
         // 8. Dormant / Triage Logic
-        finalPool = await TriageGenerator.apply(finalPool);
+        legacyPool = await TriageGenerator.apply(legacyPool);
 
         // 9. Diversify
         // If userCap is set, use it. Otherwise fallback to limit.
@@ -802,16 +862,87 @@ export async function fetchSuggestions(
         const friendLookup = new Map(friends.map(f => [f.id, f]));
         const isLowEnergy = season === 'resting';
 
-        let finalSuggestions = selectDiverseSuggestions(finalPool, effectiveLimit, {
+        let finalSuggestions = selectDiverseSuggestions(legacyPool, effectiveLimit, {
             isLowEnergy,
             friendLookup,
         });
+
+        const legacyTopIds = finalSuggestions.slice(0, 2).map(s => s.id);
+        const shouldRunSelectorEvaluation = shadowModeEnabled || focusSelectorEnabled;
+        if (shouldRunSelectorEvaluation) {
+            try {
+                const resolvedSelectorSet = await resolveSelectorOpportunities({
+                    suggestions: selectorCandidatePool,
+                    friendIds: friends.map(friend => friend.id),
+                    contextMap,
+                    now: selectorNow,
+                });
+                const shadow = evaluateLegacySuggestionShadow({
+                    opportunities: resolvedSelectorSet.opportunities,
+                    suggestions: selectorCandidatePool,
+                    contextMap,
+                    season,
+                    now: selectorNow.getTime(),
+                    signalOverrides: selectorSignalOverrides,
+                    selectorOptions,
+                    adapterOptions: {
+                        copyVariant: selectorExperimentConfig?.copyVariant,
+                    },
+                });
+                selectorSuggestions = [
+                    shadow.selectedSuggestions.primary,
+                    shadow.selectedSuggestions.secondary,
+                ].filter((suggestion): suggestion is Suggestion => !!suggestion);
+                selectorSuggestions = await maybeApplyPremiumSelectorCopy(
+                    shadow,
+                    selectorSuggestions,
+                    selectorExperimentConfig?.copyVariant
+                );
+                selectionReason = shadow.selectedSuggestions.reason;
+                selectorOpportunitySource = resolvedSelectorSet.source;
+                selectorSuggestionMetadata = buildSelectorSuggestionMetadata(shadow);
+
+                const primarySuggestion = selectorSuggestions[0];
+                if (
+                    pacing
+                    && !manualPull
+                    && selectorSuggestions.length > 0
+                    && !doesSuggestionBypassAutomaticPacing(primarySuggestion)
+                    && !pacing.allowAutoSuggestions
+                ) {
+                    selectorSuggestions = [];
+                    selectionReason = 'empty';
+                    selectorSuggestionMetadata = undefined;
+                }
+
+                if (focusSelectorEnabled) {
+                    finalSuggestions = selectorSuggestions;
+                    surfaceSource = 'selector';
+                }
+
+                if (shadowModeEnabled) {
+                    Logger.info('[OpportunityShadow] Legacy vs selector comparison', {
+                        candidateCount: selectorCandidatePool.length,
+                        legacyCandidateCount: legacyPool.length,
+                        legacyTopIds,
+                        selectorTopIds: selectorSuggestions.map(s => s.id),
+                        selectorReason: shadow.selectedSuggestions.reason,
+                        selectorOpportunitySource: resolvedSelectorSet.source,
+                        suppressedCount: shadow.evaluation.suppressed.filter(result => result.reasons.length > 0).length,
+                        focusSelectorEnabled,
+                        opportunityPoolEnabled,
+                    });
+                }
+            } catch (error) {
+                Logger.warn('[OpportunityShadow] Failed to evaluate selector shadow mode', error);
+            }
+        }
 
 
 
         // 10. EMERGENCY FALLBACK: Ensure users ALWAYS see at least one suggestion
         // This is the last line of defense against blank suggestion screens
-        if (finalSuggestions.length === 0) {
+        if (!focusSelectorEnabled && finalSuggestions.length === 0) {
             Logger.warn('[Suggestions] Emergency fallback triggered - generating fallback suggestions');
 
             const today = new Date().toISOString().split('T')[0];
@@ -857,16 +988,41 @@ export async function fetchSuggestions(
             }
         }
 
-        if (finalSuggestions.length > 0) {
+        if (trackAnalytics && finalSuggestions.length > 0) {
             SeasonAnalyticsService.trackSuggestionsShown(finalSuggestions.length).catch(e => {
                 Logger.error('[Analytics] Failed to track suggestions shown', e);
             });
         }
 
-        return finalSuggestions;
+        return {
+            suggestions: finalSuggestions,
+            selectorSuggestions,
+            surfaceSource,
+            selectionReason,
+            selectorOpportunitySource,
+            selectorSuggestionMetadata,
+            pacing,
+            quietReason,
+            surfaceRequestKind,
+        };
     } catch (error) {
         // GLOBAL CATCH: This should catch ANY error in the entire pipeline
         Logger.error(`[Suggestions] FATAL ERROR in fetchSuggestions pipeline`, error);
-        return []; // Return empty array so UI doesn't break
+        return {
+            suggestions: [],
+            selectorSuggestions: [],
+            surfaceSource: 'legacy-list',
+            surfaceRequestKind: options.manualPull === true ? 'manual_pull' : 'automatic',
+        };
     }
+}
+
+export async function fetchSuggestions(
+    limit: number = 3,
+    season?: SocialSeason | null,
+    userCap?: number,
+    options?: SuggestionSurfaceOptions
+): Promise<Suggestion[]> {
+    const result = await fetchSuggestionSurface(limit, season, userCap, options);
+    return result.suggestions;
 }

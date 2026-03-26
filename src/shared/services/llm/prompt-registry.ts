@@ -1730,6 +1730,102 @@ Write a 3-5 sentence personal weekly journal entry:`,
     },
   },
 
+  // ========================================================================
+  // OPPORTUNITY PREMIUM COPY
+  // Polishes surfaced suggestion copy while preserving the existing action
+  // ========================================================================
+  opportunity_premium_copy: {
+    id: 'opportunity_premium_copy',
+    version: '1.0.0',
+    description: 'Polish surfaced opportunity copy into more natural, specific premium wording',
+
+    systemPrompt: `You rewrite suggestion copy for a friendship app.
+
+GOAL:
+- Make the copy feel specific, warm, and grounded in the provided facts
+- Keep it concise and actionable
+- Preserve the intended action, urgency, and relationship context
+
+RULES:
+- Never invent facts, dates, or feelings
+- Use only the details provided
+- Keep the title under 80 characters
+- Keep the subtitle under 140 characters
+- Keep the context snippet under 170 characters
+- Keep the action label under 24 characters
+- Do not use emojis
+- Do not use em dashes
+- Do not sound like a therapist or coach
+
+GOOD TITLES:
+- "Follow up with Alex on the job change"
+- "Reach out to Priya after the quiet stretch"
+- "Turn that dinner intention into a real plan"
+
+BAD TITLES:
+- "Strengthen Your Social Connection"
+- "Nurture this meaningful friendship"
+- "Reach out because they probably miss you"
+
+OUTPUT:
+Return valid JSON only with:
+- title
+- subtitle
+- contextSnippet
+- actionLabel
+- reason`,
+
+    userPromptTemplate: `FRIEND: {{friendName}}
+CATEGORY: {{category}}
+GENERATOR: {{generatorSource}}
+URGENCY: {{urgency}}
+CONFIDENCE: {{confidence}}
+BEST WINDOW: {{bestWindow}}
+
+WHY NOW: {{whyNow}}
+WHY THIS FRIEND: {{whyThisFriend}}
+WHY THIS ACTION: {{whyThisAction}}
+
+{{#if daysSinceLastInteraction}}DAYS SINCE LAST INTERACTION: {{daysSinceLastInteraction}}
+{{/if}}{{#if recentInteractionCategory}}RECENT INTERACTION CATEGORY: {{recentInteractionCategory}}
+{{/if}}{{#if topicHint}}TOPIC HINT: {{topicHint}}
+{{/if}}
+CURRENT COPY:
+- title: {{currentTitle}}
+- subtitle: {{currentSubtitle}}
+- contextSnippet: {{currentContextSnippet}}
+- actionLabel: {{currentActionLabel}}
+
+Rewrite this surfaced suggestion into tighter premium copy as JSON only:`,
+
+    defaultOptions: {
+      maxTokens: 250,
+      temperature: 0.5,
+    },
+
+    outputSchema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+        },
+        subtitle: {
+          type: 'string',
+        },
+        contextSnippet: {
+          type: 'string',
+        },
+        actionLabel: {
+          type: 'string',
+        },
+        reason: {
+          type: 'string',
+        },
+      },
+      required: ['title', 'subtitle', 'contextSnippet', 'actionLabel', 'reason'],
+    } as JSONSchema,
+  },
+
 }
 
 // ============================================================================

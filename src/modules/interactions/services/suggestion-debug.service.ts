@@ -1,9 +1,11 @@
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
-import { fetchSuggestions } from './suggestion-provider.service';
+import { fetchSuggestions } from './SuggestionFacade';
 import { SuggestionCandidateService } from './suggestion-system/SuggestionCandidateService';
 import * as SuggestionStorageService from './suggestion-storage.service';
 import { calculateCurrentScore } from '@/modules/intelligence';
+import { SelectorInspectionService } from './opportunity-system/SelectorInspectionService';
+import { SelectorExperimentService } from './opportunity-system/SelectorExperimentService';
 
 export const SuggestionDebugService = {
     async runDiagnostics() {
@@ -15,7 +17,9 @@ export const SuggestionDebugService = {
             const candidates = await SuggestionCandidateService.getCandidates(50);
 
             const start = Date.now();
-            const suggestions = await fetchSuggestions(3, null);
+            const suggestions = await fetchSuggestions(3, null, undefined, {
+                trackAnalytics: false,
+            });
             const duration = Date.now() - start;
 
             return {
@@ -40,6 +44,18 @@ export const SuggestionDebugService = {
 
     async clearDismissed() {
         await SuggestionStorageService.clearAllDismissed();
+    },
+
+    async getSelectorInspection(limit: number = 20) {
+        return SelectorInspectionService.getInspectionReport({ limit });
+    },
+
+    async getSelectorExperimentConfig() {
+        return SelectorExperimentService.getConfig();
+    },
+
+    async saveSelectorExperimentConfig(partial: Parameters<typeof SelectorExperimentService.saveConfig>[0]) {
+        return SelectorExperimentService.saveConfig(partial);
     },
 
     /**

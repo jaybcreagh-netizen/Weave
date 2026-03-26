@@ -16,6 +16,44 @@ export interface BatteryHistoryEntry {
   note?: string;
 }
 
+export type SuggestionFrequency = 'quiet' | 'balanced' | 'proactive';
+
+export interface TimingWindowStats {
+  appOpens: number;
+  surfaced: number;
+  acted: number;
+  dismissed: number;
+  actionRate: number;
+  dismissalRate: number;
+  score: number;
+}
+
+export interface TimingProfile {
+  preferredWindows?: string[];
+  peakEngagementWindows?: string[];
+  deadZones?: string[];
+  bestResponseWindow?: string;
+  recentSurfaceWindow?: string;
+  windowStats?: Record<string, TimingWindowStats>;
+  sampleSize?: number;
+  source?: 'telemetry' | 'manual' | 'hybrid';
+  learnedAt?: number;
+}
+
+export interface PoolRefreshState {
+  lastReason?: string;
+  lastRefreshedFriendIds?: string[];
+  lastRefreshCount?: number;
+  createdCount?: number;
+  updatedCount?: number;
+  reactivatedCount?: number;
+  unchangedCount?: number;
+  deactivatedCount?: number;
+  deactivatedOutsideCount?: number;
+  expiredCount?: number;
+  refreshedAt?: number;
+}
+
 export default class UserProfile extends Model {
   static table = 'user_profile';
   static associations: Associations = {};
@@ -104,4 +142,40 @@ export default class UserProfile extends Model {
 
   // v58: Oracle Insight Frequency (Phase 1 Redesign)
   @text('insight_frequency') insightFrequency?: 'weekly' | 'biweekly' | 'monthly' | 'on_demand';
+
+  // v77: Opportunity system ownership + refresh metadata
+  @text('preferred_suggestion_windows_json') preferredSuggestionWindowsJSON?: string;
+  @text('timing_profile_json') timingProfileJSON?: string;
+  @text('suggestion_frequency') suggestionFrequency?: SuggestionFrequency;
+  @field('last_pool_refresh') lastPoolRefresh?: number;
+  @text('pool_refresh_state_json') poolRefreshStateJSON?: string;
+  @field('calendar_permission_granted') calendarPermissionGranted?: boolean;
+  @field('last_app_open') lastAppOpen?: number;
+
+  get preferredSuggestionWindows(): string[] {
+    if (!this.preferredSuggestionWindowsJSON) return [];
+    try {
+      return JSON.parse(this.preferredSuggestionWindowsJSON);
+    } catch {
+      return [];
+    }
+  }
+
+  get timingProfile(): TimingProfile | null {
+    if (!this.timingProfileJSON) return null;
+    try {
+      return JSON.parse(this.timingProfileJSON);
+    } catch {
+      return null;
+    }
+  }
+
+  get poolRefreshState(): PoolRefreshState | null {
+    if (!this.poolRefreshStateJSON) return null;
+    try {
+      return JSON.parse(this.poolRefreshStateJSON);
+    } catch {
+      return null;
+    }
+  }
 }

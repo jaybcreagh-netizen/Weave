@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, LayoutAnimation, Platform, Alert, ScrollView } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useUserProfile } from '@/modules/auth/hooks/useUserProfile';
-import { useQueryClient } from '@tanstack/react-query';
+import { type SuggestionFrequency } from '@/db/models/UserProfile';
 import { notificationStore } from '@/modules/notifications/services/notification-store';
 import { SocialBatteryService } from '@/modules/auth/services/social-battery.service';
 import {
@@ -15,16 +15,41 @@ import {
     DeepeningNudgeChannel, // Assuming this exists based on context
 } from '@/modules/notifications';
 import { SuggestionTrackerService } from '@/modules/interactions/services/suggestion-tracker.service';
+import {
+    DEFAULT_SUGGESTION_FREQUENCY,
+    resolveSuggestionFrequency,
+} from '@/modules/interactions/services/opportunity-system/suggestion-frequency';
+import {
+    DEFAULT_PREFERRED_SUGGESTION_WINDOWS,
+    resolvePreferredSuggestionWindows,
+} from '@/modules/interactions/services/opportunity-system/personal-timing';
+import { TIMING_WINDOWS, type TimingWindow } from '@/modules/interactions/services/opportunity-system/types';
 import { SettingsItem } from './SettingsItem';
 import { ModernSwitch } from '@/shared/ui/ModernSwitch';
 import { Bell, Clock, BookOpen, ChevronRight, Moon, BarChart3 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const WINDOW_OPTIONS: Array<{
+    id: TimingWindow;
+    label: string;
+    hours: string;
+}> = [
+    { id: 'morning', label: 'Morning', hours: '7am-10am' },
+    { id: 'midday', label: 'Midday', hours: '11am-2pm' },
+    { id: 'afternoon', label: 'Afternoon', hours: '2pm-6pm' },
+    { id: 'evening', label: 'Evening', hours: '6pm-9pm' },
+];
+
+function orderTimingWindows(windows: TimingWindow[]): TimingWindow[] {
+    return [...windows].sort(
+        (left, right) => TIMING_WINDOWS.indexOf(left) - TIMING_WINDOWS.indexOf(right)
+    );
+}
+
 export const NotificationSettings = () => {
     const { colors } = useTheme();
     const { profile, updateProfile } = useUserProfile();
-    const queryClient = useQueryClient();
 
     // State
     const [batteryNotificationsEnabled, setBatteryNotificationsEnabled] = useState(false);
@@ -40,8 +65,10 @@ export const NotificationSettings = () => {
     const [deepeningNudgesEnabled, setDeepeningNudgesEnabled] = useState(false);
 
     const [smartNotificationsEnabled, setSmartNotificationsEnabled] = useState(false);
-    const [notificationFrequency, setNotificationFrequency] = useState<'light' | 'moderate' | 'proactive'>('moderate');
-    const [maxDailySuggestions, setMaxDailySuggestions] = useState(10);
+    const [suggestionFrequency, setSuggestionFrequency] = useState<SuggestionFrequency>(DEFAULT_SUGGESTION_FREQUENCY);
+    const [preferredSuggestionWindows, setPreferredSuggestionWindows] = useState<TimingWindow[]>(
+        DEFAULT_PREFERRED_SUGGESTION_WINDOWS
+    );
     const [respectBattery, setRespectBattery] = useState(true);
 
     const [digestEnabled, setDigestEnabled] = useState(false);
@@ -70,14 +97,33 @@ export const NotificationSettings = () => {
 
         // Load specific notification preferences
         const prefs = await notificationStore.getPreferences();
-        setSmartNotificationsEnabled(prefs.frequency !== 'light'); // Rough mapping or separate flag? 
-        // Actually, let's assume smartNotificationsEnabled maps to general master switch if we had one, 
-        // but here we might need to check a specific stored key or deduce it.
-        // For now, let's load what we can.
-        setNotificationFrequency(prefs.frequency);
-        setMaxDailySuggestions(prefs.maxDailySuggestions || 10);
+        const legacySuggestionFrequency = await notificationStore.getLegacySmartSuggestionFrequency();
+        const resolvedSuggestionFrequency = resolveSuggestionFrequency(
+            profile?.suggestionFrequency,
+            legacySuggestionFrequency
+        );
+        const resolvedPreferredWindows = orderTimingWindows(
+            resolvePreferredSuggestionWindows(profile)
+        );
+
+        setSuggestionFrequency(resolvedSuggestionFrequency);
+        setPreferredSuggestionWindows(resolvedPreferredWindows);
         setRespectBattery(prefs.respectBattery);
         setDigestEnabled(prefs.digestEnabled);
+
+        if (profile && !profile.suggestionFrequency && legacySuggestionFrequency) {
+            await updateProfile({ suggestionFrequency: resolvedSuggestionFrequency });
+        }
+
+        if (
+            profile
+            && !profile.preferredSuggestionWindowsJSON
+            && !(profile.timingProfile?.preferredWindows?.length)
+        ) {
+            await updateProfile({
+                preferredSuggestionWindowsJSON: JSON.stringify(resolvedPreferredWindows),
+            });
+        }
 
         if (prefs.digestTime) {
             const [dHours, dMinutes] = prefs.digestTime.split(':').map(Number);
@@ -103,13 +149,6 @@ export const NotificationSettings = () => {
     const updateBatteryPreferences = async (enabled: boolean, timeStr: string) => {
         if (!profile?.userId) return;
         await SocialBatteryService.updatePreferences(profile.userId, enabled, timeStr);
-    };
-
-    const handleMaxSuggestionsChange = async (count: number) => {
-        setMaxDailySuggestions(count);
-        await notificationStore.setPreferences({ maxDailySuggestions: count });
-        // Invalidate suggestions query so it re-fetches with the new limit immediately
-        queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
     };
 
     const handleToggleBatteryNotifications = async (enabled: boolean) => {
@@ -187,9 +226,25 @@ export const NotificationSettings = () => {
         }
     };
 
-    const handleChangeFrequency = async (frequency: 'light' | 'moderate' | 'proactive') => {
-        setNotificationFrequency(frequency);
-        await notificationStore.setPreferences({ frequency });
+    const handleChangeFrequency = async (frequency: SuggestionFrequency) => {
+        setSuggestionFrequency(frequency);
+        await updateProfile({ suggestionFrequency: frequency });
+    };
+
+    const handleTogglePreferredWindow = async (window: TimingWindow) => {
+        const nextWindows = preferredSuggestionWindows.includes(window)
+            ? preferredSuggestionWindows.filter(item => item !== window)
+            : [...preferredSuggestionWindows, window];
+
+        if (nextWindows.length === 0) {
+            return;
+        }
+
+        const orderedWindows = orderTimingWindows(nextWindows);
+        setPreferredSuggestionWindows(orderedWindows);
+        await updateProfile({
+            preferredSuggestionWindowsJSON: JSON.stringify(orderedWindows),
+        });
     };
 
     const handleToggleRespectBattery = async (enabled: boolean) => {
@@ -484,7 +539,7 @@ export const NotificationSettings = () => {
             <SettingsItem
                 icon={Bell}
                 title="Smart Suggestions"
-                subtitle="Intelligent nudges based on your social battery"
+                subtitle="Intelligent nudges that respect timing and energy"
                 rightElement={
                     <ModernSwitch
                         value={smartNotificationsEnabled}
@@ -498,51 +553,63 @@ export const NotificationSettings = () => {
                     <View className="pl-13 mt-3">
                         <Text className="text-sm font-inter-medium mb-2" style={{ color: colors.foreground }}>Frequency</Text>
                         <View className="flex-row gap-2">
-                            {(['light', 'moderate', 'proactive'] as const).map((freq) => (
+                            {(['quiet', 'balanced', 'proactive'] as const).map((freq) => (
                                 <TouchableOpacity
                                     key={freq}
                                     onPress={() => handleChangeFrequency(freq)}
                                     className="flex-1 py-2 px-3 rounded-lg"
-                                    style={{ backgroundColor: notificationFrequency === freq ? colors.primary : colors.muted }}
+                                    style={{ backgroundColor: suggestionFrequency === freq ? colors.primary : colors.muted }}
                                 >
-                                    <Text className="text-sm font-inter-medium text-center capitalize" style={{ color: notificationFrequency === freq ? colors.card : colors['muted-foreground'] }}>
+                                    <Text className="text-sm font-inter-medium text-center capitalize" style={{ color: suggestionFrequency === freq ? colors.card : colors['muted-foreground'] }}>
                                         {freq}
                                     </Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
                         <Text className="text-xs font-inter-regular mt-1" style={{ color: colors['muted-foreground'] }}>
-                            {notificationFrequency === 'light' && 'Max 1 notification per day'}
-                            {notificationFrequency === 'moderate' && 'Max 2 notifications per day'}
-                            {notificationFrequency === 'proactive' && 'Max 4 notifications per day'}
+                            {suggestionFrequency === 'quiet' && 'Max 1 smart suggestion notification per day'}
+                            {suggestionFrequency === 'balanced' && 'Max 2 smart suggestion notifications per day'}
+                            {suggestionFrequency === 'proactive' && 'Max 4 smart suggestion notifications per day'}
+                        </Text>
+                        <Text className="text-xs font-inter-regular mt-3" style={{ color: colors['muted-foreground'] }}>
+                            Focus will automatically show only your most relevant next move instead of a fixed number of suggestions.
                         </Text>
                     </View>
 
-                    <View className="flex-row items-center justify-between pl-13 mt-4">
-                        <View className="flex-1 mr-4">
-                            <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>Max Visible Suggestions</Text>
-                            <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
-                                Limit items in focus & insights
-                            </Text>
-                        </View>
-                        <View className="flex-row items-center gap-3">
-                            <TouchableOpacity
-                                onPress={() => handleMaxSuggestionsChange(Math.max(3, maxDailySuggestions - 1))}
-                                className="w-8 h-8 rounded-full items-center justify-center bg-muted"
-                                style={{ backgroundColor: colors.muted }}
-                            >
-                                <Text style={{ color: colors.foreground, fontSize: 18 }}>-</Text>
-                            </TouchableOpacity>
-                            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', width: 20, textAlign: 'center' }}>
-                                {maxDailySuggestions}
-                            </Text>
-                            <TouchableOpacity
-                                onPress={() => handleMaxSuggestionsChange(Math.min(20, maxDailySuggestions + 1))}
-                                className="w-8 h-8 rounded-full items-center justify-center bg-muted"
-                                style={{ backgroundColor: colors.muted }}
-                            >
-                                <Text style={{ color: colors.foreground, fontSize: 18 }}>+</Text>
-                            </TouchableOpacity>
+                    <View className="pl-13 mt-4">
+                        <Text className="text-sm font-inter-medium mb-2" style={{ color: colors.foreground }}>Best Times</Text>
+                        <Text className="text-xs font-inter-regular mb-3" style={{ color: colors['muted-foreground'] }}>
+                            Focus and smart suggestions will lean into these windows.
+                        </Text>
+                        <View className="flex-row flex-wrap gap-2">
+                            {WINDOW_OPTIONS.map((window) => {
+                                const isSelected = preferredSuggestionWindows.includes(window.id);
+
+                                return (
+                                    <TouchableOpacity
+                                        key={window.id}
+                                        onPress={() => handleTogglePreferredWindow(window.id)}
+                                        className="rounded-xl px-3 py-2"
+                                        style={{
+                                            backgroundColor: isSelected ? colors.primary : colors.muted,
+                                            minWidth: 120,
+                                        }}
+                                    >
+                                        <Text
+                                            className="text-sm font-inter-medium"
+                                            style={{ color: isSelected ? colors.card : colors.foreground }}
+                                        >
+                                            {window.label}
+                                        </Text>
+                                        <Text
+                                            className="text-xs font-inter-regular mt-1"
+                                            style={{ color: isSelected ? colors.card : colors['muted-foreground'] }}
+                                        >
+                                            {window.hours}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
                         </View>
                     </View>
 

@@ -13,6 +13,7 @@ import IntentionFriend from '@/db/models/IntentionFriend';
 import PortfolioSnapshot from '@/db/models/PortfolioSnapshot';
 import FriendMemory from '@/db/models/FriendMemory';
 import FriendMemoryCandidate from '@/db/models/FriendMemoryCandidate';
+import { getOptionalQueryCollection } from '@/shared/utils/optional-query-collection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, Share } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -193,6 +194,8 @@ interface ExportData {
  */
 export async function exportAllData(): Promise<string> {
   try {
+    const friendMemoryCollection = getOptionalQueryCollection<FriendMemory>('friend_memories');
+    const friendMemoryCandidateCollection = getOptionalQueryCollection<FriendMemoryCandidate>('friend_memory_candidates');
 
 
     // Fetch all data
@@ -365,7 +368,7 @@ export async function exportAllData(): Promise<string> {
         diversityScore: s.diversityScore,
         createdAt: s.createdAt.getTime(),
       })),
-      friendMemories: (await database.get<FriendMemory>('friend_memories').query().fetch()).map(memory => ({
+      friendMemories: (friendMemoryCollection ? await friendMemoryCollection.query().fetch() : []).map(memory => ({
         id: memory.id,
         friendId: memory.friendId,
         type: memory.type,
@@ -381,7 +384,7 @@ export async function exportAllData(): Promise<string> {
         createdAt: memory.createdAt.getTime(),
         updatedAt: memory.updatedAt.getTime(),
       })),
-      friendMemoryCandidates: (await database.get<FriendMemoryCandidate>('friend_memory_candidates').query().fetch()).map(candidate => ({
+      friendMemoryCandidates: (friendMemoryCandidateCollection ? await friendMemoryCandidateCollection.query().fetch() : []).map(candidate => ({
         id: candidate.id,
         friendId: candidate.friendId,
         type: candidate.type,

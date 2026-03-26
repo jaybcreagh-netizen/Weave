@@ -1659,5 +1659,155 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v76 to v77
+      // Opportunity pool persistence + refresh metadata
+      toVersion: 77,
+      steps: [
+        createTable({
+          name: 'opportunity_pool',
+          columns: [
+            { name: 'opportunity_id', type: 'string', isIndexed: true },
+            { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'friend_name', type: 'string', isOptional: true },
+            { name: 'category', type: 'string', isIndexed: true },
+            { name: 'generator_source', type: 'string', isIndexed: true },
+            { name: 'urgency', type: 'number' },
+            { name: 'confidence', type: 'number' },
+            { name: 'effort_level', type: 'string' },
+            { name: 'estimated_duration', type: 'number', isOptional: true },
+            { name: 'intention_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'intention_boost', type: 'number', isOptional: true },
+            { name: 'context_hash', type: 'string', isIndexed: true },
+            { name: 'explanation_json', type: 'string' },
+            { name: 'time_relevance_json', type: 'string' },
+            { name: 'created_at', type: 'number', isIndexed: true },
+            { name: 'updated_at', type: 'number' },
+            { name: 'expires_at', type: 'number', isIndexed: true },
+            { name: 'surfaced_at', type: 'number', isOptional: true },
+            { name: 'surface_count', type: 'number' },
+            { name: 'last_score', type: 'number', isOptional: true },
+            { name: 'is_active', type: 'boolean', isIndexed: true },
+          ],
+        }),
+        createTable({
+          name: 'surfacing_log',
+          columns: [
+            { name: 'opportunity_pool_id', type: 'string', isIndexed: true },
+            { name: 'event_type', type: 'string', isIndexed: true },
+            { name: 'timestamp', type: 'number', isIndexed: true },
+            { name: 'window', type: 'string', isOptional: true },
+            { name: 'composite_score', type: 'number', isOptional: true },
+            { name: 'score_breakdown_json', type: 'string', isOptional: true },
+            { name: 'feedback_type', type: 'string', isOptional: true },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'preferred_suggestion_windows_json', type: 'string', isOptional: true },
+            { name: 'timing_profile_json', type: 'string', isOptional: true },
+            { name: 'suggestion_frequency', type: 'string', isOptional: true },
+            { name: 'last_pool_refresh', type: 'number', isOptional: true },
+            { name: 'pool_refresh_state_json', type: 'string', isOptional: true },
+            { name: 'calendar_permission_granted', type: 'boolean', isOptional: true },
+            { name: 'last_app_open', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v77 to v78
+      // Preserve full opportunity context in the persisted pool + richer surfacing metadata
+      toVersion: 78,
+      steps: [
+        addColumns({
+          table: 'opportunity_pool',
+          columns: [
+            { name: 'friend_tier', type: 'string', isOptional: true },
+            { name: 'momentum_score', type: 'number', isOptional: true },
+            { name: 'copy_context_json', type: 'string', isOptional: true },
+          ],
+        }),
+        addColumns({
+          table: 'surfacing_log',
+          columns: [
+            { name: 'surface_source', type: 'string', isOptional: true },
+            { name: 'selection_reason', type: 'string', isOptional: true },
+            { name: 'surface_slot', type: 'string', isOptional: true },
+            { name: 'opportunity_source', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v78 to v79
+      // Persist canonical presentation copy for selector/native opportunity rendering
+      toVersion: 79,
+      steps: [
+        addColumns({
+          table: 'opportunity_pool',
+          columns: [
+            { name: 'presentation_copy_json', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v79 to v80
+      // Persist exact surfaced presentation copy in surfacing_log for analytics/debugging
+      toVersion: 80,
+      steps: [
+        addColumns({
+          table: 'surfacing_log',
+          columns: [
+            { name: 'presentation_copy_json', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v80 to v81
+      // Persist active selector experiment variants on surfaced opportunities
+      toVersion: 81,
+      steps: [
+        addColumns({
+          table: 'surfacing_log',
+          columns: [
+            { name: 'threshold_variant', type: 'string', isOptional: true },
+            { name: 'copy_variant', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v81 to v82
+      // Persist custom suggestion payloads for native opportunities with richer actions
+      toVersion: 82,
+      steps: [
+        addColumns({
+          table: 'opportunity_pool',
+          columns: [
+            { name: 'suggestion_payload_json', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v82 to v83
+      // Persist selector pacing and request-kind telemetry for inspection/debugging
+      toVersion: 83,
+      steps: [
+        addColumns({
+          table: 'surfacing_log',
+          columns: [
+            { name: 'quiet_reason', type: 'string', isOptional: true },
+            { name: 'surface_request_kind', type: 'string', isOptional: true },
+            { name: 'pacing_snapshot_json', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

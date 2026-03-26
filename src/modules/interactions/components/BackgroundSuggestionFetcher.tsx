@@ -7,7 +7,7 @@ import { usePlans } from '../hooks/usePlans';
  * Now deferred to avoid startup contention.
  */
 function InnerFetcher() {
-    useSuggestions();
+    useSuggestions({ trackFetchedSuggestions: false });
     usePlans();
     return null;
 }

@@ -3,6 +3,7 @@ import { type Archetype, type Interaction, type InteractionCategory } from '@/sh
 import { type Milestone } from '@/modules/gamification';
 import { type BadgeUnlock } from '@/modules/gamification';
 import { type AchievementUnlockData } from '@/modules/gamification';
+import type { SuggestionActionSource } from '@/modules/interactions/types';
 import JournalEntry from '@/db/models/JournalEntry';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { type Memory } from '@/modules/journal';
@@ -132,10 +133,18 @@ interface UIStore {
   closePopup: (type: 'social-battery' | 'weekly-reflection') => void;
 
   // Global Modal Data
-  planWizardData: { friendId?: string; prefillData?: any } | null;
+  planWizardData: {
+    friendId?: string;
+    prefillData?: any;
+    sourceSuggestion?: SuggestionActionSource;
+  } | null;
   intentionFormData: { friendId?: string; initialText?: string } | null;
 
-  openPlanWizard: (data?: { friendId?: string; prefillData?: any }) => void;
+  openPlanWizard: (data?: {
+    friendId?: string;
+    prefillData?: any;
+    sourceSuggestion?: SuggestionActionSource;
+  }) => void;
   closePlanWizard: () => void;
   openIntentionForm: (data?: { friendId?: string; initialText?: string }) => void;
   closeIntentionForm: () => void;

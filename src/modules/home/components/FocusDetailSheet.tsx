@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import {
     Calendar, Sparkles, CheckCircle2, Lightbulb,
     AlertTriangle, RefreshCw, Zap, Heart, Clock, Star,
     Gift, Briefcase, Home, GraduationCap, PartyPopper,
     HeartCrack, Activity, Target, History, Egg, Book,
-    MessageCircle, Hand, Send, Users, Mic, Image, Coffee, UserPlus
+    MessageCircle, Hand, Send, Users, Mic, Image, Coffee, UserPlus, X
 } from 'lucide-react-native';
 import { SharedWeaveData } from '@/modules/sync';
 import { LinkRequest } from '@/modules/relationships';
@@ -21,7 +21,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { WidgetHeader } from '@/shared/ui/WidgetHeader';
 import Interaction from '@/db/models/Interaction';
-import { Suggestion } from '@/shared/types/common';
+import { Suggestion, SuggestionDismissalReason } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
 import Intention from '@/db/models/Intention';
 import { format } from 'date-fns';
@@ -30,6 +30,10 @@ import { IntentionsList } from '@/modules/relationships/components/IntentionsLis
 import { ContextTier } from '@/modules/oracle/services/context-builder';
 import { useUserProfile } from '@/modules/auth';
 import { getLocalFocusReflection, getRemoteFocusReflection, type FocusReflectionPrompt } from '@/modules/home/services/focus-reflection.service';
+import type {
+    SuggestionPacingState,
+    SuggestionQuietReason,
+} from '@/modules/interactions/services/opportunity-system/SuggestionPacingService';
 
 interface UpcomingDate {
     friend?: FriendModel;
@@ -42,10 +46,16 @@ interface UpcomingDate {
 interface FocusDetailSheetProps {
     isVisible: boolean;
     onClose: () => void;
+    onCloseComplete?: () => void;
     upcomingPlans: Interaction[];
     tomorrowPlans?: Interaction[];
     completedPlans: Interaction[];
     suggestions: Suggestion[];
+    suggestionSurfaceSource?: 'legacy-list' | 'selector';
+    suggestionQuietReason?: SuggestionQuietReason;
+    suggestionPacing?: SuggestionPacingState;
+    suggestionCanRequestMore?: boolean;
+    suggestionIsRequestingMore?: boolean;
     intentions: Intention[];
     upcomingDates: UpcomingDate[];
     friends: FriendModel[];
@@ -53,6 +63,8 @@ interface FocusDetailSheetProps {
     onDeepenPlan?: (plan: Interaction) => void;
     onReschedulePlan: (plan: Interaction) => void;
     onSuggestionAction: (suggestion: Suggestion) => void;
+    onSuggestionDismiss?: (suggestion: Suggestion, reason?: SuggestionDismissalReason) => void;
+    onRequestAnotherSuggestion?: () => void;
     onIntentionPress?: (intention: Intention, friend: FriendModel) => void;
     onOpenActivityInbox?: () => void;
     linkRequests?: LinkRequest[];
@@ -62,10 +74,16 @@ interface FocusDetailSheetProps {
 export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     isVisible,
     onClose,
+    onCloseComplete,
     upcomingPlans,
     tomorrowPlans = [],
     completedPlans,
     suggestions,
+    suggestionSurfaceSource = 'legacy-list',
+    suggestionQuietReason,
+    suggestionPacing,
+    suggestionCanRequestMore = true,
+    suggestionIsRequestingMore = false,
     intentions,
     upcomingDates,
     friends,
@@ -73,6 +91,8 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     onDeepenPlan,
     onReschedulePlan,
     onSuggestionAction,
+    onSuggestionDismiss,
+    onRequestAnotherSuggestion,
     onIntentionPress,
     onOpenActivityInbox,
     linkRequests = [],
@@ -82,6 +102,83 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     const [planFriendIds, setPlanFriendIds] = React.useState<Record<string, string[]>>({});
     const { intelligenceCapabilities } = useUserProfile();
     const [prompt, setPrompt] = React.useState<FocusReflectionPrompt | null>(null);
+    const primarySuggestion = suggestionSurfaceSource === 'selector' ? suggestions[0] : null;
+    const secondarySuggestions = suggestionSurfaceSource === 'selector'
+        ? suggestions.slice(1)
+        : suggestions;
+
+    const formatDelayLabel = React.useCallback((minutes?: number) => {
+        if (typeof minutes !== 'number' || minutes <= 0) {
+            return null;
+        }
+
+        if (minutes >= 120) {
+            return `about ${Math.round(minutes / 60)} hours`;
+        }
+
+        return `${minutes} minutes`;
+    }, []);
+
+    const quietStateCopy = React.useMemo(() => {
+        const adaptiveReasons = suggestionPacing?.adaptiveReasons || [];
+        const hasAdaptiveBudgetReduction = adaptiveReasons.includes('frequent_budget_exhausted');
+        const hasAdaptiveDelayExtension = adaptiveReasons.includes('frequent_recently_handled');
+        const delayLabel = formatDelayLabel(suggestionPacing?.replacementDelayMinutes);
+
+        switch (suggestionQuietReason) {
+            case 'recently_handled':
+                return {
+                    title: hasAdaptiveDelayExtension ? 'Handled, and easing off' : 'Nicely handled',
+                    body: hasAdaptiveDelayExtension
+                        ? 'You have been acting on suggestions quickly lately, so Focus is giving you a longer breather before surfacing the next automatic idea.'
+                        : 'You already acted on the latest nudge. Focus can stay quiet for a bit instead of pushing the next thing.',
+                    detail: delayLabel
+                        ? `Automatic refills are pausing for ${delayLabel}.`
+                        : undefined,
+                };
+            case 'resting_pause':
+                return {
+                    title: 'Quiet on purpose',
+                    body: 'You are in a resting season, so Focus is holding back unless something genuinely important emerges.',
+                    detail: suggestionCanRequestMore
+                        ? 'You can still pull another idea if you want one.'
+                        : undefined,
+                };
+            case 'low_battery_pause':
+                return {
+                    title: 'Space to recharge',
+                    body: 'Your recent battery signals suggest a lighter touch today, so Focus is staying quiet for now.',
+                    detail: suggestionCanRequestMore
+                        ? 'If you want one more idea, you can still ask.'
+                        : 'Manual suggestions are paused too until your social battery recovers a bit.',
+                };
+            case 'budget_exhausted':
+                return {
+                    title: hasAdaptiveBudgetReduction ? 'Enough for today' : 'All good for now',
+                    body: hasAdaptiveBudgetReduction
+                        ? 'You usually seem done after the first few nudges, so Focus is learning to surface slightly fewer automatic suggestions.'
+                        : 'You have already seen enough for today. Focus will stay calm unless something more relevant comes up.',
+                    detail: typeof suggestionPacing?.dailyFreshBudget === 'number'
+                        ? `Current automatic budget: ${suggestionPacing.dailyFreshBudget} ${suggestionPacing.dailyFreshBudget === 1 ? 'idea' : 'ideas'} per day.`
+                        : undefined,
+                };
+            default:
+                return {
+                    title: 'All good for now',
+                    body: 'Nothing needs a nudge right now. Focus can stay quiet until something more relevant shows up.',
+                    detail: suggestionCanRequestMore
+                        ? 'You can always pull another idea if you want one.'
+                        : undefined,
+                };
+        }
+    }, [
+        formatDelayLabel,
+        suggestionCanRequestMore,
+        suggestionPacing?.adaptiveReasons,
+        suggestionPacing?.dailyFreshBudget,
+        suggestionPacing?.replacementDelayMinutes,
+        suggestionQuietReason,
+    ]);
 
     React.useEffect(() => {
         let isMounted = true;
@@ -195,10 +292,119 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
         }
     };
 
+    const renderSuggestionListItem = (suggestion: Suggestion, index: number, total: number) => (
+        <View key={suggestion.id} className="px-4">
+            <ListItem
+                leading={renderSuggestionIcon(suggestion.icon, suggestion.category)}
+                title={suggestion.title}
+                subtitle={suggestion.contextSnippet || suggestion.subtitle}
+                showDivider={index < total - 1}
+                compact
+                trailing={
+                    <Button
+                        label={suggestion.actionLabel || 'View'}
+                        variant="secondary"
+                        size="sm"
+                        className="px-3 min-h-[32px] min-w-[80px] py-1"
+                        onPress={() => onSuggestionAction(suggestion)}
+                    />
+                }
+            />
+        </View>
+    );
+
+    const renderPrimarySuggestionCard = (suggestion: Suggestion) => (
+        <Card
+            padding="none"
+            style={{
+                backgroundColor: tokens.backgroundMuted,
+                borderWidth: 1,
+                borderColor: `${tokens.primary}22`,
+            }}
+        >
+            <View
+                style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                }}
+            >
+                <View
+                    style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 12,
+                        backgroundColor: `${tokens.primary}16`,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
+                >
+                    {renderSuggestionIcon(suggestion.icon, suggestion.category)}
+                </View>
+
+                <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                    <Text
+                        numberOfLines={2}
+                        style={{
+                            color: tokens.foreground,
+                            fontFamily: typography.fonts.sansMedium,
+                            fontSize: 14,
+                            lineHeight: 19,
+                        }}
+                    >
+                        {suggestion.title}
+                    </Text>
+                    <Text
+                        numberOfLines={2}
+                        style={{
+                            color: tokens.foregroundMuted,
+                            fontFamily: typography.fonts.sans,
+                            fontSize: 12,
+                            lineHeight: 17,
+                        }}
+                    >
+                        {suggestion.contextSnippet || suggestion.subtitle}
+                    </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Button
+                        label="Plan ahead"
+                        variant="secondary"
+                        size="sm"
+                        className="px-3 min-h-[32px] py-1"
+                        onPress={() => onSuggestionAction(suggestion)}
+                    />
+
+                    {onSuggestionDismiss && suggestion.dismissible ? (
+                        <TouchableOpacity
+                            accessibilityLabel="Dismiss suggestion"
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            onPress={() => onSuggestionDismiss(suggestion)}
+                            style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 14,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: tokens.background,
+                            }}
+                        >
+                            <X size={14} color={tokens.foregroundMuted} />
+                        </TouchableOpacity>
+                    ) : null}
+                </View>
+            </View>
+        </Card>
+    );
+
     return (
         <AnimatedBottomSheet
             visible={isVisible}
             onClose={onClose}
+            onCloseComplete={onCloseComplete}
             height="full"
             scrollable
             title="Today's Focus"
@@ -497,34 +703,104 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                 )}
 
                 {/* Suggestions Section */}
-                {suggestions.length > 0 && (
+                {(suggestions.length > 0 || suggestionSurfaceSource === 'selector') && (
                     <View className="mb-6">
-                        <WidgetHeader title="Suggestions" icon={<Sparkles size={20} color={tokens.primaryMuted} />} />
-                        <Card padding="none">
-                            {suggestions.map((suggestion, index) => {
-                                const friend = friends.find(f => f.id === suggestion.friendId);
-                                return (
-                                    <View key={suggestion.id} className="px-4">
-                                        <ListItem
-                                            leading={renderSuggestionIcon(suggestion.icon, suggestion.category)}
-                                            title={suggestion.title}
-                                            subtitle={suggestion.contextSnippet || suggestion.subtitle}
-                                            showDivider={index < suggestions.length - 1}
-                                            compact
-                                            trailing={
-                                                <Button
-                                                    label={suggestion.actionLabel || "View"}
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    className="px-3 min-h-[32px] min-w-[80px] py-1"
-                                                    onPress={() => onSuggestionAction(suggestion)}
-                                                />
-                                            }
-                                        />
+                        <WidgetHeader
+                            title={suggestionSurfaceSource === 'selector' ? 'Best Next Move' : 'Suggestions'}
+                            icon={<Sparkles size={20} color={tokens.primaryMuted} />}
+                        />
+
+                        {suggestionSurfaceSource === 'selector' && primarySuggestion ? (
+                            <View style={{ gap: 12 }}>
+                                {renderPrimarySuggestionCard(primarySuggestion)}
+
+                                {secondarySuggestions.length > 0 && (
+                                    <View style={{ gap: 8 }}>
+                                        <Text
+                                            style={{
+                                                color: tokens.foregroundMuted,
+                                                fontFamily: typography.fonts.sansSemiBold,
+                                                fontSize: 11,
+                                                letterSpacing: 0.4,
+                                                textTransform: 'uppercase',
+                                                paddingHorizontal: 4,
+                                            }}
+                                        >
+                                            Also worth considering
+                                        </Text>
+                                        <Card padding="none">
+                                            {secondarySuggestions.map((suggestion, index) =>
+                                                renderSuggestionListItem(suggestion, index, secondarySuggestions.length)
+                                            )}
+                                        </Card>
                                     </View>
-                                );
-                            })}
-                        </Card>
+                                )}
+                            </View>
+                        ) : suggestionSurfaceSource === 'selector' ? (
+                            <Card
+                                padding="md"
+                                style={{
+                                    backgroundColor: tokens.backgroundMuted,
+                                    borderWidth: 1,
+                                    borderColor: tokens.border,
+                                }}
+                            >
+                                <View style={{ gap: 8 }}>
+                                    <Text
+                                        style={{
+                                            color: tokens.foreground,
+                                            fontFamily: typography.fonts.serif,
+                                            fontSize: 20,
+                                            lineHeight: 26,
+                                        }}
+                                    >
+                                        {quietStateCopy.title}
+                                    </Text>
+                                    <Text
+                                        style={{
+                                            color: tokens.foregroundMuted,
+                                            fontFamily: typography.fonts.sans,
+                                            fontSize: 14,
+                                            lineHeight: 20,
+                                        }}
+                                    >
+                                        {quietStateCopy.body}
+                                    </Text>
+
+                                    {!!quietStateCopy.detail && (
+                                        <Text
+                                            style={{
+                                                color: tokens.primary,
+                                                fontFamily: typography.fonts.sansMedium,
+                                                fontSize: 12,
+                                                lineHeight: 18,
+                                            }}
+                                        >
+                                            {quietStateCopy.detail}
+                                        </Text>
+                                    )}
+
+                                    {onRequestAnotherSuggestion && suggestionCanRequestMore ? (
+                                        <View style={{ paddingTop: 4 }}>
+                                            <Button
+                                                label="Show another idea"
+                                                variant="secondary"
+                                                size="sm"
+                                                loading={suggestionIsRequestingMore}
+                                                onPress={onRequestAnotherSuggestion}
+                                                className="self-start px-3 min-h-[34px] py-1"
+                                            />
+                                        </View>
+                                    ) : null}
+                                </View>
+                            </Card>
+                        ) : (
+                            <Card padding="none">
+                                {suggestions.map((suggestion, index) =>
+                                    renderSuggestionListItem(suggestion, index, suggestions.length)
+                                )}
+                            </Card>
+                        )}
                     </View>
                 )}
 

@@ -11,7 +11,6 @@
  */
 
 import { Q } from '@nozbe/watermelondb';
-import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import ConversationThread from '@/db/models/ConversationThread';
 import JournalSignals from '@/db/models/JournalSignals';
@@ -20,6 +19,7 @@ import { Suggestion, SuggestionSignalContext } from '@/shared/types/common';
 import { valueAlignment } from '@/modules/intelligence/services/value-alignment.service';
 import Logger from '@/shared/utils/Logger';
 import { FriendContextData } from '../../suggestion-system/SuggestionDataLoader';
+import { getOptionalQueryCollection } from '@/shared/utils/optional-query-collection';
 
 const MAX_SIGNAL_SUGGESTIONS = 2;
 const CONCERN_THREAD_MIN_DAYS = 7;  // Minimum days before suggesting follow-up
@@ -71,7 +71,9 @@ export const SignalDrivenGenerator = {
                 suggestions.push(...reconnectSuggestions.slice(0, maxSuggestions - suggestions.length));
             }
 
-            Logger.info('[SignalDrivenGenerator]', `Generated ${suggestions.length} signal-driven suggestions`);
+            if (suggestions.length > 0) {
+                Logger.info('[SignalDrivenGenerator]', `Generated ${suggestions.length} signal-driven suggestions`);
+            }
 
         } catch (error) {
             Logger.error('[SignalDrivenGenerator]', 'Error generating signal-driven suggestions', error);
@@ -89,11 +91,13 @@ export const SignalDrivenGenerator = {
         try {
             const friendIds = friends.map(f => f.id);
             if (friendIds.length === 0) return [];
+            const threadsCollection = getOptionalQueryCollection<ConversationThread>('conversation_threads');
+            if (!threadsCollection) return [];
 
             // Find active concern threads that are old enough for follow-up
             const minAgeTimestamp = now.getTime() - (CONCERN_THREAD_MIN_DAYS * 24 * 60 * 60 * 1000);
 
-            const threads = await database.get<ConversationThread>('conversation_threads')
+            const threads = await threadsCollection
                 .query(
                     Q.where('friend_id', Q.oneOf(friendIds)),
                     Q.where('status', 'active'),
@@ -154,10 +158,13 @@ export const SignalDrivenGenerator = {
             const lookbackTimestamp = now.getTime() - (CONFLICT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
             const friendIds = friends.map(f => f.id);
             if (friendIds.length === 0) return [];
+            const entryFriendsCollection = getOptionalQueryCollection<JournalEntryFriend>('journal_entry_friends');
+            const signalsCollection = getOptionalQueryCollection<JournalSignals>('journal_signals');
+            if (!entryFriendsCollection || !signalsCollection) return [];
 
             // Find journal entries with conflict themes linked to our friends
             // Step 1: Get friend links from recent entries
-            const entryLinks = await database.get<JournalEntryFriend>('journal_entry_friends')
+            const entryLinks = await entryFriendsCollection
                 .query(Q.where('friend_id', Q.oneOf(friendIds)))
                 .fetch();
 
@@ -168,7 +175,7 @@ export const SignalDrivenGenerator = {
             if (entryIds.length === 0) return [];
 
             // Step 2: Find signals with conflict theme
-            const conflictSignals = await database.get<JournalSignals>('journal_signals')
+            const conflictSignals = await signalsCollection
                 .query(
                     Q.where('journal_entry_id', Q.oneOf(entryIds)),
                     Q.where('extracted_at', Q.gte(lookbackTimestamp)),
@@ -302,9 +309,12 @@ export const SignalDrivenGenerator = {
         try {
             const friendIds = friends.map(f => f.id);
             if (friendIds.length === 0) return [];
+            const entryFriendsCollection = getOptionalQueryCollection<JournalEntryFriend>('journal_entry_friends');
+            const signalsCollection = getOptionalQueryCollection<JournalSignals>('journal_signals');
+            if (!entryFriendsCollection || !signalsCollection) return [];
 
             // Find entries with reconnection dynamics
-            const entryLinks = await database.get<JournalEntryFriend>('journal_entry_friends')
+            const entryLinks = await entryFriendsCollection
                 .query(Q.where('friend_id', Q.oneOf(friendIds)))
                 .fetch();
 
@@ -316,7 +326,7 @@ export const SignalDrivenGenerator = {
 
             // Recent signals with reconnection theme
             const thirtyDaysAgo = now.getTime() - (30 * 24 * 60 * 60 * 1000);
-            const signals = await database.get<JournalSignals>('journal_signals')
+            const signals = await signalsCollection
                 .query(
                     Q.where('journal_entry_id', Q.oneOf(entryIds)),
                     Q.where('extracted_at', Q.gte(thirtyDaysAgo))

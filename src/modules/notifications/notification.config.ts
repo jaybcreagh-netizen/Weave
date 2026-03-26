@@ -245,6 +245,8 @@ export const NOTIFICATION_TIMING = {
     /** Smart suggestions timing */
     smartSuggestions: {
         minHoursBetween: 2,
+        recentAppOpenCooldownMs: 30 * 60 * 1000, // 30 minutes
+        recentFocusSuggestionSurfaceCooldownMs: 6 * 60 * 60 * 1000, // 6 hours
         recentInteractionCooldownMs: 24 * 60 * 60 * 1000, // 24 hours
         plannedWeaveWindowMs: 7 * 24 * 60 * 60 * 1000, // 7 days
     },

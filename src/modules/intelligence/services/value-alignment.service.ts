@@ -1,9 +1,8 @@
-
-import { database } from '@/db'
 import { Q } from '@nozbe/watermelondb'
 import JournalSignals, { CoreTheme, CORE_THEMES } from '@/db/models/JournalSignals'
 import JournalEntryFriend from '@/db/models/JournalEntryFriend'
 import { logger } from '@/shared/services/logger.service'
+import { getOptionalQueryCollection } from '@/shared/utils/optional-query-collection'
 
 export interface ValueAlignment {
     friendId: string
@@ -23,8 +22,11 @@ class ValueAlignmentService {
         const sixtyDaysAgo = Date.now() - (60 * 24 * 60 * 60 * 1000)
 
         try {
+            const signalsCollection = getOptionalQueryCollection<JournalSignals>('journal_signals')
+            if (!signalsCollection) return []
+
             // Get all signals from recent entries
-            const signals = await database.get<JournalSignals>('journal_signals')
+            const signals = await signalsCollection
                 .query(
                     Q.where('extracted_at', Q.gte(sixtyDaysAgo))
                 ).fetch()
@@ -41,8 +43,12 @@ class ValueAlignmentService {
      */
     async getFriendValues(friendId: string, limit: number = 3): Promise<CoreTheme[]> {
         try {
+            const entryFriendsCollection = getOptionalQueryCollection<JournalEntryFriend>('journal_entry_friends')
+            const signalsCollection = getOptionalQueryCollection<JournalSignals>('journal_signals')
+            if (!entryFriendsCollection || !signalsCollection) return []
+
             // 1. Find entries linked to this friend
-            const entryLinks = await database.get<JournalEntryFriend>('journal_entry_friends')
+            const entryLinks = await entryFriendsCollection
                 .query(Q.where('friend_id', friendId))
                 .fetch()
 
@@ -51,7 +57,7 @@ class ValueAlignmentService {
             if (entryIds.length === 0) return []
 
             // 2. Find signals for these entries
-            const signals = await database.get<JournalSignals>('journal_signals')
+            const signals = await signalsCollection
                 .query(
                     Q.where('journal_entry_id', Q.oneOf(entryIds))
                 ).fetch()

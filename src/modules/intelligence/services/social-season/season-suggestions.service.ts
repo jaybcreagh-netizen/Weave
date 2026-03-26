@@ -62,7 +62,7 @@ export interface SeasonSuggestionConfig {
  */
 const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = {
     resting: {
-        maxDaily: 3, // Default to 3 per user request
+        maxDaily: 1, // Quiet by default during recovery periods
         allowedCategories: [
             'critical-drift',
             'life-event',       // Always include life events
@@ -78,7 +78,7 @@ const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = 
         priorityMultiplier: 0.7, // Less pressure overall
     },
     balanced: {
-        maxDaily: 3, // Default to 3 per user request
+        maxDaily: 2, // A gentle default rhythm
         allowedCategories: [
             'critical-drift',
             'high-drift',
@@ -164,6 +164,22 @@ export function doesSuggestionBypassCap(
 
     const config = getSeasonSuggestionConfig(season);
     return config.bypassCategories.includes(category as SuggestionCategory);
+}
+
+/**
+ * Resolve the selector-facing season multiplier.
+ * Bypass categories stay at neutral priority so resting season does not
+ * accidentally suppress genuinely time-sensitive moments.
+ */
+export function getSeasonPriorityMultiplier(
+    season: SocialSeason | null | undefined,
+    category?: string
+): number {
+    if (doesSuggestionBypassCap(season, category)) {
+        return 1;
+    }
+
+    return getSeasonSuggestionConfig(season).priorityMultiplier;
 }
 
 /**

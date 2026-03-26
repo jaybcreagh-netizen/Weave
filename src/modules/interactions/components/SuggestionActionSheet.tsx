@@ -486,75 +486,122 @@ export function SuggestionActionSheet({
                     </>
                 )}
 
-                {/* Dismiss - Ghost/Text Link */}
-                <TouchableOpacity
-                    className="items-center justify-center py-2"
-                    onPress={handleDismissAction}
-                    activeOpacity={0.6}
-                >
-                    <Text
-                        variant="body"
-                        style={{
-                            color: colors['muted-foreground'],
-                        }}
-                    >
-                        Dismiss
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    className="items-center justify-center pb-1"
-                    onPress={() => setShowDismissReasons(prev => !prev)}
-                    activeOpacity={0.6}
-                >
-                    <Text
-                        variant="caption"
-                        style={{
-                            color: colors['muted-foreground'],
-                            textDecorationLine: 'underline',
-                        }}
-                    >
-                        Add reason (optional)
-                    </Text>
-                </TouchableOpacity>
-
-                {showDismissReasons && (
-                    <View
-                        className="rounded-xl p-3 mt-1"
-                        style={{ backgroundColor: tokens.backgroundMuted }}
-                    >
-                        <Text
-                            variant="caption"
-                            style={{
-                                color: colors['muted-foreground'],
-                                marginBottom: 8,
-                            }}
+                {suggestion.dismissible ? (
+                    <>
+                        <View
+                            className="items-center"
+                            style={{ gap: 10 }}
                         >
-                            Why are you dismissing this suggestion?
-                        </Text>
+                            <View
+                                className="flex-row flex-wrap justify-center"
+                                style={{ gap: 8 }}
+                            >
+                                <TouchableOpacity
+                                    onPress={() => dismissSuggestion('bad-timing')}
+                                    activeOpacity={0.7}
+                                    className="px-4 py-2 rounded-full border"
+                                    style={{
+                                        backgroundColor: tokens.backgroundMuted,
+                                        borderColor: colors.border,
+                                    }}
+                                >
+                                    <Text
+                                        variant="caption"
+                                        style={{ color: colors.foreground }}
+                                    >
+                                        Not now
+                                    </Text>
+                                </TouchableOpacity>
 
-                        {[
-                            { label: 'Wrong friend', value: 'wrong-friend' as const },
-                            { label: 'Not relevant', value: 'not-relevant' as const },
-                            { label: 'Already done', value: 'already-done' as const },
-                            { label: 'Bad timing', value: 'bad-timing' as const },
-                        ].map(option => (
+                                {suggestion.friendId ? (
+                                    <TouchableOpacity
+                                        onPress={() => dismissSuggestion('wrong-friend')}
+                                        activeOpacity={0.7}
+                                        className="px-4 py-2 rounded-full border"
+                                        style={{
+                                            backgroundColor: tokens.backgroundMuted,
+                                            borderColor: colors.border,
+                                        }}
+                                    >
+                                        <Text
+                                            variant="caption"
+                                            style={{ color: colors.foreground }}
+                                        >
+                                            Not this friend
+                                        </Text>
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
+
                             <TouchableOpacity
-                                key={option.value}
-                                onPress={() => dismissSuggestion(option.value)}
-                                activeOpacity={0.7}
-                                className="py-2"
+                                className="items-center justify-center py-2"
+                                onPress={handleDismissAction}
+                                activeOpacity={0.6}
                             >
                                 <Text
                                     variant="body"
-                                    style={{ color: colors.foreground }}
+                                    style={{
+                                        color: colors['muted-foreground'],
+                                    }}
                                 >
-                                    {option.label}
+                                    Dismiss
                                 </Text>
                             </TouchableOpacity>
-                        ))}
-                    </View>
-                )}
+
+                            <TouchableOpacity
+                                className="items-center justify-center pb-1"
+                                onPress={() => setShowDismissReasons(prev => !prev)}
+                                activeOpacity={0.6}
+                            >
+                                <Text
+                                    variant="caption"
+                                    style={{
+                                        color: colors['muted-foreground'],
+                                        textDecorationLine: 'underline',
+                                    }}
+                                >
+                                    {showDismissReasons ? 'Hide more reasons' : 'More reasons'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {showDismissReasons && (
+                            <View
+                                className="rounded-xl p-3 mt-1"
+                                style={{ backgroundColor: tokens.backgroundMuted }}
+                            >
+                                <Text
+                                    variant="caption"
+                                    style={{
+                                        color: colors['muted-foreground'],
+                                        marginBottom: 8,
+                                    }}
+                                >
+                                    More dismissal options
+                                </Text>
+
+                                {[
+                                    { label: 'Not relevant', value: 'not-relevant' as const },
+                                    { label: 'Already done', value: 'already-done' as const },
+                                ].map(option => (
+                                    <TouchableOpacity
+                                        key={option.value}
+                                        onPress={() => dismissSuggestion(option.value)}
+                                        activeOpacity={0.7}
+                                        className="py-2"
+                                    >
+                                        <Text
+                                            variant="body"
+                                            style={{ color: colors.foreground }}
+                                        >
+                                            {option.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
+                    </>
+                ) : null}
             </Animated.View>
 
             {/* Contact Linker Sheet */}

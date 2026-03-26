@@ -39,7 +39,7 @@ export type OracleEntryPoint = 'insights' | 'circle' | 'journal' | 'friend' | 'i
 export function useStarterPrompts(context: OracleEntryPoint = 'default'): { prompts: StarterPrompt[], refresh: () => void, loading: boolean } {
     const { friends } = useFriendsObservable()
     const { intelligenceCapabilities } = useUserProfile()
-    const { suggestions } = useSuggestions()
+    const { suggestions } = useSuggestions({ trackFetchedSuggestions: false })
     const [followUps, setFollowUps] = useState<FollowUpPrompt[]>([])
     const [activeIntentions, setActiveIntentions] = useState<any[]>([])
 

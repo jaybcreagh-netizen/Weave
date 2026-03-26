@@ -165,6 +165,7 @@ export function GlobalModals() {
                     onClose={closePlanWizard}
                     initialFriend={planWizardFriend}
                     prefillData={planWizardData?.prefillData}
+                    sourceSuggestion={planWizardData?.sourceSuggestion}
                 />
             )}
 

@@ -1,5 +1,5 @@
 import { database } from '@/db';
-import UserProfile from '@/db/models/UserProfile';
+import UserProfile, { type SuggestionFrequency } from '@/db/models/UserProfile';
 import { useAuth } from '../context/AuthContext';
 import { useObservableState } from 'observable-hooks';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -34,9 +34,14 @@ export function useUserProfile() {
                 'ai_disclosure_acknowledged_at',
                 'proactive_insights_enabled',
                 'insight_frequency',
+                'suggestion_frequency',
+                'preferred_suggestion_windows_json',
+                'timing_profile_json',
                 'reflection_last_snoozed',
                 'reflection_day',
                 'reflection_auto_show',
+                'calendar_permission_granted',
+                'last_app_open',
             ]);
     }, []);
 
@@ -102,6 +107,11 @@ export function useUserProfile() {
         reflectionLastSnoozed: number;
         reflectionDay: number;
         reflectionAutoShow: boolean;
+        suggestionFrequency: SuggestionFrequency;
+        preferredSuggestionWindowsJSON: string;
+        timingProfileJSON: string;
+        calendarPermissionGranted: boolean;
+        lastAppOpen: number;
     }>) => {
         if (!profile) return;
         await database.write(async () => {

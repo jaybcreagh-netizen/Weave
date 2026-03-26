@@ -27,6 +27,7 @@ import { useBackgroundSyncStore, useAuthLoading } from '@/modules/auth';
 import { PlanService } from '@/modules/interactions';
 import { NotificationOrchestrator } from '@/modules/notifications';
 import { SyncOrchestrator } from '@/modules/sync';
+import { isOpportunityPoolEnabled } from '@/modules/interactions/services/opportunity-system/flags';
 
 import {
     initializeAnalytics,
@@ -57,6 +58,7 @@ const FOREGROUND_MAINTENANCE_DELAY_MS = 4000;
 const FOREGROUND_INSIGHTS_DELAY_MS = 5000;
 
 export function DataInitializer({ children }: DataInitializerProps) {
+    const opportunityPoolEnabled = isOpportunityPoolEnabled();
     const posthog = usePostHog();
     const [analyticsInitialized, setAnalyticsInitialized] = useState(false);
     const hasCompletedOnboarding = useTutorialStore((state) => state.hasCompletedOnboarding);
@@ -262,6 +264,14 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 console.log(`[Startup] Total initialization: ${Date.now() - startTime}ms`);
                 setDataLoaded(true);
 
+                if (opportunityPoolEnabled) {
+                    import('@/modules/interactions/services/opportunity-system/OpportunityRefreshService').then(({ OpportunityRefreshService }) => {
+                        OpportunityRefreshService.refreshIfStale('app_start').catch(error => {
+                            console.error('[App] Error refreshing opportunity pool on launch:', error);
+                        });
+                    });
+                }
+
             } catch (error) {
                 console.error('Failed to initialize app data:', error);
                 Sentry.captureException(error);
@@ -270,7 +280,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
         };
 
         initializeData();
-    }, []);
+    }, [opportunityPoolEnabled]);
 
     // Initialize Sync Orchestrator - DEFERRED to avoid blocking initial queries
     useEffect(() => {
@@ -318,6 +328,27 @@ export function DataInitializer({ children }: DataInitializerProps) {
         }
     }, [isDatabaseReady]);
 
+    useEffect(() => {
+        if (!dataLoaded || !isDatabaseReady || !opportunityPoolEnabled) {
+            return;
+        }
+
+        let unsubscribe: (() => void) | undefined;
+        let cancelled = false;
+
+        import('@/modules/interactions/services/opportunity-system/OpportunityRefreshService').then(({ OpportunityRefreshService }) => {
+            if (cancelled) return;
+            unsubscribe = OpportunityRefreshService.startInvalidationSubscriptions();
+        }).catch(error => {
+            console.error('[App] Error starting opportunity refresh subscriptions:', error);
+        });
+
+        return () => {
+            cancelled = true;
+            unsubscribe?.();
+        };
+    }, [dataLoaded, isDatabaseReady, opportunityPoolEnabled]);
+
     const contentStyle = useAnimatedStyle(() => ({
         opacity: contentOpacity.value,
     }));
@@ -340,6 +371,14 @@ export function DataInitializer({ children }: DataInitializerProps) {
             trackEvent(AnalyticsEvents.APP_OPENED);
             trackRetentionMetrics();
 
+            if (opportunityPoolEnabled) {
+                import('@/modules/interactions/services/opportunity-system/OpportunityRefreshService').then(({ OpportunityRefreshService }) => {
+                    OpportunityRefreshService.recordAppForeground().catch(error => {
+                        console.error('[App] Error recording app foreground for opportunity pool:', error);
+                    });
+                });
+            }
+
             // DEFERRED: Heavy operations run shortly after foregrounding
             // to keep first interaction smooth while still running in short sessions.
             if (foregroundMaintenanceTimeoutRef.current) {
@@ -356,6 +395,21 @@ export function DataInitializer({ children }: DataInitializerProps) {
                         console.error('[App] Error syncing calendar on foreground:', error);
                     });
                 });
+
+                if (opportunityPoolEnabled) {
+                    import('@/modules/interactions/services/calendar.service').then(({ checkCalendarPermissions }) => {
+                        return checkCalendarPermissions();
+                    }).then((permission) => {
+                        return import('@/modules/interactions/services/opportunity-system/OpportunityRefreshService').then(({ OpportunityRefreshService }) => {
+                            return Promise.all([
+                                OpportunityRefreshService.updateCalendarPermissionState(permission.granted),
+                                OpportunityRefreshService.refreshIfStale('app_foreground'),
+                            ]);
+                        });
+                    }).catch((error) => {
+                        console.error('[App] Error refreshing opportunity pool on foreground:', error);
+                    });
+                }
 
                 import('@/modules/interactions/hooks/useEventSuggestions').then(({ prefetchEventSuggestions }) => {
                     import('@/shared/api/query-client').then(({ queryClient }) => {

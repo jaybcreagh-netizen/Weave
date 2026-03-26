@@ -56,6 +56,8 @@ import RelationshipQualitySnapshot from './models/RelationshipQualitySnapshot';
 import ReciprocitySnapshot from './models/ReciprocitySnapshot';
 // v68: Relationship Insights (Phase 3C)
 import RelationshipInsight from './models/RelationshipInsight';
+import OpportunityPool from './models/OpportunityPool';
+import SurfacingLog from './models/SurfacingLog';
 
 import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId';
 import { v4 as uuidv4 } from 'uuid';
@@ -153,6 +155,8 @@ export const database = new Database({
     ReciprocitySnapshot,
     // v68: Relationship Insights
     RelationshipInsight,
+    OpportunityPool,
+    SurfacingLog,
   ],
 });
 

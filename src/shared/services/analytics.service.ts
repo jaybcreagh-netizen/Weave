@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 // PostHog instance - will be set from the provider
 let posthogInstance: any = null;
+export const LAST_APP_OPEN_STORAGE_KEY = '@weave:last_app_open';
 
 // Helper to set the PostHog instance from the provider
 export function setPostHogInstance(instance: any) {
@@ -67,6 +68,7 @@ export const AnalyticsEvents = {
   YEAR_IN_MOONS_VIEWED: 'year_in_moons_viewed',
   TROPHY_CABINET_VIEWED: 'trophy_cabinet_viewed',
   ACHIEVEMENT_UNLOCKED: 'achievement_unlocked',
+  FOCUS_SUGGESTIONS_SURFACED: 'focus_suggestions_surfaced',
 
   // Tier Intelligence
   TIER_SUGGESTION_SHOWN: 'tier_suggestion_shown',
@@ -240,8 +242,7 @@ export async function trackRetentionMetrics(): Promise<void> {
     const now = Date.now();
 
     // Get last app open timestamp
-    const lastAppOpenStr = await AsyncStorage.getItem('@weave:last_app_open');
-    const lastAppOpen = lastAppOpenStr ? parseInt(lastAppOpenStr, 10) : now;
+    const lastAppOpen = await getLastAppOpenTimestamp() ?? now;
 
     // Get last interaction timestamp
     const lastInteractionStr = await AsyncStorage.getItem('@weave:last_interaction');
@@ -278,7 +279,7 @@ export async function trackRetentionMetrics(): Promise<void> {
     }
 
     // Update last app open timestamp
-    await AsyncStorage.setItem('@weave:last_app_open', now.toString());
+    await updateLastAppOpenTimestamp(now);
 
     // Track weekly active user
     const lastWeeklyTrackStr = await AsyncStorage.getItem('@weave:last_weekly_track');
@@ -305,6 +306,27 @@ export async function updateLastInteractionTimestamp(): Promise<void> {
   }
 }
 
+export async function getLastAppOpenTimestamp(): Promise<number | null> {
+  try {
+    const lastAppOpenStr = await AsyncStorage.getItem(LAST_APP_OPEN_STORAGE_KEY);
+    if (!lastAppOpenStr) return null;
+
+    const parsed = parseInt(lastAppOpenStr, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch (error) {
+    console.error('[Analytics] Failed to read last app open timestamp:', error);
+    return null;
+  }
+}
+
+export async function updateLastAppOpenTimestamp(timestamp: number = Date.now()): Promise<void> {
+  try {
+    await AsyncStorage.setItem(LAST_APP_OPEN_STORAGE_KEY, timestamp.toString());
+  } catch (error) {
+    console.error('[Analytics] Failed to update last app open timestamp:', error);
+  }
+}
+
 /**
  * Reset analytics (for testing or user opt-out)
  */
@@ -314,7 +336,7 @@ export async function resetAnalytics(): Promise<void> {
       posthogInstance.reset();
     }
     await AsyncStorage.removeItem('@weave:user_id');
-    await AsyncStorage.removeItem('@weave:last_app_open');
+    await AsyncStorage.removeItem(LAST_APP_OPEN_STORAGE_KEY);
     await AsyncStorage.removeItem('@weave:last_interaction');
     await AsyncStorage.removeItem('@weave:last_weekly_track');
 

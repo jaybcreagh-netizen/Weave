@@ -7,6 +7,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logger from '@/shared/utils/Logger';
 import {
+    LegacyNotificationFrequency,
     NotificationPreferences,
     StoredDeepeningNudge,
     StoredPendingEvent,
@@ -57,25 +58,59 @@ const KEYS = {
     PENDING_EVENTS: '@weave:pending_events_for_digest',
 } as const;
 
-// Budget limits per frequency setting
-const BUDGET_LIMITS = {
-    light: 3,
-    moderate: 5,
-    proactive: 8,
-} as const;
+const DEFAULT_DAILY_BUDGET_LIMIT = 5;
 
 // Default Preferences
 const DEFAULT_PREFERENCES: NotificationPreferences = {
-    frequency: 'moderate',
     quietHoursStart: 22, // 10 PM
     quietHoursEnd: 8, // 8 AM
     respectBattery: true,
     digestEnabled: true,
     digestTime: '19:00',
-    maxDailySuggestions: 10,
 };
 
+type LegacyNotificationPreferences = NotificationPreferences & {
+    frequency?: LegacyNotificationFrequency;
+    maxDailySuggestions?: number;
+};
+
+function normalizeNotificationPreferences(
+    prefs?: Partial<LegacyNotificationPreferences> | null
+): NotificationPreferences {
+    const merged = {
+        ...DEFAULT_PREFERENCES,
+        ...(prefs || {}),
+    };
+
+    return {
+        quietHoursStart: merged.quietHoursStart,
+        quietHoursEnd: merged.quietHoursEnd,
+        respectBattery: merged.respectBattery,
+        digestEnabled: merged.digestEnabled,
+        digestTime: merged.digestTime,
+    };
+}
+
+function hasLegacyNotificationPreferenceFields(
+    prefs?: Partial<LegacyNotificationPreferences> | null
+): boolean {
+    if (!prefs || typeof prefs !== 'object') {
+        return false;
+    }
+
+    return Object.prototype.hasOwnProperty.call(prefs, 'maxDailySuggestions');
+}
+
 class NotificationStoreService {
+    private async getStoredPreferences(): Promise<Partial<LegacyNotificationPreferences> | null> {
+        try {
+            const value = await AsyncStorage.getItem(KEYS.NOTIFICATION_PREFERENCES);
+            return value ? JSON.parse(value) as Partial<LegacyNotificationPreferences> : null;
+        } catch {
+            return null;
+        }
+    }
+
     private async getBooleanFlag(key: string, defaultValue: boolean = true): Promise<boolean> {
         try {
             const value = await AsyncStorage.getItem(key);
@@ -204,18 +239,42 @@ class NotificationStoreService {
 
     async getPreferences(): Promise<NotificationPreferences> {
         try {
-            const val = await AsyncStorage.getItem(KEYS.NOTIFICATION_PREFERENCES);
-            if (val) {
-                return { ...DEFAULT_PREFERENCES, ...JSON.parse(val) };
+            const parsed = await this.getStoredPreferences();
+            if (parsed) {
+                const normalized = normalizeNotificationPreferences(parsed);
+
+                if (hasLegacyNotificationPreferenceFields(parsed)) {
+                    await AsyncStorage.setItem(
+                        KEYS.NOTIFICATION_PREFERENCES,
+                        JSON.stringify(normalized)
+                    );
+                }
+
+                return normalized;
             }
         } catch (e) { /* ignore */ }
         return DEFAULT_PREFERENCES;
     }
 
+    async getLegacySmartSuggestionFrequency(): Promise<LegacyNotificationFrequency | null> {
+        const prefs = await this.getStoredPreferences();
+        const frequency = prefs?.frequency;
+
+        if (
+            frequency === 'light'
+            || frequency === 'moderate'
+            || frequency === 'proactive'
+        ) {
+            return frequency;
+        }
+
+        return null;
+    }
+
     async setPreferences(prefs: Partial<NotificationPreferences>): Promise<void> {
         try {
             const current = await this.getPreferences();
-            const updated = { ...current, ...prefs };
+            const updated = normalizeNotificationPreferences({ ...current, ...prefs });
             await AsyncStorage.setItem(KEYS.NOTIFICATION_PREFERENCES, JSON.stringify(updated));
         } catch (e) { Logger.error('[NotificationStore] Error saving prefs', e); }
     }
@@ -257,24 +316,22 @@ class NotificationStoreService {
     // Daily Budget
     // ==============================================================================
 
-    async getDailyBudget(): Promise<{ date: string; used: number; limit: number }> {
+    async getDailyBudget(limitOverride: number = DEFAULT_DAILY_BUDGET_LIMIT): Promise<{ date: string; used: number; limit: number }> {
         try {
             const val = await AsyncStorage.getItem(KEYS.DAILY_BUDGET);
-            const prefs = await this.getPreferences();
-            const limit = BUDGET_LIMITS[prefs.frequency];
             const today = new Date().toDateString();
 
             if (val) {
                 const data = JSON.parse(val);
                 // Reset if different day
                 if (data.date !== today) {
-                    return { date: today, used: 0, limit };
+                    return { date: today, used: 0, limit: limitOverride };
                 }
-                return { ...data, limit };
+                return { ...data, limit: limitOverride };
             }
-            return { date: today, used: 0, limit };
+            return { date: today, used: 0, limit: limitOverride };
         } catch (e) {
-            return { date: new Date().toDateString(), used: 0, limit: BUDGET_LIMITS.moderate };
+            return { date: new Date().toDateString(), used: 0, limit: limitOverride };
         }
     }
 
@@ -282,8 +339,8 @@ class NotificationStoreService {
      * Check if budget allows another notification and increment if so.
      * Returns true if notification is allowed, false if budget exhausted.
      */
-    async checkAndIncrementBudget(): Promise<boolean> {
-        const budget = await this.getDailyBudget();
+    async checkAndIncrementBudget(limitOverride: number = DEFAULT_DAILY_BUDGET_LIMIT): Promise<boolean> {
+        const budget = await this.getDailyBudget(limitOverride);
         if (budget.used >= budget.limit) {
             Logger.info(`[NotificationStore] Budget exhausted: ${budget.used}/${budget.limit}`);
             return false;

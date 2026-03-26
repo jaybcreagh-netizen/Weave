@@ -3,6 +3,13 @@ import SuggestionEvent from '@/db/models/SuggestionEvent';
 import { Suggestion } from '@/shared/types/common';
 import type { SuggestionDismissalReason } from '@/shared/types/common';
 import { Q } from '@nozbe/watermelondb';
+import { OpportunityPoolService } from './opportunity-system/OpportunityPoolService';
+import type {
+  OpportunityPresentationCopy,
+  SelectorPacingSnapshot,
+  SelectorSurfaceRequestKind,
+} from './opportunity-system/types';
+import { SelectorExperimentService } from './opportunity-system/SelectorExperimentService';
 
 /**
  * Service for tracking suggestion events to enable learning and optimization
@@ -13,13 +20,48 @@ interface TrackingContext {
   daysSinceLastInteraction: number;
 }
 
+interface SurfaceTrackingMetadata {
+  compositeScore?: number;
+  scoreBreakdown?: Record<string, number>;
+  surfaceSource?: 'legacy-list' | 'selector';
+  selectionReason?: 'selected' | 'below_threshold' | 'empty';
+  surfaceSlot?: 'primary' | 'secondary';
+  opportunitySource?: 'synthesized' | 'pool';
+  surfaceRequestKind?: SelectorSurfaceRequestKind;
+}
+
+interface QuietTrackingMetadata {
+  quietReason: string;
+  selectionReason?: 'selected' | 'below_threshold' | 'empty';
+  surfaceRequestKind?: SelectorSurfaceRequestKind;
+  pacingSnapshot?: SelectorPacingSnapshot;
+}
+
+function buildPresentationCopyFromSuggestion(
+  suggestion: Suggestion
+): OpportunityPresentationCopy {
+  return {
+    title: suggestion.title,
+    subtitle: suggestion.subtitle,
+    contextSnippet: suggestion.contextSnippet,
+    actionLabel: suggestion.actionLabel,
+    reason: suggestion.reason,
+    aiEnriched: suggestion.aiEnriched,
+  };
+}
+
 /**
  * Records when a suggestion is shown to the user
  */
 export async function trackSuggestionShown(
   suggestion: Suggestion,
-  context: TrackingContext
+  context: TrackingContext,
+  metadata: SurfaceTrackingMetadata = {}
 ): Promise<void> {
+  const selectorExperimentConfig = metadata.surfaceSource === 'selector'
+    ? await SelectorExperimentService.getConfig()
+    : null;
+
   await database.write(async () => {
     await database.get<SuggestionEvent>('suggestion_events').create(event => {
       event.suggestionId = suggestion.id;
@@ -32,6 +74,35 @@ export async function trackSuggestionShown(
       event.friendScoreAtEvent = context.friendScore;
       event.daysSinceLastInteraction = context.daysSinceLastInteraction;
     });
+  });
+
+  await OpportunityPoolService.recordOpportunityEventByIds([suggestion.id], 'surfaced', {
+    compositeScore: metadata.compositeScore,
+    scoreBreakdown: metadata.scoreBreakdown,
+    surfaceSource: metadata.surfaceSource,
+    selectionReason: metadata.selectionReason,
+    surfaceSlot: metadata.surfaceSlot,
+    opportunitySource: metadata.opportunitySource,
+    surfaceRequestKind: metadata.surfaceRequestKind,
+    thresholdVariant: selectorExperimentConfig?.thresholdVariant,
+    copyVariant: selectorExperimentConfig?.copyVariant,
+    presentationCopy: buildPresentationCopyFromSuggestion(suggestion),
+  });
+}
+
+export async function trackSelectorQuietDisplayed(
+  metadata: QuietTrackingMetadata
+): Promise<void> {
+  const selectorExperimentConfig = await SelectorExperimentService.getConfig();
+
+  await OpportunityPoolService.recordSelectorSystemEvent('quiet', {
+    surfaceSource: 'selector',
+    selectionReason: metadata.selectionReason,
+    quietReason: metadata.quietReason,
+    surfaceRequestKind: metadata.surfaceRequestKind,
+    pacingSnapshot: metadata.pacingSnapshot,
+    thresholdVariant: selectorExperimentConfig?.thresholdVariant,
+    copyVariant: selectorExperimentConfig?.copyVariant,
   });
 }
 
@@ -70,6 +141,8 @@ export async function trackSuggestionActed(
       event.timeToActionMinutes = timeToActionMinutes;
     });
   });
+
+  await OpportunityPoolService.recordOpportunityEventByIds([suggestionId], 'acted');
 }
 
 /**
@@ -111,6 +184,10 @@ export async function trackSuggestionDismissed(
       }
     });
   });
+
+  await OpportunityPoolService.recordOpportunityEventByIds([suggestionId], 'dismissed', {
+    feedbackType: reason,
+  });
 }
 
 /**
@@ -138,6 +215,8 @@ export async function trackSuggestionExpired(suggestionId: string): Promise<void
       event.eventTimestamp = new Date();
     });
   });
+
+  await OpportunityPoolService.recordOpportunityEventByIds([suggestionId], 'expired');
 }
 
 /**
@@ -189,5 +268,6 @@ export const SuggestionTrackerService = {
   trackSuggestionActed,
   trackSuggestionDismissed,
   trackSuggestionExpired,
+  trackSelectorQuietDisplayed,
   getSuggestionAnalytics
 };

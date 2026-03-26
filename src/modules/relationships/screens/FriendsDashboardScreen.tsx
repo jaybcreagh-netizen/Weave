@@ -65,7 +65,7 @@ export function FriendsDashboardScreen() {
         areSuggestionNudgesEnabled,
     } = useUIStore();
     const { gesture, animatedScrollHandler, activeCardId, pendingCardId } = useCardGesture();
-    const { suggestions, dismissSuggestion } = useSuggestions();
+    const { suggestions, dismissSuggestion } = useSuggestions({ trackFetchedSuggestions: false });
 
     const suggestionCount = suggestions.length;
     const hasCritical = suggestions.some(s => s.priority === 'high');

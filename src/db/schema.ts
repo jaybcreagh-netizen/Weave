@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 76, // v76: Add end_date to interactions for multi-day weaves
+  version: 83, // v83: Persist selector pacing/quiet telemetry for inspection
   tables: [
     // ===== RELATIONSHIP INSIGHTS (Phase 3C) =====
     tableSchema({
@@ -391,6 +391,60 @@ export default appSchema({
       ]
     }),
     tableSchema({
+      name: 'opportunity_pool',
+      columns: [
+        { name: 'opportunity_id', type: 'string', isIndexed: true },
+        { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'friend_name', type: 'string', isOptional: true },
+        { name: 'friend_tier', type: 'string', isOptional: true },
+        { name: 'category', type: 'string', isIndexed: true },
+        { name: 'generator_source', type: 'string', isIndexed: true },
+        { name: 'urgency', type: 'number' },
+        { name: 'confidence', type: 'number' },
+        { name: 'effort_level', type: 'string' },
+        { name: 'estimated_duration', type: 'number', isOptional: true },
+        { name: 'momentum_score', type: 'number', isOptional: true },
+        { name: 'intention_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'intention_boost', type: 'number', isOptional: true },
+        { name: 'context_hash', type: 'string', isIndexed: true },
+        { name: 'explanation_json', type: 'string' },
+        { name: 'time_relevance_json', type: 'string' },
+        { name: 'copy_context_json', type: 'string', isOptional: true },
+        { name: 'suggestion_payload_json', type: 'string', isOptional: true },
+        { name: 'presentation_copy_json', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number', isIndexed: true },
+        { name: 'updated_at', type: 'number' },
+        { name: 'expires_at', type: 'number', isIndexed: true },
+        { name: 'surfaced_at', type: 'number', isOptional: true },
+        { name: 'surface_count', type: 'number' },
+        { name: 'last_score', type: 'number', isOptional: true },
+        { name: 'is_active', type: 'boolean', isIndexed: true },
+      ]
+    }),
+    tableSchema({
+      name: 'surfacing_log',
+      columns: [
+        { name: 'opportunity_pool_id', type: 'string', isIndexed: true },
+        { name: 'event_type', type: 'string', isIndexed: true },
+        { name: 'timestamp', type: 'number', isIndexed: true },
+        { name: 'window', type: 'string', isOptional: true },
+        { name: 'composite_score', type: 'number', isOptional: true },
+        { name: 'score_breakdown_json', type: 'string', isOptional: true },
+        { name: 'feedback_type', type: 'string', isOptional: true },
+        { name: 'surface_source', type: 'string', isOptional: true },
+        { name: 'selection_reason', type: 'string', isOptional: true },
+        { name: 'surface_slot', type: 'string', isOptional: true },
+        { name: 'opportunity_source', type: 'string', isOptional: true },
+        { name: 'threshold_variant', type: 'string', isOptional: true },
+        { name: 'copy_variant', type: 'string', isOptional: true },
+        { name: 'quiet_reason', type: 'string', isOptional: true },
+        { name: 'surface_request_kind', type: 'string', isOptional: true },
+        { name: 'pacing_snapshot_json', type: 'string', isOptional: true },
+        { name: 'presentation_copy_json', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
       name: 'intentions',
       columns: [
         { name: 'description', type: 'string', isOptional: true },
@@ -487,6 +541,15 @@ export default appSchema({
 
         // v74: Username (was missing from schema but model depends on it)
         { name: 'username', type: 'string', isOptional: true },
+
+        // v77: Opportunity system ownership + refresh metadata
+        { name: 'preferred_suggestion_windows_json', type: 'string', isOptional: true },
+        { name: 'timing_profile_json', type: 'string', isOptional: true },
+        { name: 'suggestion_frequency', type: 'string', isOptional: true },
+        { name: 'last_pool_refresh', type: 'number', isOptional: true },
+        { name: 'pool_refresh_state_json', type: 'string', isOptional: true },
+        { name: 'calendar_permission_granted', type: 'boolean', isOptional: true },
+        { name: 'last_app_open', type: 'number', isOptional: true },
 
       ]
     }),

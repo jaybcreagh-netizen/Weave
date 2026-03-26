@@ -31,6 +31,16 @@ export type UIEvent =
     | { type: 'OPEN_MEMORY_MOMENT'; data: MemoryMomentData }
     | { type: 'SHOW_TOAST'; message: string; friendName?: string }
     | { type: 'FRIEND_NURTURED'; friendId: string }
+    | {
+        type: 'SUGGESTION_HANDLED';
+        suggestionId: string;
+        suggestionTitle: string;
+        friendId?: string;
+        friendName?: string;
+        interactionId?: string;
+        scheduledFor?: string;
+        actionType: 'plan' | 'reach-out' | 'life-event' | 'reflect' | 'other';
+      }
     | { type: 'SHARED_WEAVE_CONFIRMED'; creatorName: string }; // Celebration when you accept a shared weave
 
 type UIEventListener = (event: UIEvent) => void;

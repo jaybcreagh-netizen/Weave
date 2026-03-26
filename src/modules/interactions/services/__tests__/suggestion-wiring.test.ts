@@ -24,6 +24,12 @@ jest.mock('@/modules/intelligence', () => ({
     },
 }));
 
+jest.mock('@/modules/intelligence/services/social-season/season-analytics.service', () => ({
+    SeasonAnalyticsService: {
+        trackSuggestionsShown: jest.fn().mockResolvedValue(undefined),
+    },
+}));
+
 jest.mock('@/modules/intelligence/services/orchestrator.service', () => ({
     calculateCurrentScore: jest.fn((friend) => friend.weaveScore || 0),
 }));
@@ -48,6 +54,58 @@ jest.mock('../guaranteed-suggestions.service', () => ({
         createdAt: new Date(),
         type: 'connect'
     }]),
+}));
+
+jest.mock('../opportunity-system/OpportunityPoolService', () => ({
+    OpportunityPoolService: {
+        getActiveOpportunities: jest.fn().mockResolvedValue([]),
+        recordOpportunityEventByIds: jest.fn().mockResolvedValue(undefined),
+    },
+}));
+
+jest.mock('../opportunity-system/SelectorTuningService', () => ({
+    SelectorTuningService: {
+        getSelectorOptions: jest.fn().mockResolvedValue(undefined),
+        clearCache: jest.fn(),
+    },
+}));
+
+jest.mock('../opportunity-system/SelectorExperimentService', () => ({
+    SelectorExperimentService: {
+        getConfig: jest.fn().mockResolvedValue({
+            thresholdVariant: 'control',
+            copyVariant: 'control',
+            updatedAt: 0,
+        }),
+    },
+    applySelectorExperimentToOptions: jest.fn((options) => options),
+}));
+
+jest.mock('../opportunity-system/OpportunityPremiumCopyService', () => ({
+    OpportunityPremiumCopyService: {
+        enhanceSuggestions: jest.fn(async (inputs: Array<{ suggestion: any }>) => (
+            inputs.map(entry => ({
+                ...entry.suggestion,
+                title: `[Premium] ${entry.suggestion.title}`,
+            }))
+        )),
+    },
+}));
+
+jest.mock('../opportunity-system/SuggestionPacingService', () => ({
+    SuggestionPacingService: {
+        getAutomaticPacing: jest.fn().mockResolvedValue({
+            season: 'balanced',
+            suggestionFrequency: 'balanced',
+            dailyFreshBudget: 1,
+            budgetRemaining: 1,
+            replacementDelayMinutes: 240,
+            surfacedPrimaryToday: 0,
+            actedToday: 0,
+            allowAutoSuggestions: true,
+            allowManualMore: true,
+        }),
+    },
 }));
 
 // Setup LokiJS Database Mock
@@ -97,18 +155,60 @@ jest.mock('@/db', () => {
 
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
-import { fetchSuggestions } from '../suggestion-provider.service';
+import { fetchSuggestionSurface, fetchSuggestions } from '../suggestion-provider.service';
 
 describe('Suggestion Wiring & Time Filtering', () => {
+    const originalFocusSelectorFlag = process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED;
+    const originalShadowFlag = process.env.EXPO_PUBLIC_OPPORTUNITY_SYSTEM_SHADOW_MODE;
+    const originalOpportunityPoolFlag = process.env.EXPO_PUBLIC_OPPORTUNITY_POOL_ENABLED;
+
     beforeEach(async () => {
         await database.write(async () => {
             await database.unsafeResetDatabase();
         });
         jest.useFakeTimers();
+        delete process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED;
+        delete process.env.EXPO_PUBLIC_OPPORTUNITY_SYSTEM_SHADOW_MODE;
+        delete process.env.EXPO_PUBLIC_OPPORTUNITY_POOL_ENABLED;
+        const { SelectorTuningService } = require('../opportunity-system/SelectorTuningService');
+        (SelectorTuningService.getSelectorOptions as jest.Mock).mockResolvedValue(undefined);
+        const { SelectorExperimentService } = require('../opportunity-system/SelectorExperimentService');
+        (SelectorExperimentService.getConfig as jest.Mock).mockResolvedValue({
+            thresholdVariant: 'control',
+            copyVariant: 'control',
+            updatedAt: 0,
+        });
+        const { SuggestionPacingService } = require('../opportunity-system/SuggestionPacingService');
+        (SuggestionPacingService.getAutomaticPacing as jest.Mock).mockResolvedValue({
+            season: 'balanced',
+            suggestionFrequency: 'balanced',
+            dailyFreshBudget: 1,
+            budgetRemaining: 1,
+            replacementDelayMinutes: 240,
+            surfacedPrimaryToday: 0,
+            actedToday: 0,
+            allowAutoSuggestions: true,
+            allowManualMore: true,
+        });
     });
 
     afterEach(() => {
         jest.useRealTimers();
+        if (originalFocusSelectorFlag === undefined) {
+            delete process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED;
+        } else {
+            process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = originalFocusSelectorFlag;
+        }
+        if (originalShadowFlag === undefined) {
+            delete process.env.EXPO_PUBLIC_OPPORTUNITY_SYSTEM_SHADOW_MODE;
+        } else {
+            process.env.EXPO_PUBLIC_OPPORTUNITY_SYSTEM_SHADOW_MODE = originalShadowFlag;
+        }
+        if (originalOpportunityPoolFlag === undefined) {
+            delete process.env.EXPO_PUBLIC_OPPORTUNITY_POOL_ENABLED;
+        } else {
+            process.env.EXPO_PUBLIC_OPPORTUNITY_POOL_ENABLED = originalOpportunityPoolFlag;
+        }
     });
 
     it('should show High Drift suggestions during the DAY (14:00)', async () => {
@@ -227,5 +327,463 @@ describe('Suggestion Wiring & Time Filtering', () => {
 
         expect(wildcard).toBeDefined();
         expect(wildcard?.title).toBe('Wildcard Suggestion');
+    });
+
+    it('should return selector-backed primary and secondary suggestions when focus selector is enabled', async () => {
+        process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = 'true';
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Critical Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 10;
+                f.archetype = 'Emperor';
+            });
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Drifting Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 40;
+                f.archetype = 'Magician';
+            });
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Community Friend';
+                f.dunbarTier = 'Community';
+                f.weaveScore = 55;
+                f.archetype = 'Sun';
+            });
+        });
+
+        const suggestions = await fetchSuggestions(5);
+
+        expect(suggestions.length).toBeLessThanOrEqual(2);
+        expect(suggestions.some(s => s.category === 'critical-drift')).toBe(true);
+    });
+
+    it('should expose selector metadata in shadow mode without changing the returned list', async () => {
+        process.env.EXPO_PUBLIC_OPPORTUNITY_SYSTEM_SHADOW_MODE = 'true';
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Critical Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 10;
+                f.archetype = 'Emperor';
+            });
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Drifting Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 40;
+                f.archetype = 'Magician';
+            });
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Community Friend';
+                f.dunbarTier = 'Community';
+                f.weaveScore = 55;
+                f.archetype = 'Sun';
+            });
+        });
+
+        const result = await fetchSuggestionSurface(5);
+
+        expect(result.surfaceSource).toBe('legacy-list');
+        expect(result.suggestions.length).toBeGreaterThan(2);
+        expect(result.selectorSuggestions.length).toBeLessThanOrEqual(2);
+        expect(result.selectionReason).toBe('selected');
+    });
+
+    it('should expose selector metadata when focus selector is enabled', async () => {
+        process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = 'true';
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Critical Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 10;
+                f.archetype = 'Emperor';
+            });
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Drifting Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 40;
+                f.archetype = 'Magician';
+            });
+        });
+
+        const result = await fetchSuggestionSurface(5);
+
+        expect(result.surfaceSource).toBe('selector');
+        expect(result.selectorSuggestions.map(s => s.id)).toEqual(result.suggestions.map(s => s.id));
+        expect(result.suggestions.length).toBeLessThanOrEqual(2);
+    });
+
+    it('should apply premium selector copy when the premium copy experiment is active', async () => {
+        process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = 'true';
+
+        const { SelectorExperimentService } = require('../opportunity-system/SelectorExperimentService');
+        const { OpportunityPremiumCopyService } = require('../opportunity-system/OpportunityPremiumCopyService');
+        (SelectorExperimentService.getConfig as jest.Mock).mockResolvedValue({
+            thresholdVariant: 'control',
+            copyVariant: 'premium',
+            updatedAt: 0,
+        });
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Drifting Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 40;
+                f.archetype = 'Emperor';
+            });
+        });
+
+        const result = await fetchSuggestionSurface(5);
+
+        expect(OpportunityPremiumCopyService.enhanceSuggestions).toHaveBeenCalled();
+        expect(result.suggestions[0]?.title.startsWith('[Premium]')).toBe(true);
+    });
+
+    it('should consult the persisted opportunity pool when selector mode and pool mode are enabled', async () => {
+        process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = 'true';
+        process.env.EXPO_PUBLIC_OPPORTUNITY_POOL_ENABLED = 'true';
+
+        const { OpportunityPoolService } = require('../opportunity-system/OpportunityPoolService');
+        (OpportunityPoolService.getActiveOpportunities as jest.Mock).mockResolvedValue([]);
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Drifting Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 40;
+                f.archetype = 'Emperor';
+            });
+        });
+
+        await fetchSuggestionSurface(5);
+
+        expect(OpportunityPoolService.getActiveOpportunities).toHaveBeenCalled();
+    });
+
+    it('should surface a pool-only selector opportunity when the pool provides a better candidate', async () => {
+        process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = 'true';
+        process.env.EXPO_PUBLIC_OPPORTUNITY_POOL_ENABLED = 'true';
+
+        const { OpportunityPoolService } = require('../opportunity-system/OpportunityPoolService');
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+        let friendId = '';
+
+        await database.write(async () => {
+            const friend = await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Critical Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 10;
+                f.archetype = 'Emperor';
+            });
+            friendId = friend.id;
+        });
+
+        (OpportunityPoolService.getActiveOpportunities as jest.Mock).mockResolvedValue([
+            {
+                id: 'pool-only-1',
+                friendId,
+                friendName: 'Critical Friend',
+                friendTier: 'InnerCircle',
+                category: 'critical-drift',
+                generatorSource: 'opportunity-pool',
+                urgency: 96,
+                confidence: 0.95,
+                effortLevel: 'minimal',
+                estimatedDurationMinutes: 10,
+                explanation: {
+                    whyNow: 'Persisted urgency says this needs immediate attention.',
+                    whyThisFriend: 'Critical Friend is drifting quickly.',
+                    whyThisAction: 'A lightweight reach-out is the best next move.',
+                },
+                timeRelevance: {
+                    bestWindow: 'midday',
+                },
+                createdAt: new Date('2024-01-01T14:00:00').getTime(),
+            },
+        ]);
+
+        const result = await fetchSuggestionSurface(5);
+
+        expect(result.surfaceSource).toBe('selector');
+        expect(result.suggestions[0]?.id).toBe('pool-only-1');
+        expect(result.suggestions[0]?.type).toBe('reconnect');
+    });
+
+    it('should bypass the legacy generator loop when selector and pool mode are enabled', async () => {
+        process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = 'true';
+        process.env.EXPO_PUBLIC_OPPORTUNITY_POOL_ENABLED = 'true';
+
+        const { OpportunityPoolService } = require('../opportunity-system/OpportunityPoolService');
+        (OpportunityPoolService.getActiveOpportunities as jest.Mock).mockResolvedValue([]);
+
+        const suggestionEngine = require('../suggestion-engine');
+        const generateSuggestionSpy = jest.spyOn(suggestionEngine, 'generateSuggestion');
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Drifting Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 40;
+                f.archetype = 'Emperor';
+            });
+        });
+
+        const result = await fetchSuggestionSurface(5);
+
+        expect(result.surfaceSource).toBe('selector');
+        expect(result.suggestions.length).toBeGreaterThan(0);
+        expect(generateSuggestionSpy).not.toHaveBeenCalled();
+
+        generateSuggestionSpy.mockRestore();
+    });
+
+    it('should allow an empty selector result without guaranteed fallback when focus selector is enabled', async () => {
+        process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = 'true';
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        const result = await fetchSuggestionSurface(5);
+
+        expect(result.surfaceSource).toBe('selector');
+        expect(result.selectionReason).toBe('empty');
+        expect(result.selectorSuggestions).toEqual([]);
+        expect(result.suggestions).toEqual([]);
+    });
+
+    it('should stay quiet instead of auto-refilling when pacing blocks another automatic suggestion', async () => {
+        process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = 'true';
+
+        const { SuggestionPacingService } = require('../opportunity-system/SuggestionPacingService');
+        (SuggestionPacingService.getAutomaticPacing as jest.Mock).mockResolvedValue({
+            season: 'balanced',
+            suggestionFrequency: 'balanced',
+            dailyFreshBudget: 1,
+            budgetRemaining: 0,
+            replacementDelayMinutes: 240,
+            surfacedPrimaryToday: 1,
+            actedToday: 1,
+            allowAutoSuggestions: false,
+            allowManualMore: true,
+            quietReason: 'recently_handled',
+        });
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Drifting Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 40;
+                f.archetype = 'Emperor';
+            });
+        });
+
+        const result = await fetchSuggestionSurface(5);
+
+        expect(result.surfaceSource).toBe('selector');
+        expect(result.selectionReason).toBe('empty');
+        expect(result.quietReason).toBe('recently_handled');
+        expect(result.suggestions).toEqual([]);
+    });
+
+    it('should allow a manual pull to bypass the automatic pacing pause', async () => {
+        process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = 'true';
+
+        const { SuggestionPacingService } = require('../opportunity-system/SuggestionPacingService');
+        (SuggestionPacingService.getAutomaticPacing as jest.Mock).mockResolvedValue({
+            season: 'balanced',
+            suggestionFrequency: 'balanced',
+            dailyFreshBudget: 1,
+            budgetRemaining: 0,
+            replacementDelayMinutes: 240,
+            surfacedPrimaryToday: 1,
+            actedToday: 1,
+            allowAutoSuggestions: false,
+            allowManualMore: true,
+            quietReason: 'recently_handled',
+        });
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Drifting Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 40;
+                f.archetype = 'Emperor';
+            });
+        });
+
+        const result = await fetchSuggestionSurface(5, undefined, undefined, {
+            manualPull: true,
+        });
+
+        expect(result.surfaceSource).toBe('selector');
+        expect(result.selectionReason).toBe('selected');
+        expect(result.quietReason).toBe('recently_handled');
+        expect(result.suggestions.length).toBeGreaterThan(0);
+    });
+
+    it('should not track shown analytics on fetch by default', async () => {
+        const { SeasonAnalyticsService } = require('@/modules/intelligence/services/social-season/season-analytics.service');
+        (SeasonAnalyticsService.trackSuggestionsShown as jest.Mock).mockClear();
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Critical Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 10;
+                f.archetype = 'Emperor';
+            });
+        });
+
+        const result = await fetchSuggestionSurface(5);
+
+        expect(result.suggestions.length).toBeGreaterThan(0);
+        expect(SeasonAnalyticsService.trackSuggestionsShown).not.toHaveBeenCalled();
+    });
+
+    it('should allow callers to force selector mode without tracking surfaced analytics', async () => {
+        const { SeasonAnalyticsService } = require('@/modules/intelligence/services/social-season/season-analytics.service');
+        (SeasonAnalyticsService.trackSuggestionsShown as jest.Mock).mockClear();
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Critical Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 10;
+                f.archetype = 'Emperor';
+            });
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Drifting Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 40;
+                f.archetype = 'Magician';
+            });
+        });
+
+        const result = await fetchSuggestionSurface(5, undefined, undefined, {
+            forceSelector: true,
+            trackAnalytics: false,
+        });
+
+        expect(result.surfaceSource).toBe('selector');
+        expect(result.suggestions.length).toBeLessThanOrEqual(2);
+        expect(SeasonAnalyticsService.trackSuggestionsShown).not.toHaveBeenCalled();
+    });
+
+    it('should bypass coarse time filtering when selector mode is enabled', async () => {
+        process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = 'true';
+
+        const timeAwareFilter = require('@/shared/utils/time-aware-filter');
+        const filterSpy = jest.spyOn(timeAwareFilter, 'filterSuggestionsByTime').mockReturnValue([]);
+
+        const date = new Date('2024-01-01T20:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Evening Drift Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 40;
+                f.archetype = 'Emperor';
+            });
+        });
+
+        const result = await fetchSuggestionSurface(5);
+
+        expect(filterSpy).toHaveBeenCalled();
+        expect(result.surfaceSource).toBe('selector');
+        expect(result.suggestions.some(suggestion => suggestion.category === 'high-drift')).toBe(true);
+
+        filterSpy.mockRestore();
+    });
+
+    it('should only track shown analytics when explicitly requested', async () => {
+        const { SeasonAnalyticsService } = require('@/modules/intelligence/services/social-season/season-analytics.service');
+        (SeasonAnalyticsService.trackSuggestionsShown as jest.Mock).mockClear();
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Critical Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 10;
+                f.archetype = 'Emperor';
+            });
+        });
+
+        const result = await fetchSuggestionSurface(5, undefined, undefined, {
+            trackAnalytics: true,
+        });
+
+        expect(result.suggestions.length).toBeGreaterThan(0);
+        expect(SeasonAnalyticsService.trackSuggestionsShown).toHaveBeenCalledWith(
+            result.suggestions.length
+        );
+    });
+
+    it('should apply selector tuning overrides when they are available', async () => {
+        process.env.EXPO_PUBLIC_FOCUS_SELECTOR_ENABLED = 'true';
+
+        const { SelectorTuningService } = require('../opportunity-system/SelectorTuningService');
+        (SelectorTuningService.getSelectorOptions as jest.Mock).mockResolvedValue({
+            selectionConfig: {
+                minThreshold: 999,
+                secondaryRatio: 0.6,
+            },
+        });
+
+        const date = new Date('2024-01-01T14:00:00');
+        jest.setSystemTime(date);
+
+        await database.write(async () => {
+            await database.get<FriendModel>('friends').create(f => {
+                f.name = 'Critical Friend';
+                f.dunbarTier = 'InnerCircle';
+                f.weaveScore = 10;
+                f.archetype = 'Emperor';
+            });
+        });
+
+        const result = await fetchSuggestionSurface(5);
+
+        expect(SelectorTuningService.getSelectorOptions).toHaveBeenCalled();
+        expect(result.surfaceSource).toBe('selector');
+        expect(result.selectionReason).toBe('below_threshold');
+        expect(result.suggestions).toEqual([]);
     });
 });

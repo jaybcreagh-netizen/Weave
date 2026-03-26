@@ -5,6 +5,14 @@ export { type InteractionCategory, type Vibe, type Duration, type StructuredRefl
 
 export type MoonPhase = Vibe;
 
+export interface SuggestionActionSource {
+    suggestionId: string;
+    suggestionTitle: string;
+    friendId?: string;
+    friendName?: string;
+    actionType?: string;
+}
+
 export type Interaction = {
     id: string;
     friendIds?: string[];

@@ -4,6 +4,10 @@ import {
   rankFriendsByNeedsAttention,
 } from '../friend-priority.service';
 
+jest.mock('@/modules/intelligence/services/orchestrator.service', () => ({
+  calculateCurrentScore: jest.fn((friend: { weaveScore?: number }) => friend.weaveScore || 0),
+}));
+
 function makeFriend(
   id: string,
   name: string,

@@ -13,17 +13,31 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import UserProfile from '@/db/models/UserProfile';
 import { Q } from '@nozbe/watermelondb';
 import Logger from '@/shared/utils/Logger';
+import { getLastAppOpenTimestamp } from '@/shared/services/analytics.service';
 import { notificationAnalytics } from '../notification-analytics';
 import { notificationStore } from '../notification-store';
 import { NotificationChannel, NotificationPreferences } from '../../types';
 import { generateSuggestion } from '@/modules/interactions/services/suggestion-engine';
+import { fetchSuggestionSurface } from '@/modules/interactions/services/SuggestionFacade';
 import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
+import { getRecentlySurfacedFocusSuggestionIds } from '@/modules/home/services/focus-suggestion-telemetry.service';
 import { HydratedFriend } from '@/types/hydrated';
 import { Suggestion } from '@/shared/types/common';
+import { isOpportunityNotificationsEnabled } from '@/modules/interactions/services/opportunity-system/flags';
+import {
+    getSmartSuggestionDailyLimit,
+    resolveSuggestionFrequency,
+} from '@/modules/interactions/services/opportunity-system/suggestion-frequency';
+import {
+    getTimingWindowForDate,
+    isWindowWithinPreferences,
+    resolvePreferredSuggestionWindows,
+} from '@/modules/interactions/services/opportunity-system/personal-timing';
 import { applySeasonLimit, shouldSendNotification } from '../season-notifications.service';
 import { NOTIFICATION_CONFIG, NOTIFICATION_TIMING, NotificationConfigItem } from '../../notification.config';
 
 const ID_PREFIX = 'smart-suggestion';
+const MIN_SELECTOR_NOTIFICATION_SCORE = 60;
 
 // Helper to check quiet hours
 function isQuietHours(date: Date, prefs: NotificationPreferences): boolean {
@@ -91,6 +105,31 @@ function calculateSpreadDelays(count: number, prefs: NotificationPreferences): n
     return delays;
 }
 
+function isPushEligibleSuggestion(suggestion: Suggestion): boolean {
+    if (!suggestion.friendId) return false;
+
+    if (
+        suggestion.action.type === 'reflect'
+        || suggestion.action.type === 'oracle'
+        || suggestion.action.type === 'life-event'
+        || suggestion.action.type === 'tier-review'
+    ) {
+        return false;
+    }
+
+    if (
+        suggestion.category === 'daily-reflect'
+        || suggestion.category === 'wildcard'
+        || suggestion.category === 'portfolio'
+        || suggestion.category === 'insight'
+        || suggestion.category === 'life-event'
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
 export const SmartSuggestionsChannel: NotificationChannel & {
     evaluateAndSchedule: (config?: NotificationConfigItem) => Promise<void>
 } = {
@@ -153,8 +192,41 @@ export const SmartSuggestionsChannel: NotificationChannel & {
 
         // 2. Preferences & Limits
         const prefs = await notificationStore.getPreferences();
+        const legacySuggestionFrequency = await notificationStore.getLegacySmartSuggestionFrequency();
         if (isQuietHours(new Date(), prefs)) {
             Logger.debug('[SmartSuggestions] Quiet hours, skipping');
+            return;
+        }
+
+        const lastAppOpen = await getLastAppOpenTimestamp();
+        if (
+            typeof lastAppOpen === 'number'
+            && Date.now() - lastAppOpen < NOTIFICATION_TIMING.smartSuggestions.recentAppOpenCooldownMs
+        ) {
+            Logger.info('[SmartSuggestions] App opened recently, skipping', {
+                minutesSinceLastOpen: Math.round((Date.now() - lastAppOpen) / 60000),
+            });
+            return;
+        }
+
+        // 3. Battery Check & Season Limits
+        const profiles = await database.get<UserProfile>('user_profile').query().fetch();
+        const profile = profiles[0];
+        const batteryLevel = profile?.socialBatteryCurrent ?? null;
+        const currentSeason = profile?.currentSocialSeason;
+        const suggestionFrequency = resolveSuggestionFrequency(
+            profile?.suggestionFrequency,
+            legacySuggestionFrequency
+        );
+        const preferredWindows = resolvePreferredSuggestionWindows(profile);
+        const currentTimingWindow = getTimingWindowForDate(new Date());
+        const maxAllowed = getSmartSuggestionDailyLimit(suggestionFrequency);
+
+        if (!isWindowWithinPreferences(currentTimingWindow, preferredWindows)) {
+            Logger.info('[SmartSuggestions] Outside preferred suggestion window, skipping', {
+                currentTimingWindow,
+                preferredWindows,
+            });
             return;
         }
 
@@ -162,18 +234,9 @@ export const SmartSuggestionsChannel: NotificationChannel & {
         const today = new Date().toDateString();
         let todayCount = (todayStats?.date === today) ? todayStats.count : 0;
 
-        const limits = { light: 1, moderate: 2, proactive: 4 };
-        const maxAllowed = limits[prefs.frequency];
-
         // Check scheduled for today
         const scheduledStats = await notificationStore.getScheduledSmartNotifications();
         const alreadyScheduledCount = (scheduledStats?.date === today) ? scheduledStats.ids.length : 0;
-
-        // 3. Battery Check & Season Limits
-        const profiles = await database.get<UserProfile>('user_profile').query().fetch();
-        const profile = profiles[0];
-        const batteryLevel = profile?.socialBatteryCurrent ?? null;
-        const currentSeason = profile?.currentSocialSeason;
 
         // Apply season limits
         const seasonAdjustedLimit = applySeasonLimit(maxAllowed, currentSeason);
@@ -181,97 +244,169 @@ export const SmartSuggestionsChannel: NotificationChannel & {
 
         if (remainingSlots <= 0) return;
 
-        // 4. Batch fetch all data upfront to avoid N+1 queries
-        const suggestions: Suggestion[] = [];
-        const friends = await database.get<Friend>('friends').query().fetch();
+        // 4. Build suggestions from the shared selector-backed surface when enabled,
+        // otherwise retain the legacy notification-specific generation path.
+        let suggestions: Suggestion[] = [];
+        let source: 'selector' | 'legacy-generator' = 'legacy-generator';
+        let selectionReason: string | undefined;
 
-        // Batch fetch ALL interaction_friends
-        const allInteractionFriends = await database
-            .get<InteractionFriend>('interaction_friends')
-            .query()
-            .fetch();
+        if (isOpportunityNotificationsEnabled()) {
+            const surface = await fetchSuggestionSurface(
+                Math.max(2, remainingSlots),
+                currentSeason,
+                undefined,
+                { forceSelector: true, trackAnalytics: false, respectPacing: true }
+            );
+            const primarySuggestion = surface.suggestions.find(suggestion =>
+                surface.selectorSuggestionMetadata?.[suggestion.id]?.surfaceSlot === 'primary'
+            ) || surface.suggestions[0];
+            const primaryMetadata = primarySuggestion
+                ? surface.selectorSuggestionMetadata?.[primarySuggestion.id]
+                : undefined;
 
-        // Build friend -> interaction IDs map
-        const friendInteractionIdsMap = new Map<string, string[]>();
-        for (const ifr of allInteractionFriends) {
-            const existing = friendInteractionIdsMap.get(ifr.friendId) || [];
-            existing.push(ifr.interactionId);
-            friendInteractionIdsMap.set(ifr.friendId, existing);
-        }
+            source = 'selector';
+            selectionReason = surface.selectionReason;
 
-        // Get unique interaction IDs
-        const allInteractionIds = [...new Set(allInteractionFriends.map(i => i.interactionId))];
-
-        // Batch fetch ALL completed interactions
-        const allCompletedInteractions = allInteractionIds.length > 0
-            ? await database.get<Interaction>('interactions')
-                .query(Q.where('id', Q.oneOf(allInteractionIds)), Q.where('status', 'completed'))
-                .fetch()
-            : [];
-        const completedInteractionMap = new Map(allCompletedInteractions.map(i => [i.id, i]));
-
-        // Batch fetch ALL planned interactions for the next 7 days
-        const now = Date.now();
-        const plannedWeaveWindowMs = NOTIFICATION_TIMING.smartSuggestions.plannedWeaveWindowMs;
-        const allPlannedInteractions = allInteractionIds.length > 0
-            ? await database.get<Interaction>('interactions')
-                .query(
-                    Q.where('id', Q.oneOf(allInteractionIds)),
-                    Q.where('status', 'planned'),
-                    Q.where('interaction_date', Q.gt(now)),
-                    Q.where('interaction_date', Q.lt(now + plannedWeaveWindowMs))
-                )
-                .fetch()
-            : [];
-
-        // Build set of friend IDs that have planned weaves
-        const friendsWithPlannedWeaves = new Set<string>();
-        for (const ifr of allInteractionFriends) {
-            if (allPlannedInteractions.some(p => p.id === ifr.interactionId)) {
-                friendsWithPlannedWeaves.add(ifr.friendId);
-            }
-        }
-
-        // Process each friend using in-memory data
-        for (const friend of friends) {
-            const interactionIds = friendInteractionIdsMap.get(friend.id) || [];
-
-            // Get friend's completed interactions from map
-            const friendCompletedInteractions = interactionIds
-                .map(id => completedInteractionMap.get(id))
-                .filter((i): i is Interaction => !!i && i.interactionDate != null)
-                .sort((a, b) => b.interactionDate.getTime() - a.interactionDate.getTime());
-
-            const lastInteractionDate = friendCompletedInteractions[0]?.interactionDate;
-            const interactionCount = friendCompletedInteractions.length;
-            const recentInteractions = friendCompletedInteractions.slice(0, 5);
-
-            // Dedupe: cooldown for recent interactions
-            if (lastInteractionDate && (Date.now() - lastInteractionDate.getTime()) < NOTIFICATION_TIMING.smartSuggestions.recentInteractionCooldownMs) {
-                continue;
+            if (
+                primarySuggestion
+                && primaryMetadata
+                && primaryMetadata.compositeScore >= MIN_SELECTOR_NOTIFICATION_SCORE
+                && isPushEligibleSuggestion(primarySuggestion)
+            ) {
+                suggestions = [primarySuggestion];
+            } else {
+                suggestions = [];
             }
 
-            // Skip friends with planned weaves in the next 7 days (using pre-computed set)
-            if (friendsWithPlannedWeaves.has(friend.id)) {
-                continue;
-            }
-
-            const currentScore = calculateCurrentScore(friend);
-            // Momentum logic
-            const lastUpdated = friend.momentumLastUpdated || friend.createdAt || new Date();
-            const daysSince = (Date.now() - lastUpdated.getTime()) / 86400000;
-            const momentumScore = Math.max(0, friend.momentumScore - daysSince);
-
-            const suggestion = await generateSuggestion({
-                friend: friend as unknown as HydratedFriend,
-                currentScore,
-                lastInteractionDate: lastInteractionDate ?? null,
-                interactionCount,
-                momentumScore,
-                recentInteractions
+            Logger.info('[SmartSuggestions] Selector-backed evaluation complete', {
+                surfaceSource: surface.surfaceSource,
+                selectionReason: surface.selectionReason,
+                quietReason: surface.quietReason,
+                suggestionCount: surface.suggestions.length,
+                pushEligibleCount: suggestions.length,
+                primaryScore: primaryMetadata?.compositeScore,
             });
 
-            if (suggestion) suggestions.push(suggestion);
+            if (surface.quietReason && surface.suggestions.length === 0) {
+                Logger.info('[SmartSuggestions] Selector pacing kept notifications quiet', {
+                    quietReason: surface.quietReason,
+                    selectionReason: surface.selectionReason,
+                });
+                return;
+            }
+        } else {
+            const legacySuggestions: Suggestion[] = [];
+            const friends = await database.get<Friend>('friends').query().fetch();
+
+            // Batch fetch ALL interaction_friends
+            const allInteractionFriends = await database
+                .get<InteractionFriend>('interaction_friends')
+                .query()
+                .fetch();
+
+            // Build friend -> interaction IDs map
+            const friendInteractionIdsMap = new Map<string, string[]>();
+            for (const ifr of allInteractionFriends) {
+                const existing = friendInteractionIdsMap.get(ifr.friendId) || [];
+                existing.push(ifr.interactionId);
+                friendInteractionIdsMap.set(ifr.friendId, existing);
+            }
+
+            // Get unique interaction IDs
+            const allInteractionIds = [...new Set(allInteractionFriends.map(i => i.interactionId))];
+
+            // Batch fetch ALL completed interactions
+            const allCompletedInteractions = allInteractionIds.length > 0
+                ? await database.get<Interaction>('interactions')
+                    .query(Q.where('id', Q.oneOf(allInteractionIds)), Q.where('status', 'completed'))
+                    .fetch()
+                : [];
+            const completedInteractionMap = new Map(allCompletedInteractions.map(i => [i.id, i]));
+
+            // Batch fetch ALL planned interactions for the next 7 days
+            const now = Date.now();
+            const plannedWeaveWindowMs = NOTIFICATION_TIMING.smartSuggestions.plannedWeaveWindowMs;
+            const allPlannedInteractions = allInteractionIds.length > 0
+                ? await database.get<Interaction>('interactions')
+                    .query(
+                        Q.where('id', Q.oneOf(allInteractionIds)),
+                        Q.where('status', 'planned'),
+                        Q.where('interaction_date', Q.gt(now)),
+                        Q.where('interaction_date', Q.lt(now + plannedWeaveWindowMs))
+                    )
+                    .fetch()
+                : [];
+
+            // Build set of friend IDs that have planned weaves
+            const friendsWithPlannedWeaves = new Set<string>();
+            for (const ifr of allInteractionFriends) {
+                if (allPlannedInteractions.some(p => p.id === ifr.interactionId)) {
+                    friendsWithPlannedWeaves.add(ifr.friendId);
+                }
+            }
+
+            // Process each friend using in-memory data
+            for (const friend of friends) {
+                const interactionIds = friendInteractionIdsMap.get(friend.id) || [];
+
+                // Get friend's completed interactions from map
+                const friendCompletedInteractions = interactionIds
+                    .map(id => completedInteractionMap.get(id))
+                    .filter((i): i is Interaction => !!i && i.interactionDate != null)
+                    .sort((a, b) => b.interactionDate.getTime() - a.interactionDate.getTime());
+
+                const lastInteractionDate = friendCompletedInteractions[0]?.interactionDate;
+                const interactionCount = friendCompletedInteractions.length;
+                const recentInteractions = friendCompletedInteractions.slice(0, 5);
+
+                // Dedupe: cooldown for recent interactions
+                if (lastInteractionDate && (Date.now() - lastInteractionDate.getTime()) < NOTIFICATION_TIMING.smartSuggestions.recentInteractionCooldownMs) {
+                    continue;
+                }
+
+                // Skip friends with planned weaves in the next 7 days (using pre-computed set)
+                if (friendsWithPlannedWeaves.has(friend.id)) {
+                    continue;
+                }
+
+                const currentScore = calculateCurrentScore(friend);
+                // Momentum logic
+                const lastUpdated = friend.momentumLastUpdated || friend.createdAt || new Date();
+                const daysSince = (Date.now() - lastUpdated.getTime()) / 86400000;
+                const momentumScore = Math.max(0, friend.momentumScore - daysSince);
+
+                const suggestion = await generateSuggestion({
+                    friend: friend as unknown as HydratedFriend,
+                    currentScore,
+                    lastInteractionDate: lastInteractionDate ?? null,
+                    interactionCount,
+                    momentumScore,
+                    recentInteractions
+                });
+
+                if (suggestion) legacySuggestions.push(suggestion);
+            }
+
+            suggestions = legacySuggestions;
+        }
+
+        const recentlySurfacedSuggestionIds = await getRecentlySurfacedFocusSuggestionIds(
+            NOTIFICATION_TIMING.smartSuggestions.recentFocusSuggestionSurfaceCooldownMs
+        );
+
+        if (recentlySurfacedSuggestionIds.size > 0) {
+            const beforeDedupeCount = suggestions.length;
+            suggestions = suggestions.filter(
+                suggestion => !recentlySurfacedSuggestionIds.has(suggestion.id)
+            );
+
+            if (beforeDedupeCount !== suggestions.length) {
+                Logger.info('[SmartSuggestions] Skipping suggestions recently surfaced in Focus', {
+                    source,
+                    filteredCount: beforeDedupeCount - suggestions.length,
+                    remainingCount: suggestions.length,
+                });
+            }
         }
 
         // 5. Select & Schedule
@@ -286,6 +421,16 @@ export const SmartSuggestionsChannel: NotificationChannel & {
         });
 
         const toSchedule = eligible.slice(0, remainingSlots);
+        if (toSchedule.length === 0) {
+            Logger.info('[SmartSuggestions] No eligible suggestions to schedule', {
+                source,
+                selectionReason,
+                candidateCount: suggestions.length,
+                eligibleCount: eligible.length,
+            });
+            return;
+        }
+
         const delays = calculateSpreadDelays(toSchedule.length, prefs);
 
         let scheduledIds = (scheduledStats?.date === today) ? [...scheduledStats.ids] : [];
@@ -322,7 +467,9 @@ export const SmartSuggestionsChannel: NotificationChannel & {
             await notificationAnalytics.trackScheduled('friend-suggestion', id, {
                 friendId: s.friendId,
                 score: s.score,
-                delayMinutes: delay
+                delayMinutes: delay,
+                source,
+                selectionReason,
             });
 
             // Increment global daily budget

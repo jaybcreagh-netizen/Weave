@@ -3,6 +3,7 @@ import SocialSeasonLog from '@/db/models/SocialSeasonLog';
 import UserProfile from '@/db/models/UserProfile';
 import { SocialSeason } from '@/modules/intelligence';
 import { Q } from '@nozbe/watermelondb';
+import { getOptionalQueryCollection } from '@/shared/utils/optional-query-collection';
 
 export const SeasonAnalyticsService = {
     /**
@@ -127,7 +128,10 @@ export const SeasonAnalyticsService = {
      */
     getCurrentLog: async (): Promise<SocialSeasonLog | undefined> => {
         try {
-            const logs = await database.get<SocialSeasonLog>('social_season_logs')
+            const logsCollection = getOptionalQueryCollection<SocialSeasonLog>('social_season_logs');
+            if (!logsCollection) return undefined;
+
+            const logs = await logsCollection
                 .query(
                     // In WatermelonDB, checking for null usually requires specific syntax or raw query
                     // Let's try standard Q first. If end_date is optional/nullable.
