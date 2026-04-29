@@ -824,7 +824,7 @@ export async function fetchSuggestionSurface(
 
 
         const MIN_SUGGESTIONS = 3;
-        const selectorCandidatePool = await TriageGenerator.apply(
+        let selectorCandidatePool = await TriageGenerator.apply(
             applyDismissalLearning(selectorSeasonFiltered, dismissalLearningProfile)
         );
         let legacyPool = seasonFiltered;
@@ -836,6 +836,17 @@ export async function fetchSuggestionSurface(
         const guaranteed = generateGuaranteedSuggestions(friends, legacyPool, season);
         const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
         legacyPool = [...legacyPool, ...freshGuaranteed];
+
+        // Merge guaranteed suggestions into the selector pool so the selector always has
+        // fallback candidates when all friend-specific suggestions are dismissed or filtered.
+        // selectorCandidatePool was built before guaranteed suggestions were generated, so
+        // without this merge the selector ends up with nothing to show on exhausted networks.
+        const guaranteedNotInPool = freshGuaranteed.filter(
+            g => !selectorCandidatePool.some(s => s.id === g.id)
+        );
+        if (guaranteedNotInPool.length > 0) {
+            selectorCandidatePool = [...selectorCandidatePool, ...guaranteedNotInPool];
+        }
 
         // Adaptive filtering based on recent dismissal patterns:
         // - Suppress suggestions for friends dismissed repeatedly
@@ -941,8 +952,10 @@ export async function fetchSuggestionSurface(
 
 
         // 10. EMERGENCY FALLBACK: Ensure users ALWAYS see at least one suggestion
-        // This is the last line of defense against blank suggestion screens
-        if (!focusSelectorEnabled && finalSuggestions.length === 0) {
+        // This is the last line of defense against blank suggestion screens.
+        // Previously guarded by !focusSelectorEnabled but forceSelector:true (used by all
+        // in-app surfaces) always sets focusSelectorEnabled=true, so the fallback never fired.
+        if (finalSuggestions.length === 0) {
             Logger.warn('[Suggestions] Emergency fallback triggered - generating fallback suggestions');
 
             const today = new Date().toISOString().split('T')[0];
